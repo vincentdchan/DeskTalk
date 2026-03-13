@@ -160,10 +160,16 @@ importers:
 
   packages/sdk:
     dependencies:
+      esbuild:
+        specifier: ^0.24.0
+        version: 0.24.2
       react:
         specifier: ^19.0.0
         version: 19.2.4
     devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.15
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.14

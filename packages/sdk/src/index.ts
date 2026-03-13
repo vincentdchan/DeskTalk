@@ -2,7 +2,11 @@
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type { MiniAppManifest, MiniAppActivation } from './types/manifest.js';
+export type {
+  MiniAppManifest,
+  MiniAppBackendActivation,
+  MiniAppActivation,
+} from './types/manifest.js';
 export type {
   MiniAppContext,
   MiniAppPaths,

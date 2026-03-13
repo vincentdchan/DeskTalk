@@ -1,5 +1,3 @@
-import type React from 'react';
-
 /**
  * Static metadata — read by the core at discovery time.
  * Analogous to the `contributes` section in a VSCode extension's package.json.
@@ -9,8 +7,8 @@ export interface MiniAppManifest {
   id: string;
   /** Display name shown in the Dock */
   name: string;
-  /** Icon (path or React component) */
-  icon: string | React.ComponentType;
+  /** Icon (emoji string or path) */
+  icon: string;
   /** SemVer version */
   version: string;
   /** Optional human-readable description */
@@ -18,7 +16,19 @@ export interface MiniAppManifest {
 }
 
 /**
- * Returned from activate() — tells the core what to render.
+ * Returned from the backend activate() — reserved for future contribution
+ * points. The backend no longer returns a React component.
+ */
+export interface MiniAppBackendActivation {
+  /**
+   * Reserved for future use (e.g., contribution points).
+   */
+}
+
+/**
+ * @deprecated Use MiniAppBackendActivation instead. The old activate() returned
+ * a React component, but the new architecture separates backend and frontend
+ * into two entry files. The frontend entry exports the React component directly.
  */
 export interface MiniAppActivation {
   /** Root React component rendered inside the DeskTalk window */

@@ -1,6 +1,6 @@
 import type {
   MiniAppManifest,
-  MiniAppActivation,
+  MiniAppBackendActivation,
   MiniAppContext,
   Disposable,
 } from '@desktalk/sdk';
@@ -13,11 +13,11 @@ import { join } from 'node:path';
 import { getWorkspacePaths } from './workspace.js';
 
 /**
- * MiniApp module — what a MiniApp npm package exports.
+ * MiniApp backend module — what a MiniApp's backend entry exports.
  */
-export interface MiniAppModule {
+export interface MiniAppBackendModule {
   manifest: MiniAppManifest;
-  activate(ctx: MiniAppContext): MiniAppActivation;
+  activate(ctx: MiniAppContext): MiniAppBackendActivation;
   deactivate(): void;
 }
 
@@ -26,8 +26,8 @@ export interface MiniAppModule {
  */
 export interface MiniAppEntry {
   manifest: MiniAppManifest;
-  module: MiniAppModule;
-  activation: MiniAppActivation | null;
+  module: MiniAppBackendModule;
+  activation: MiniAppBackendActivation | null;
   context: MiniAppContext | null;
 }
 
@@ -40,7 +40,7 @@ class MiniAppRegistry {
   /**
    * Register a MiniApp module (built-in or third-party).
    */
-  register(mod: MiniAppModule): void {
+  register(mod: MiniAppBackendModule): void {
     const { manifest } = mod;
     if (this.entries.has(manifest.id)) {
       throw new Error(`MiniApp already registered: ${manifest.id}`);
@@ -56,7 +56,7 @@ class MiniAppRegistry {
   /**
    * Activate a MiniApp — creates its context and calls activate().
    */
-  activate(id: string): MiniAppActivation {
+  activate(id: string): MiniAppBackendActivation {
     const entry = this.entries.get(id);
     if (!entry) {
       throw new Error(`MiniApp not found: ${id}`);
@@ -139,25 +139,28 @@ class MiniAppRegistry {
 export const registry = new MiniAppRegistry();
 
 /**
- * Register built-in MiniApps from their npm packages.
+ * Register built-in MiniApps from their backend entries.
  */
 export async function registerBuiltinMiniApps(): Promise<void> {
-  // Built-in MiniApps are imported dynamically.
+  // Built-in MiniApps are imported dynamically from their backend sub-path.
   // During development, these resolve via pnpm workspace links.
   const builtins = [
-    '@desktalk/miniapp-note',
-    '@desktalk/miniapp-todo',
-    '@desktalk/miniapp-file-explorer',
-    '@desktalk/miniapp-preference',
+    '@desktalk/miniapp-note/backend',
+    '@desktalk/miniapp-todo/backend',
+    '@desktalk/miniapp-file-explorer/backend',
+    '@desktalk/miniapp-preference/backend',
   ];
 
-  for (const pkgName of builtins) {
+  for (const backendPath of builtins) {
     try {
-      const mod = (await import(pkgName)) as MiniAppModule;
+      const mod = (await import(backendPath)) as MiniAppBackendModule;
       registry.register(mod);
     } catch (err) {
       // Built-in MiniApp not available yet — skip during early development
-      console.warn(`[registry] Could not load built-in MiniApp "${pkgName}":`, (err as Error).message);
+      console.warn(
+        `[registry] Could not load built-in MiniApp "${backendPath}":`,
+        (err as Error).message,
+      );
     }
   }
 }

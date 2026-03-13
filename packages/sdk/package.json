@@ -10,16 +10,21 @@
       "import": "./dist/index.js"
     }
   },
+  "bin": {
+    "desktalk-build": "./dist/cli/desktalk-build.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "esbuild": "^0.24.0",
     "react": "^19.0.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
-    "@types/react": "^19.0.0"
+    "@types/react": "^19.0.0",
+    "@types/node": "^22.0.0"
   }
 }
