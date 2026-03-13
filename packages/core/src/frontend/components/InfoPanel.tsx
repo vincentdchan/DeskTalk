@@ -48,6 +48,8 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const [tokenCount, setTokenCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activeRequestIdRef = useRef<string | null>(null);
+  const sentVoiceUtteranceIdsRef = useRef<Set<string>>(new Set());
+  const pendingVoicePromptsRef = useRef<Array<{ utteranceId: string; text: string }>>([]);
 
   // Voice session state
   const voiceStatus = useVoiceSession((s) => s.status);
@@ -59,6 +61,49 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const clearTranscripts = useVoiceSession((s) => s.clearTranscripts);
 
   const isVoiceActive = voiceStatus !== 'idle' && voiceStatus !== 'error';
+
+  const submitPrompt = useCallback(
+    (text: string) => {
+      if (!text || !socket || socket.readyState !== WebSocket.OPEN || isAiRunning) {
+        return false;
+      }
+
+      const requestId = `ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      activeRequestIdRef.current = requestId;
+
+      setMessages((prev) => [
+        ...prev,
+        { id: `user-${requestId}`, role: 'user', content: text },
+        { id: `assistant-${requestId}`, role: 'assistant', content: '' },
+      ]);
+      setInput('');
+      setIsAiRunning(true);
+      setTokenCount(0);
+
+      socket.send(
+        JSON.stringify({
+          type: 'ai:prompt',
+          requestId,
+          text,
+        }),
+      );
+
+      return true;
+    },
+    [socket, isAiRunning],
+  );
+
+  const flushPendingVoicePrompts = useCallback(() => {
+    if (isAiRunning) return;
+
+    const nextPrompt = pendingVoicePromptsRef.current.shift();
+    if (!nextPrompt) return;
+
+    const didSend = submitPrompt(nextPrompt.text);
+    if (!didSend) {
+      pendingVoicePromptsRef.current.unshift(nextPrompt);
+    }
+  }, [isAiRunning, submitPrompt]);
 
   useEffect(() => {
     if (!socket) return;
@@ -125,28 +170,9 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
 
   const handleSend = useCallback(() => {
     const text = input.trim();
-    if (!text || !socket || socket.readyState !== WebSocket.OPEN || isAiRunning) return;
-
-    const requestId = `ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    activeRequestIdRef.current = requestId;
-
-    setMessages((prev) => [
-      ...prev,
-      { id: `user-${requestId}`, role: 'user', content: text },
-      { id: `assistant-${requestId}`, role: 'assistant', content: '' },
-    ]);
-    setInput('');
-    setIsAiRunning(true);
-    setTokenCount(0);
-
-    socket.send(
-      JSON.stringify({
-        type: 'ai:prompt',
-        requestId,
-        text,
-      }),
-    );
-  }, [input, socket, isAiRunning]);
+    if (!text) return;
+    void submitPrompt(text);
+  }, [input, submitPrompt]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -170,6 +196,28 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, transcripts, partialText]);
+
+  useEffect(() => {
+    for (const entry of transcripts) {
+      if (!entry.isFinal || sentVoiceUtteranceIdsRef.current.has(entry.utteranceId)) {
+        continue;
+      }
+
+      sentVoiceUtteranceIdsRef.current.add(entry.utteranceId);
+      pendingVoicePromptsRef.current.push({
+        utteranceId: entry.utteranceId,
+        text: entry.text,
+      });
+    }
+
+    flushPendingVoicePrompts();
+  }, [transcripts, flushPendingVoicePrompts]);
+
+  useEffect(() => {
+    if (!isAiRunning) {
+      flushPendingVoicePrompts();
+    }
+  }, [isAiRunning, flushPendingVoicePrompts]);
 
   const voiceStatusInfo = getVoiceStatusInfo(voiceStatus);
 
