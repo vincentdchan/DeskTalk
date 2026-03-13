@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
 import { ActionsProvider, Action, useCommand } from '@desktalk/sdk';
-import type { Config } from '../schema';
 import { getSchema } from '../schema';
 
 interface PreferenceActionsProps {

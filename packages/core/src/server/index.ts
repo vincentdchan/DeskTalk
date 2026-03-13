@@ -30,7 +30,7 @@ export async function createServer(options: ServerOptions) {
   });
 
   // WebSocket endpoint for MiniApp messaging and AI events
-  app.get('/ws', { websocket: true }, (socket, req) => {
+  app.get('/ws', { websocket: true }, (socket, _req) => {
     addClient(socket);
 
     socket.on('message', async (raw: Buffer | ArrayBuffer | Buffer[]) => {
@@ -78,7 +78,7 @@ export async function createServer(options: ServerOptions) {
   // REST API: Activate a MiniApp
   app.post<{ Params: { id: string } }>('/api/miniapps/:id/activate', async (req) => {
     const { id } = req.params;
-    const activation = registry.activate(id);
+    registry.activate(id);
     return { id, activated: true };
   });
 

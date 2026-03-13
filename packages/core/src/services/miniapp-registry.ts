@@ -2,15 +2,12 @@ import type {
   MiniAppManifest,
   MiniAppBackendActivation,
   MiniAppContext,
-  Disposable,
 } from '@desktalk/sdk';
 import { resolveMiniAppPaths } from './workspace.js';
 import { createStorageHook } from './storage.js';
 import { createFileSystemHook } from './filesystem.js';
 import { createMessagingHook } from './messaging.js';
 import { createLogger } from './logger.js';
-import { join } from 'node:path';
-import { getWorkspacePaths } from './workspace.js';
 
 /**
  * MiniApp backend module — what a MiniApp's backend entry exports.

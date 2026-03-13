@@ -19,11 +19,7 @@ export interface MiniAppManifest {
  * Returned from the backend activate() — reserved for future contribution
  * points. The backend no longer returns a React component.
  */
-export interface MiniAppBackendActivation {
-  /**
-   * Reserved for future use (e.g., contribution points).
-   */
-}
+export type MiniAppBackendActivation = Record<string, never>;
 
 /**
  * @deprecated Use MiniAppBackendActivation instead. The old activate() returned

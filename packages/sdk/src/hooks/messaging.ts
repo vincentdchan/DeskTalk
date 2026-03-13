@@ -40,11 +40,11 @@ export function useMiniAppId(): string {
  * Set by the core shell at startup.
  */
 let wsInstance: WebSocket | null = null;
-let pendingRequests: Map<
+const pendingRequests: Map<
   string,
   { resolve: (data: unknown) => void; reject: (err: Error) => void }
 > = new Map();
-let eventListeners: Map<string, Set<(data: unknown) => void>> = new Map();
+const eventListeners: Map<string, Set<(data: unknown) => void>> = new Map();
 
 let requestIdCounter = 0;
 
