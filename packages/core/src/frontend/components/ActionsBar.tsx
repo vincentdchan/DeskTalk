@@ -17,22 +17,13 @@ export function ActionsBar() {
         <>
           <div className={styles.separator} />
 
-          <button
-            className={styles.builtinAction}
-            onClick={() => maximizeWindow(focusedWindow.id)}
-          >
+          <button className={styles.builtinAction} onClick={() => maximizeWindow(focusedWindow.id)}>
             {focusedWindow.maximized ? 'Restore' : 'Maximize'}
           </button>
-          <button
-            className={styles.builtinAction}
-            onClick={() => minimizeWindow(focusedWindow.id)}
-          >
+          <button className={styles.builtinAction} onClick={() => minimizeWindow(focusedWindow.id)}>
             Minimize
           </button>
-          <button
-            className={styles.builtinAction}
-            onClick={() => closeWindow(focusedWindow.id)}
-          >
+          <button className={styles.builtinAction} onClick={() => closeWindow(focusedWindow.id)}>
             Close
           </button>
 

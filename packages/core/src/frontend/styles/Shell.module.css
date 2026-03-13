@@ -1,6 +1,6 @@
 .shell {
   display: grid;
-  grid-template-rows: var(--actions-bar-height) 1fr var(--dock-height);
+  grid-template-rows: var(--actions-bar-height) 1fr auto;
   grid-template-columns: 1fr var(--info-panel-width);
   grid-template-areas:
     'actionsbar actionsbar'
@@ -8,6 +8,7 @@
     'dock       dock';
   width: 100%;
   height: 100%;
+  background: var(--desktop-wallpaper) center/cover no-repeat;
 }
 
 .actionsBar {
