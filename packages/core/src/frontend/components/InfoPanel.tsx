@@ -6,11 +6,13 @@ interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  source?: 'text' | 'voice';
+  timestamp?: number;
 }
 
 interface AiEventMessage {
-  type: 'message_start' | 'message_update' | 'message_end' | 'error';
-  requestId: string;
+  type: 'history_sync' | 'message_start' | 'message_update' | 'message_end' | 'error';
+  requestId?: string;
   text?: string;
   message?: string;
   model?: string;
@@ -18,6 +20,7 @@ interface AiEventMessage {
   usage?: {
     totalTokens?: number;
   };
+  messages?: ChatMessage[];
 }
 
 /**
@@ -58,12 +61,11 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const transcripts = useVoiceSession((s) => s.transcripts);
   const startVoice = useVoiceSession((s) => s.startVoice);
   const stopVoice = useVoiceSession((s) => s.stopVoice);
-  const clearTranscripts = useVoiceSession((s) => s.clearTranscripts);
 
   const isVoiceActive = voiceStatus !== 'idle' && voiceStatus !== 'error';
 
   const submitPrompt = useCallback(
-    (text: string) => {
+    (text: string, source: 'text' | 'voice' = 'text') => {
       if (!text || !socket || socket.readyState !== WebSocket.OPEN || isAiRunning) {
         return false;
       }
@@ -73,7 +75,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
 
       setMessages((prev) => [
         ...prev,
-        { id: `user-${requestId}`, role: 'user', content: text },
+        { id: `user-${requestId}`, role: 'user', content: text, source },
         { id: `assistant-${requestId}`, role: 'assistant', content: '' },
       ]);
       setInput('');
@@ -85,6 +87,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
           type: 'ai:prompt',
           requestId,
           text,
+          source,
         }),
       );
 
@@ -99,7 +102,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     const nextPrompt = pendingVoicePromptsRef.current.shift();
     if (!nextPrompt) return;
 
-    const didSend = submitPrompt(nextPrompt.text);
+    const didSend = submitPrompt(nextPrompt.text, 'voice');
     if (!didSend) {
       pendingVoicePromptsRef.current.unshift(nextPrompt);
     }
@@ -116,6 +119,11 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
         }
 
         const aiEvent = msg.event;
+        if (aiEvent.type === 'history_sync') {
+          setMessages(aiEvent.messages ?? []);
+          return;
+        }
+
         if (activeRequestIdRef.current && aiEvent.requestId !== activeRequestIdRef.current) {
           return;
         }
@@ -171,7 +179,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const handleSend = useCallback(() => {
     const text = input.trim();
     if (!text) return;
-    void submitPrompt(text);
+    void submitPrompt(text, 'text');
   }, [input, submitPrompt]);
 
   const handleKeyDown = useCallback(
@@ -240,30 +248,15 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
                 key={msg.id}
                 className={msg.role === 'user' ? styles.messageUser : styles.messageAssistant}
               >
+                {msg.role === 'user' && msg.source === 'voice' && (
+                  <div className={styles.messageMeta}>
+                    <span className={styles.voiceSourceBadge}>Voice</span>
+                  </div>
+                )}
                 {msg.content || (msg.role === 'assistant' && isAiRunning ? 'Thinking...' : '')}
               </div>
             ))}
           </>
-        )}
-
-        {/* Voice transcripts section */}
-        {transcripts.length > 0 && (
-          <div className={styles.transcriptSection}>
-            <div className={styles.transcriptHeader}>
-              <span>Voice Transcripts</span>
-              <button className={styles.clearButton} onClick={clearTranscripts}>
-                Clear
-              </button>
-            </div>
-            {transcripts.map((entry) => (
-              <div key={entry.utteranceId} className={styles.transcriptEntry}>
-                <div className={styles.transcriptText}>{entry.text}</div>
-                <div className={styles.transcriptMeta}>
-                  {new Date(entry.timestamp).toLocaleTimeString()}
-                </div>
-              </div>
-            ))}
-          </div>
         )}
 
         {/* Partial transcript while speaking */}

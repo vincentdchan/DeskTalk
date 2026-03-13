@@ -55,6 +55,26 @@
   border-bottom-left-radius: 6px;
 }
 
+.messageMeta {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.voiceSourceBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .inputArea {
   display: flex;
   gap: 10px;

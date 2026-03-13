@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 import { addClient, handleCommand } from '../services/messaging.js';
 import { registry } from '../services/miniapp-registry.js';
-import { AiChatService, type AiMessage } from '../services/ai/chat-service.js';
+import { PiSessionService } from '../services/ai/pi-session-service.js';
+import { getStoredPreference } from '../services/preferences.js';
+import { getWorkspacePaths } from '../services/workspace.js';
 import { VoiceSession } from '../services/voice/voice-session.js';
 import { AzureOpenAIWhisperAdapter } from '../services/voice/azure-openai-whisper-adapter.js';
 import { OpenAIWhisperAdapter } from '../services/voice/openai-whisper-adapter.js';
@@ -22,7 +24,9 @@ export interface ServerOptions {
 
 export async function createServer(options: ServerOptions) {
   const app = Fastify({ logger: false });
-  const aiChatService = new AiChatService();
+  const piSessionService = await PiSessionService.create(getWorkspacePaths(), async (key) =>
+    getStoredPreference(key),
+  );
 
   // Register WebSocket support
   await app.register(fastifyWebsocket);
@@ -38,7 +42,6 @@ export async function createServer(options: ServerOptions) {
   // WebSocket endpoint for MiniApp messaging and AI events
   app.get('/ws', { websocket: true }, (socket, _req) => {
     addClient(socket);
-    const aiMessages: AiMessage[] = [];
     let activeAiRequestId: string | null = null;
 
     function sendAiEvent(event: Record<string, unknown>): void {
@@ -49,6 +52,12 @@ export async function createServer(options: ServerOptions) {
         }),
       );
     }
+
+    sendAiEvent({
+      type: 'history_sync',
+      sessionId: piSessionService.getSessionId(),
+      messages: piSessionService.getHistory(),
+    });
 
     socket.on('message', async (raw: Buffer | ArrayBuffer | Buffer[]) => {
       try {
@@ -77,6 +86,7 @@ export async function createServer(options: ServerOptions) {
         } else if (msg.type === 'ai:prompt') {
           const requestId = typeof msg.requestId === 'string' ? msg.requestId : `ai-${Date.now()}`;
           const text = typeof msg.text === 'string' ? msg.text.trim() : '';
+          const source = msg.source === 'voice' ? 'voice' : 'text';
 
           if (!text) {
             sendAiEvent({
@@ -99,34 +109,24 @@ export async function createServer(options: ServerOptions) {
           activeAiRequestId = requestId;
 
           try {
-            const config = await getAiConfigFromPreferences();
-            aiMessages.push({ role: 'user', content: text });
+            await piSessionService.prompt(
+              {
+                text,
+                source,
+              },
+              {
+                onEvent: (event) =>
+                  sendAiEvent({
+                    requestId,
+                    ...event,
+                  }),
+              },
+            );
 
             sendAiEvent({
-              type: 'message_start',
-              requestId,
-              provider: config.provider,
-              model: config.model,
-            });
-
-            const result = await aiChatService.chat(config, aiMessages);
-            aiMessages.push({ role: 'assistant', content: result.text });
-
-            sendAiEvent({
-              type: 'message_update',
-              requestId,
-              text: result.text,
-              provider: result.provider,
-              model: result.model,
-            });
-
-            sendAiEvent({
-              type: 'message_end',
-              requestId,
-              text: result.text,
-              provider: result.provider,
-              model: result.model,
-              usage: result.usage,
+              type: 'history_sync',
+              sessionId: piSessionService.getSessionId(),
+              messages: piSessionService.getHistory(),
             });
           } catch (err) {
             sendAiEvent({
@@ -150,34 +150,10 @@ export async function createServer(options: ServerOptions) {
   const voiceSessions = new Map<string, VoiceSession>();
 
   /**
-   * Read a raw (unmasked) preference value from the preference MiniApp's storage.
-   * Returns the default if the preference MiniApp is not yet activated.
+   * Read a preference value directly from persisted preference storage.
    */
   async function getPreference(key: string): Promise<string | number | boolean | undefined> {
-    try {
-      const result = (await handleCommand('preference', 'preferences.getRaw', {
-        key,
-      })) as { value: string | number | boolean };
-      return result.value;
-    } catch {
-      return undefined;
-    }
-  }
-
-  async function getAiConfigFromPreferences(): Promise<{
-    provider: string;
-    model: string;
-    apiKey?: string;
-    baseUrl?: string;
-    maxTokens: number;
-  }> {
-    return {
-      provider: ((await getPreference('ai.provider')) as string) ?? 'openai',
-      model: ((await getPreference('ai.model')) as string) ?? '',
-      apiKey: ((await getPreference('ai.apiKey')) as string) ?? '',
-      baseUrl: ((await getPreference('ai.baseUrl')) as string) ?? '',
-      maxTokens: ((await getPreference('ai.maxTokens')) as number) ?? 4096,
-    };
+    return getStoredPreference(key);
   }
 
   /**
