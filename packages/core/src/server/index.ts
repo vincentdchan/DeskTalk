@@ -7,6 +7,7 @@ import { dirname } from 'node:path';
 import { addClient, handleCommand, broadcastRaw } from '../services/messaging.js';
 import { registry } from '../services/miniapp-registry.js';
 import { VoiceSession } from '../services/voice/voice-session.js';
+import { AzureOpenAIWhisperAdapter } from '../services/voice/azure-openai-whisper-adapter.js';
 import { OpenAIWhisperAdapter } from '../services/voice/openai-whisper-adapter.js';
 import type { SttAdapter } from '../services/voice/stt-adapter.js';
 
@@ -110,6 +111,24 @@ export async function createServer(options: ServerOptions) {
       return new OpenAIWhisperAdapter({ apiKey, model, baseUrl });
     }
 
+    if (provider === 'azure-openai-whisper') {
+      const endpoint = (await getPreference('voice.baseUrl')) as string | undefined;
+      const deployment = (await getPreference('voice.azureDeployment')) as string | undefined;
+      const apiVersion =
+        ((await getPreference('voice.azureApiVersion')) as string | undefined) ?? '2024-06-01';
+
+      if (!endpoint || !deployment) {
+        return null;
+      }
+
+      return new AzureOpenAIWhisperAdapter({
+        apiKey,
+        endpoint,
+        deployment,
+        apiVersion,
+      });
+    }
+
     // Unknown provider
     return null;
   }
@@ -182,7 +201,8 @@ export async function createServer(options: ServerOptions) {
               type: 'error',
               sessionId,
               code: 'NO_STT_PROVIDER',
-              message: 'No STT provider configured. Set the API key in Preferences → Voice.',
+              message:
+                'No STT provider configured. Check Preferences -> Voice for provider credentials.',
             }),
           );
           return;

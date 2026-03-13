@@ -169,7 +169,7 @@ export const PREFERENCE_SCHEMAS: PreferenceSchema[] = [
     description: 'Speech-to-text provider to use for voice transcription.',
     type: 'string',
     default: 'openai-whisper',
-    options: ['openai-whisper'],
+    options: ['openai-whisper', 'azure-openai-whisper'],
     category: 'Voice',
   },
   {
@@ -184,7 +184,7 @@ export const PREFERENCE_SCHEMAS: PreferenceSchema[] = [
   {
     key: 'voice.model',
     label: 'Model',
-    description: 'STT model identifier (e.g. whisper-1).',
+    description: 'STT model identifier for OpenAI-compatible providers (e.g. whisper-1).',
     type: 'string',
     default: 'whisper-1',
     category: 'Voice',
@@ -192,9 +192,26 @@ export const PREFERENCE_SCHEMAS: PreferenceSchema[] = [
   {
     key: 'voice.baseUrl',
     label: 'API Base URL',
-    description: 'Base URL for the STT provider API.',
+    description:
+      'Base URL for the STT provider API. For Azure use your resource URL (e.g. https://YOUR-RESOURCE.openai.azure.com).',
     type: 'string',
     default: 'https://api.openai.com/v1',
+    category: 'Voice',
+  },
+  {
+    key: 'voice.azureDeployment',
+    label: 'Azure Deployment',
+    description: 'Azure OpenAI deployment name for Whisper transcription.',
+    type: 'string',
+    default: '',
+    category: 'Voice',
+  },
+  {
+    key: 'voice.azureApiVersion',
+    label: 'Azure API Version',
+    description: 'Azure OpenAI API version used for transcription requests.',
+    type: 'string',
+    default: '2024-06-01',
     category: 'Voice',
   },
   {

@@ -1,49 +1,47 @@
 /**
- * OpenAI Whisper STT adapter.
+ * Azure OpenAI Whisper STT adapter.
  *
- * Uses the /v1/audio/transcriptions endpoint to transcribe complete
- * audio buffers. Audio is sent as WAV (PCM s16le, 16kHz, mono) since
- * Whisper requires a file-like format.
+ * Uses the Azure OpenAI audio transcriptions endpoint with deployment-based
+ * routing and api-key authentication.
  */
 
 import type { SttAdapter, SttTranscript } from './stt-adapter.js';
 import { createWavBuffer } from './audio-format.js';
 
-export class OpenAIWhisperAdapter implements SttAdapter {
-  readonly name = 'openai-whisper';
-  private apiKey: string;
-  private model: string;
-  private baseUrl: string;
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, '');
+}
 
-  constructor(options: { apiKey: string; model?: string; baseUrl?: string }) {
+export class AzureOpenAIWhisperAdapter implements SttAdapter {
+  readonly name = 'azure-openai-whisper';
+  private apiKey: string;
+  private endpoint: string;
+  private deployment: string;
+  private apiVersion: string;
+
+  constructor(options: {
+    apiKey: string;
+    endpoint: string;
+    deployment: string;
+    apiVersion?: string;
+  }) {
     this.apiKey = options.apiKey;
-    this.model = options.model ?? 'whisper-1';
-    this.baseUrl = options.baseUrl ?? 'https://api.openai.com/v1';
+    this.endpoint = trimTrailingSlash(options.endpoint);
+    this.deployment = options.deployment;
+    this.apiVersion = options.apiVersion ?? '2024-06-01';
   }
 
   async transcribe(audioBuffer: Buffer, sampleRate: number): Promise<SttTranscript> {
     const wavBuffer = createWavBuffer(audioBuffer, sampleRate);
     const durationMs = Math.round((audioBuffer.length / 2 / sampleRate) * 1000);
-
-    // Build multipart/form-data manually to avoid heavy dependencies
     const boundary = `----DeskTalkBoundary${Date.now()}`;
     const parts: Buffer[] = [];
 
-    // model field
-    parts.push(
-      Buffer.from(
-        `--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\n${this.model}\r\n`,
-      ),
-    );
-
-    // response_format field
     parts.push(
       Buffer.from(
         `--${boundary}\r\nContent-Disposition: form-data; name="response_format"\r\n\r\njson\r\n`,
       ),
     );
-
-    // file field
     parts.push(
       Buffer.from(
         `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="audio.wav"\r\nContent-Type: audio/wav\r\n\r\n`,
@@ -53,11 +51,12 @@ export class OpenAIWhisperAdapter implements SttAdapter {
     parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
 
     const body = Buffer.concat(parts);
+    const url = `${this.endpoint}/openai/deployments/${encodeURIComponent(this.deployment)}/audio/transcriptions?api-version=${encodeURIComponent(this.apiVersion)}`;
 
-    const response = await fetch(`${this.baseUrl}/audio/transcriptions`, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${this.apiKey}`,
+        'api-key': this.apiKey,
         'Content-Type': `multipart/form-data; boundary=${boundary}`,
       },
       body,
@@ -65,7 +64,7 @@ export class OpenAIWhisperAdapter implements SttAdapter {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`OpenAI Whisper API error (${response.status}): ${errorText}`);
+      throw new Error(`Azure OpenAI Whisper API error (${response.status}): ${errorText}`);
     }
 
     const result = (await response.json()) as { text: string };
