@@ -31,6 +31,7 @@ desktalk/
     miniapp-todo/          # @desktalk/miniapp-todo
     miniapp-file-explorer/ # @desktalk/miniapp-file-explorer
     miniapp-preference/    # @desktalk/miniapp-preference
+    miniapp-terminal/      # @desktalk/miniapp-terminal
   docs/
   pnpm-workspace.yaml
   package.json
@@ -46,6 +47,7 @@ All packages are published under the `@desktalk` npm scope:
 | Todo | `@desktalk/miniapp-todo` |
 | File Explorer | `@desktalk/miniapp-file-explorer` |
 | Preference | `@desktalk/miniapp-preference` |
+| Terminal | `@desktalk/miniapp-terminal` |
 
 The `@desktalk/core` package declares each built-in MiniApp as a dependency in its `package.json`. At build time all MiniApps are bundled together. At runtime the core discovers and registers them.
 
@@ -94,12 +96,14 @@ Using `<config>`, `<data>`, `<logs>`, `<cache>` as shorthand for the platform-re
     todo/                      # @desktalk/miniapp-todo file storage
     file-explorer/             # @desktalk/miniapp-file-explorer file storage
     preference/                # @desktalk/miniapp-preference file storage
+    terminal/                  # @desktalk/miniapp-terminal file storage
     <third-party-id>/          # Any installed MiniApp gets its own directory
   storage/
     note.json                  # @desktalk/miniapp-note key-value store (ctx.storage)
     todo.json                  # @desktalk/miniapp-todo key-value store
     file-explorer.json         # @desktalk/miniapp-file-explorer key-value store
     preference.json            # @desktalk/miniapp-preference key-value store
+    terminal.json              # @desktalk/miniapp-terminal key-value store
     <third-party-id>.json      # Any installed MiniApp gets its own store
 
 <logs>/
@@ -657,7 +661,7 @@ The `@desktalk/core` package declares `@mariozechner/pi-coding-agent` as a depen
 
 ## Built-in MiniApps
 
-DeskTalk ships with four built-in MiniApps. Each has its own detailed spec in `docs/miniapps/`.
+DeskTalk ships with five built-in MiniApps. Each has its own detailed spec in `docs/miniapps/`.
 
 | MiniApp         | Summary |
 |-----------------|---------|
@@ -665,6 +669,7 @@ DeskTalk ships with four built-in MiniApps. Each has its own detailed spec in `d
 | Todo            | Task management similar to macOS Reminders. |
 | File Explorer   | Simple filesystem browser. |
 | Preference      | App and window configuration UI. |
+| Terminal        | Browser-based terminal emulator with multi-tab support. |
 
 ## Engineering Guidelines
 
