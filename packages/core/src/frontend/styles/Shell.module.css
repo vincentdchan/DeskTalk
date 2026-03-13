@@ -1,30 +1,40 @@
 .shell {
-  display: grid;
-  grid-template-rows: var(--actions-bar-height) 1fr auto;
-  grid-template-columns: 1fr var(--info-panel-width);
-  grid-template-areas:
-    'actionsbar actionsbar'
-    'desktop    infopanel'
-    'dock       dock';
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   background: var(--desktop-wallpaper) center/cover no-repeat;
 }
 
 .actionsBar {
-  grid-area: actionsbar;
+  flex: 0 0 var(--actions-bar-height);
+}
+
+.content {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
 }
 
 .desktop {
-  grid-area: desktop;
+  flex: 1 1 auto;
   position: relative;
   overflow: hidden;
+  min-width: 0;
+  min-height: 0;
 }
 
 .infoPanel {
-  grid-area: infopanel;
+  flex: 0 0 var(--info-panel-width);
+  width: var(--info-panel-width);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .dock {
-  grid-area: dock;
+  flex: 0 0 auto;
 }

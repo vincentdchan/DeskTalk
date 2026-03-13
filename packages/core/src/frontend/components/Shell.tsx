@@ -197,22 +197,24 @@ export function Shell() {
         <ActionsBar />
       </div>
 
-      <div className={styles.desktop}>
-        {wsReady
-          ? windows.map((win) => (
-              <WindowChrome key={win.id} window={win}>
-                <MiniAppWindow miniAppId={win.miniAppId} windowId={win.id} />
-              </WindowChrome>
-            ))
-          : windows.length > 0 && (
-              <div style={{ padding: 24, color: 'var(--color-text-muted)' }}>
-                Connecting to server...
-              </div>
-            )}
-      </div>
+      <div className={styles.content}>
+        <div className={styles.desktop}>
+          {wsReady
+            ? windows.map((win) => (
+                <WindowChrome key={win.id} window={win}>
+                  <MiniAppWindow miniAppId={win.miniAppId} windowId={win.id} />
+                </WindowChrome>
+              ))
+            : windows.length > 0 && (
+                <div style={{ padding: 24, color: 'var(--color-text-muted)' }}>
+                  Connecting to server...
+                </div>
+              )}
+        </div>
 
-      <div className={styles.infoPanel}>
-        <InfoPanel />
+        <div className={styles.infoPanel}>
+          <InfoPanel />
+        </div>
       </div>
 
       <div className={styles.dock}>

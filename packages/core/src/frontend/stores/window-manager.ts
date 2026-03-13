@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import type { WindowState, WindowPosition, WindowSize } from '@desktalk/sdk';
 import type { ActionDefinition } from '@desktalk/sdk';
 
+const MIN_WINDOW_WIDTH = 300;
+const MIN_WINDOW_HEIGHT = 200;
+
 interface WindowManagerState {
   windows: WindowState[];
   nextZIndex: number;
@@ -145,7 +148,13 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
     set((state) => ({
       windows: state.windows.map((w) => {
         if (w.id !== windowId) return w;
-        return { ...w, size };
+        return {
+          ...w,
+          size: {
+            width: Math.max(size.width, MIN_WINDOW_WIDTH),
+            height: Math.max(size.height, MIN_WINDOW_HEIGHT),
+          },
+        };
       }),
     }));
   },
