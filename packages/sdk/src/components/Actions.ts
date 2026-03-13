@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  type ReactNode,
+} from 'react';
 import type { ActionDefinition, ActionHandler } from '../types/actions.js';
 
 /**
@@ -10,6 +17,25 @@ interface ActionsContextValue {
 }
 
 const ActionsContext = createContext<ActionsContextValue | null>(null);
+const WindowIdContext = createContext<string | null>(null);
+
+export function WindowIdProvider({
+  windowId,
+  children,
+}: {
+  windowId: string;
+  children: ReactNode;
+}) {
+  return React.createElement(WindowIdContext.Provider, { value: windowId }, children);
+}
+
+function emitActionsChanged(windowId: string, actions: ActionDefinition[]): void {
+  window.dispatchEvent(
+    new CustomEvent('desktalk:actions-changed', {
+      detail: { windowId, actions },
+    }),
+  );
+}
 
 /**
  * Wraps MiniApp content and collects <Action> declarations from children.
@@ -17,26 +43,32 @@ const ActionsContext = createContext<ActionsContextValue | null>(null);
  */
 export function ActionsProvider({ children }: { children: ReactNode }) {
   const actionsRef = useRef<Map<string, ActionDefinition>>(new Map());
+  const windowId = useContext(WindowIdContext);
 
-  const contextValue: ActionsContextValue = {
-    register(action: ActionDefinition) {
-      actionsRef.current.set(action.name, action);
-      // Notify the core shell that actions have changed
-      window.dispatchEvent(
-        new CustomEvent('desktalk:actions-changed', {
-          detail: Array.from(actionsRef.current.values()),
-        }),
-      );
-    },
-    unregister(name: string) {
-      actionsRef.current.delete(name);
-      window.dispatchEvent(
-        new CustomEvent('desktalk:actions-changed', {
-          detail: Array.from(actionsRef.current.values()),
-        }),
-      );
-    },
-  };
+  const contextValue = useMemo<ActionsContextValue>(() => {
+    return {
+      register(action: ActionDefinition) {
+        actionsRef.current.set(action.name, action);
+        if (windowId) {
+          emitActionsChanged(windowId, Array.from(actionsRef.current.values()));
+        }
+      },
+      unregister(name: string) {
+        actionsRef.current.delete(name);
+        if (windowId) {
+          emitActionsChanged(windowId, Array.from(actionsRef.current.values()));
+        }
+      },
+    };
+  }, [windowId]);
+
+  useEffect(() => {
+    if (!windowId) return;
+    emitActionsChanged(windowId, Array.from(actionsRef.current.values()));
+    return () => {
+      emitActionsChanged(windowId, []);
+    };
+  }, [windowId]);
 
   return React.createElement(ActionsContext.Provider, { value: contextValue }, children);
 }

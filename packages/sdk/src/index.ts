@@ -31,3 +31,4 @@ export { ActionsProvider, Action } from './components/Actions.js';
 // MiniApps should NOT use these directly.
 
 export { initMessaging, MiniAppIdProvider } from './hooks/messaging.js';
+export { WindowIdProvider } from './components/Actions.js';

@@ -7,6 +7,7 @@ interface WindowManagerState {
   nextZIndex: number;
   /** Actions registered by the focused window's MiniApp */
   focusedWindowActions: ActionDefinition[];
+  windowActions: Record<string, ActionDefinition[]>;
 
   // Actions
   openWindow: (miniAppId: string, title: string) => string;
@@ -17,6 +18,7 @@ interface WindowManagerState {
   moveWindow: (windowId: string, position: WindowPosition) => void;
   resizeWindow: (windowId: string, size: WindowSize) => void;
   setFocusedWindowActions: (actions: ActionDefinition[]) => void;
+  setWindowActions: (windowId: string, actions: ActionDefinition[]) => void;
   getFocusedWindow: () => WindowState | undefined;
   getWindowsByMiniApp: (miniAppId: string) => WindowState[];
 }
@@ -27,6 +29,7 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
   windows: [],
   nextZIndex: 1,
   focusedWindowActions: [],
+  windowActions: {},
 
   openWindow(miniAppId: string, title: string): string {
     const id = `win-${++windowIdCounter}`;
@@ -53,6 +56,7 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
     set({
       windows: [...updatedWindows, newWindow],
       nextZIndex: state.nextZIndex + 1,
+      focusedWindowActions: [],
     });
 
     return id;
@@ -69,9 +73,14 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
         ...w,
         focused: w.id === topWindow.id,
       }));
-      set({ windows: updated, focusedWindowActions: [] });
+      const { [windowId]: _, ...remainingActions } = state.windowActions;
+      set({
+        windows: updated,
+        windowActions: remainingActions,
+        focusedWindowActions: remainingActions[topWindow.id] ?? [],
+      });
     } else {
-      set({ windows: [], focusedWindowActions: [] });
+      set({ windows: [], focusedWindowActions: [], windowActions: {} });
     }
   },
 
@@ -86,6 +95,7 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
     set({
       windows: updated,
       nextZIndex: state.nextZIndex + 1,
+      focusedWindowActions: state.windowActions[windowId] ?? [],
     });
   },
 
@@ -104,7 +114,10 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
         ...w,
         focused: w.id === topWindow.id,
       }));
-      set({ windows: final });
+      set({
+        windows: final,
+        focusedWindowActions: state.windowActions[topWindow.id] ?? [],
+      });
     } else {
       set({ windows: updated, focusedWindowActions: [] });
     }
@@ -139,6 +152,20 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
 
   setFocusedWindowActions(actions: ActionDefinition[]) {
     set({ focusedWindowActions: actions });
+  },
+
+  setWindowActions(windowId: string, actions: ActionDefinition[]) {
+    set((state) => {
+      const nextWindowActions = {
+        ...state.windowActions,
+        [windowId]: actions,
+      };
+      const focusedWindow = state.windows.find((w) => w.focused);
+      return {
+        windowActions: nextWindowActions,
+        focusedWindowActions: focusedWindow?.id === windowId ? actions : state.focusedWindowActions,
+      };
+    });
   },
 
   getFocusedWindow(): WindowState | undefined {

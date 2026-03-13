@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { MiniAppManifest, WindowState } from '@desktalk/sdk';
-import { initMessaging, MiniAppIdProvider } from '@desktalk/sdk';
+import { initMessaging, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
+import type { ActionDefinition } from '@desktalk/sdk';
 import { useWindowManager } from '../stores/window-manager.js';
 import { ActionsBar } from './ActionsBar.js';
 import { Dock, type DockMiniApp } from './Dock.js';
@@ -25,7 +26,7 @@ function MiniAppLoadError({ miniAppId, message }: { miniAppId: string; message: 
  * Window content that loads the MiniApp bundle on demand.
  * Wrapped in MiniAppIdProvider so useCommand/useEvent can resolve the miniAppId.
  */
-function MiniAppWindow({ miniAppId }: { miniAppId: string }) {
+function MiniAppWindow({ miniAppId, windowId }: { miniAppId: string; windowId: string }) {
   const [Component, setComponent] = useState<React.ComponentType | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,9 +60,11 @@ function MiniAppWindow({ miniAppId }: { miniAppId: string }) {
   }
 
   return (
-    <MiniAppIdProvider miniAppId={miniAppId}>
-      <Component />
-    </MiniAppIdProvider>
+    <WindowIdProvider windowId={windowId}>
+      <MiniAppIdProvider miniAppId={miniAppId}>
+        <Component />
+      </MiniAppIdProvider>
+    </WindowIdProvider>
   );
 }
 
@@ -118,6 +121,7 @@ export function Shell() {
 
   const windows = useWindowManager((s) => s.windows);
   const openWindow = useWindowManager((s) => s.openWindow);
+  const setWindowActions = useWindowManager((s) => s.setWindowActions);
 
   const [manifests, setManifests] = useState<MiniAppManifest[]>([]);
   const [dockApps, setDockApps] = useState<DockMiniApp[]>([]);
@@ -150,6 +154,22 @@ export function Shell() {
     setDockApps(toDockMiniApps(manifests, windows));
   }, [manifests, windows]);
 
+  useEffect(() => {
+    const handleActionsChanged = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        windowId: string;
+        actions: ActionDefinition[];
+      }>;
+      if (!customEvent.detail?.windowId) return;
+      setWindowActions(customEvent.detail.windowId, customEvent.detail.actions ?? []);
+    };
+
+    window.addEventListener('desktalk:actions-changed', handleActionsChanged);
+    return () => {
+      window.removeEventListener('desktalk:actions-changed', handleActionsChanged);
+    };
+  }, [setWindowActions]);
+
   const handleLaunch = useCallback(
     async (miniAppId: string) => {
       try {
@@ -181,7 +201,7 @@ export function Shell() {
         {wsReady
           ? windows.map((win) => (
               <WindowChrome key={win.id} window={win}>
-                <MiniAppWindow miniAppId={win.miniAppId} />
+                <MiniAppWindow miniAppId={win.miniAppId} windowId={win.id} />
               </WindowChrome>
             ))
           : windows.length > 0 && (
