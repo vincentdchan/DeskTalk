@@ -17,6 +17,7 @@
     "build": "tsc -p tsconfig.build.json && node scripts/build-frontend.js",
     "build:server": "tsc -p tsconfig.build.json",
     "build:frontend": "node scripts/build-frontend.js",
+    "start": "node dist/cli/index.js start",
     "dev": "tsc -p tsconfig.build.json --watch",
     "clean": "rm -rf dist"
   },

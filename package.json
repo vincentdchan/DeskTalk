@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r run build",
+    "start": "pnpm --filter @desktalk/core start",
     "dev": "pnpm -r run dev",
     "lint": "eslint packages/",
     "format": "prettier --write \"packages/**/*.{ts,tsx,css,json}\"",
