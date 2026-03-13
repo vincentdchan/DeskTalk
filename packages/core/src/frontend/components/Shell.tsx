@@ -1,59 +1,127 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import type { MiniAppManifest, WindowState } from '@desktalk/sdk';
 import { useWindowManager } from '../stores/window-manager.js';
 import { ActionsBar } from './ActionsBar.js';
 import { Dock, type DockMiniApp } from './Dock.js';
 import { WindowChrome } from './WindowChrome.js';
 import { InfoPanel } from './InfoPanel.js';
+import { loadMiniAppComponent } from '../miniapp-runtime.js';
 import styles from '../styles/Shell.module.css';
 
 /**
- * Placeholder components for MiniApps that aren't loaded yet.
+ * Fallback UI when a MiniApp cannot be loaded.
  */
-function PlaceholderApp({ miniAppId }: { miniAppId: string }) {
+function MiniAppLoadError({ miniAppId, message }: { miniAppId: string; message: string }) {
   return (
     <div style={{ padding: 24, color: 'var(--color-text-muted)' }}>
       <h3>{miniAppId}</h3>
-      <p>This MiniApp is not yet implemented.</p>
+      <p>{message}</p>
     </div>
   );
 }
 
 /**
- * Available MiniApps — hardcoded during development.
- * Once MiniApp packages are implemented, these will be loaded dynamically
- * from the registry via the /api/miniapps endpoint.
+ * Window content that loads the MiniApp bundle on demand.
  */
-const BUILTIN_MINIAPPS: DockMiniApp[] = [
-  { id: 'note', name: 'Note', icon: '\uD83D\uDDD2\uFE0F', hasOpenWindows: false },
-  { id: 'todo', name: 'Todo', icon: '\u2705', hasOpenWindows: false },
-  { id: 'file-explorer', name: 'Files', icon: '\uD83D\uDCC1', hasOpenWindows: false },
-  { id: 'preference', name: 'Preferences', icon: '\u2699\uFE0F', hasOpenWindows: false },
-];
+function MiniAppWindow({ miniAppId }: { miniAppId: string }) {
+  const [Component, setComponent] = useState<React.ComponentType | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadMiniAppComponent(miniAppId)
+      .then((LoadedComponent) => {
+        if (!cancelled) {
+          setComponent(() => LoadedComponent);
+          setError(null);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError((err as Error).message);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [miniAppId]);
+
+  if (error) {
+    return <MiniAppLoadError miniAppId={miniAppId} message={error} />;
+  }
+
+  if (!Component) {
+    return <MiniAppLoadError miniAppId={miniAppId} message="Loading MiniApp..." />;
+  }
+
+  return <Component />;
+}
+
+function toDockMiniApps(manifests: MiniAppManifest[], windows: WindowState[]): DockMiniApp[] {
+  return manifests.map((app) => ({
+    id: app.id,
+    name: app.name,
+    icon: app.icon,
+    hasOpenWindows: windows.some((w) => w.miniAppId === app.id && !w.minimized),
+  }));
+}
 
 export function Shell() {
   const windows = useWindowManager((s) => s.windows);
   const openWindow = useWindowManager((s) => s.openWindow);
 
-  // Track which MiniApps have open windows for dock indicators
-  const [dockApps, setDockApps] = useState<DockMiniApp[]>(BUILTIN_MINIAPPS);
+  const [manifests, setManifests] = useState<MiniAppManifest[]>([]);
+  const [dockApps, setDockApps] = useState<DockMiniApp[]>([]);
 
   useEffect(() => {
-    setDockApps(
-      BUILTIN_MINIAPPS.map((app) => ({
-        ...app,
-        hasOpenWindows: windows.some((w) => w.miniAppId === app.id && !w.minimized),
-      })),
-    );
-  }, [windows]);
+    let cancelled = false;
+
+    void fetch('/api/miniapps')
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load MiniApps (${response.status})`);
+        }
+        return (await response.json()) as MiniAppManifest[];
+      })
+      .then((data) => {
+        if (!cancelled) {
+          setManifests(data);
+        }
+      })
+      .catch((err) => {
+        console.error('[shell] Could not load MiniApps:', err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setDockApps(toDockMiniApps(manifests, windows));
+  }, [manifests, windows]);
 
   const handleLaunch = useCallback(
-    (miniAppId: string) => {
-      // Find the display name
-      const app = BUILTIN_MINIAPPS.find((a) => a.id === miniAppId);
-      const title = app?.name ?? miniAppId;
-      openWindow(miniAppId, title);
+    async (miniAppId: string) => {
+      try {
+        const app = manifests.find((entry) => entry.id === miniAppId);
+        const title = app?.name ?? miniAppId;
+
+        const response = await fetch(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {
+          method: 'POST',
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to activate MiniApp \"${miniAppId}\"`);
+        }
+
+        openWindow(miniAppId, title);
+      } catch (err) {
+        console.error('[shell] Could not launch MiniApp:', err);
+      }
     },
-    [openWindow],
+    [manifests, openWindow],
   );
 
   return (
@@ -65,7 +133,7 @@ export function Shell() {
       <div className={styles.desktop}>
         {windows.map((win) => (
           <WindowChrome key={win.id} window={win}>
-            <PlaceholderApp miniAppId={win.miniAppId} />
+            <MiniAppWindow miniAppId={win.miniAppId} />
           </WindowChrome>
         ))}
       </div>
