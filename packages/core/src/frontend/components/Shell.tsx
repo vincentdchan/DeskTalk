@@ -81,7 +81,7 @@ function toDockMiniApps(manifests: MiniAppManifest[], windows: WindowState[]): D
  * Hook that creates and manages the WebSocket connection to the server.
  * Returns true when the connection is open and ready for messaging.
  */
-function useWebSocket(): boolean {
+function useWebSocket(): { ready: boolean; socket: WebSocket | null } {
   const [ready, setReady] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -113,11 +113,11 @@ function useWebSocket(): boolean {
     };
   }, []);
 
-  return ready;
+  return { ready, socket: wsRef.current };
 }
 
 export function Shell() {
-  const wsReady = useWebSocket();
+  const { ready: wsReady, socket } = useWebSocket();
 
   const windows = useWindowManager((s) => s.windows);
   const openWindow = useWindowManager((s) => s.openWindow);
@@ -213,7 +213,7 @@ export function Shell() {
         </div>
 
         <div className={styles.infoPanel}>
-          <InfoPanel />
+          <InfoPanel socket={socket} wsReady={wsReady} />
         </div>
       </div>
 

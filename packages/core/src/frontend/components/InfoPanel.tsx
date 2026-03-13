@@ -3,8 +3,21 @@ import { useVoiceSession, type VoiceStatus } from '../stores/voice-session.js';
 import styles from '../styles/InfoPanel.module.css';
 
 interface ChatMessage {
+  id: string;
   role: 'user' | 'assistant';
   content: string;
+}
+
+interface AiEventMessage {
+  type: 'message_start' | 'message_update' | 'message_end' | 'error';
+  requestId: string;
+  text?: string;
+  message?: string;
+  model?: string;
+  provider?: string;
+  usage?: {
+    totalTokens?: number;
+  };
 }
 
 /**
@@ -27,10 +40,14 @@ function getVoiceStatusInfo(status: VoiceStatus): { label: string; className: st
   }
 }
 
-export function InfoPanel() {
+export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsReady: boolean }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
+  const [isAiRunning, setIsAiRunning] = useState(false);
+  const [modelLabel, setModelLabel] = useState('not configured');
+  const [tokenCount, setTokenCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const activeRequestIdRef = useRef<string | null>(null);
 
   // Voice session state
   const voiceStatus = useVoiceSession((s) => s.status);
@@ -43,23 +60,93 @@ export function InfoPanel() {
 
   const isVoiceActive = voiceStatus !== 'idle' && voiceStatus !== 'error';
 
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const msg = JSON.parse(String(event.data)) as { type?: string; event?: AiEventMessage };
+        if (msg.type !== 'ai:event' || !msg.event) {
+          return;
+        }
+
+        const aiEvent = msg.event;
+        if (activeRequestIdRef.current && aiEvent.requestId !== activeRequestIdRef.current) {
+          return;
+        }
+
+        if (aiEvent.type === 'message_start') {
+          setIsAiRunning(true);
+          setModelLabel(aiEvent.model ? `${aiEvent.provider}/${aiEvent.model}` : 'not configured');
+        } else if (aiEvent.type === 'message_update') {
+          setMessages((prev) => {
+            const next = [...prev];
+            const lastIndex = next.length - 1;
+            if (lastIndex >= 0 && next[lastIndex].role === 'assistant') {
+              next[lastIndex] = { ...next[lastIndex], content: aiEvent.text ?? '' };
+            }
+            return next;
+          });
+        } else if (aiEvent.type === 'message_end') {
+          setIsAiRunning(false);
+          setTokenCount(aiEvent.usage?.totalTokens ?? 0);
+          activeRequestIdRef.current = null;
+        } else if (aiEvent.type === 'error') {
+          setIsAiRunning(false);
+          setMessages((prev) => {
+            const next = [...prev];
+            const lastIndex = next.length - 1;
+            if (lastIndex >= 0 && next[lastIndex].role === 'assistant') {
+              next[lastIndex] = {
+                ...next[lastIndex],
+                content: aiEvent.message ?? 'AI request failed.',
+              };
+            } else {
+              next.push({
+                id: `assistant-error-${Date.now()}`,
+                role: 'assistant',
+                content: aiEvent.message ?? 'AI request failed.',
+              });
+            }
+            return next;
+          });
+          activeRequestIdRef.current = null;
+        }
+      } catch {
+        // Ignore malformed AI events
+      }
+    };
+
+    socket.addEventListener('message', handleMessage);
+    return () => {
+      socket.removeEventListener('message', handleMessage);
+    };
+  }, [socket]);
+
   const handleSend = useCallback(() => {
     const text = input.trim();
-    if (!text) return;
+    if (!text || !socket || socket.readyState !== WebSocket.OPEN || isAiRunning) return;
 
-    setMessages((prev) => [...prev, { role: 'user', content: text }]);
-    setInput('');
+    const requestId = `ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    activeRequestIdRef.current = requestId;
 
-    // TODO: Send to AI backend via WebSocket
     setMessages((prev) => [
       ...prev,
-      {
-        role: 'assistant',
-        content:
-          'AI integration not yet configured. Connect a pi agent session to enable AI features.',
-      },
+      { id: `user-${requestId}`, role: 'user', content: text },
+      { id: `assistant-${requestId}`, role: 'assistant', content: '' },
     ]);
-  }, [input]);
+    setInput('');
+    setIsAiRunning(true);
+    setTokenCount(0);
+
+    socket.send(
+      JSON.stringify({
+        type: 'ai:prompt',
+        requestId,
+        text,
+      }),
+    );
+  }, [input, socket, isAiRunning]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -100,12 +187,12 @@ export function InfoPanel() {
           </div>
         ) : (
           <>
-            {messages.map((msg, i) => (
+            {messages.map((msg) => (
               <div
-                key={`msg-${i}`}
+                key={msg.id}
                 className={msg.role === 'user' ? styles.messageUser : styles.messageAssistant}
               >
-                {msg.content}
+                {msg.content || (msg.role === 'assistant' && isAiRunning ? 'Thinking...' : '')}
               </div>
             ))}
           </>
@@ -180,17 +267,17 @@ export function InfoPanel() {
           placeholder="Ask the AI..."
         />
         <button className={styles.sendButton} onClick={handleSend}>
-          Send
+          {isAiRunning ? '...' : 'Send'}
         </button>
       </div>
 
       <div className={styles.statusBar}>
-        <span>Model: not configured</span>
+        <span>Model: {wsReady ? modelLabel : 'offline'}</span>
         <div className={styles.voiceStatus}>
           <span className={`${styles.statusDot} ${voiceStatusInfo.className}`} />
           <span>{voiceStatusInfo.label}</span>
         </div>
-        <span>Tokens: 0</span>
+        <span>Tokens: {tokenCount}</span>
       </div>
     </div>
   );

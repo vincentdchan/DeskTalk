@@ -106,9 +106,19 @@ export const PREFERENCE_SCHEMAS: PreferenceSchema[] = [
 
   // ─── AI ──────────────────────────────────────────────────────────────────
   {
+    key: 'ai.provider',
+    label: 'Provider',
+    description: 'LLM provider used by pi for chat and tool execution.',
+    type: 'string',
+    default: 'openai',
+    options: ['anthropic', 'openai', 'google', 'bedrock', 'mistral', 'xai', 'openrouter', 'ollama'],
+    category: 'AI',
+  },
+  {
     key: 'ai.model',
     label: 'Model',
-    description: 'AI model identifier (e.g. claude-sonnet-4-20250514, gpt-4o).',
+    description:
+      'Model identifier for the selected AI provider (e.g. claude-sonnet-4-20250514, gpt-4o).',
     type: 'string',
     default: '',
     category: 'AI',
@@ -116,11 +126,19 @@ export const PREFERENCE_SCHEMAS: PreferenceSchema[] = [
   {
     key: 'ai.apiKey',
     label: 'API Key',
-    description: 'API key for the AI provider.',
+    description: 'API key for the selected AI provider.',
     type: 'string',
     default: '',
     category: 'AI',
     sensitive: true,
+  },
+  {
+    key: 'ai.baseUrl',
+    label: 'Base URL',
+    description: 'Optional custom API base URL for OpenAI-compatible or self-hosted providers.',
+    type: 'string',
+    default: '',
+    category: 'AI',
   },
   {
     key: 'ai.maxTokens',
