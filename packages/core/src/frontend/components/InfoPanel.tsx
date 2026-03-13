@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { Streamdown } from 'streamdown';
+import 'streamdown/styles.css';
 import { useVoiceSession, type VoiceStatus } from '../stores/voice-session.js';
 import styles from '../styles/InfoPanel.module.css';
 
@@ -41,6 +43,14 @@ function getVoiceStatusInfo(status: VoiceStatus): { label: string; className: st
     case 'error':
       return { label: 'Error', className: styles.statusError };
   }
+}
+
+function MarkdownMessage({ content, isStreaming }: { content: string; isStreaming: boolean }) {
+  return (
+    <Streamdown className={styles.markdownContent} isAnimating={isStreaming} animated>
+      {content}
+    </Streamdown>
+  );
 }
 
 export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsReady: boolean }) {
@@ -253,7 +263,12 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
                     <span className={styles.voiceSourceBadge}>Voice</span>
                   </div>
                 )}
-                {msg.content || (msg.role === 'assistant' && isAiRunning ? 'Thinking...' : '')}
+                <MarkdownMessage
+                  content={
+                    msg.content || (msg.role === 'assistant' && isAiRunning ? 'Thinking...' : '')
+                  }
+                  isStreaming={msg.role === 'assistant' && isAiRunning}
+                />
               </div>
             ))}
           </>
