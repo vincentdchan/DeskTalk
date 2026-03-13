@@ -8,6 +8,7 @@ const CATEGORY_ICONS: Record<Category, string> = {
   Window: '\uD83D\uDDA5',
   AI: '\uD83E\uDD16',
   Dock: '\u2693',
+  Voice: '\uD83C\uDF99',
 };
 
 interface PreferenceCategoryListProps {

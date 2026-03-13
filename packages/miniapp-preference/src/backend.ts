@@ -81,6 +81,22 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
     },
   );
 
+  // ─── preferences.getRaw (internal — returns unmasked values for backend use)
+
+  ctx.messaging.onCommand<{ key: string }, { value: string | number | boolean }>(
+    'preferences.getRaw',
+    async (req) => {
+      const config = await loadConfig();
+      const value = config[req.key] ?? defaults[req.key];
+
+      if (value === undefined) {
+        throw new Error(`Unknown preference key: ${req.key}`);
+      }
+
+      return { value };
+    },
+  );
+
   // ─── preferences.set ─────────────────────────────────────────────────────
 
   ctx.messaging.onCommand<{ key: string; value: string | number | boolean }, void>(

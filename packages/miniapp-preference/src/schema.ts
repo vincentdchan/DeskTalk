@@ -18,7 +18,7 @@ export interface PreferenceSchema {
 
 export type Config = Record<string, string | number | boolean>;
 
-export const CATEGORIES = ['General', 'Server', 'Window', 'AI', 'Dock'] as const;
+export const CATEGORIES = ['General', 'Server', 'Window', 'AI', 'Dock', 'Voice'] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 export const PREFERENCE_SCHEMAS: PreferenceSchema[] = [
@@ -160,6 +160,62 @@ export const PREFERENCE_SCHEMAS: PreferenceSchema[] = [
     min: 24,
     max: 128,
     category: 'Dock',
+  },
+
+  // ─── Voice ────────────────────────────────────────────────────────────
+  {
+    key: 'voice.provider',
+    label: 'STT Provider',
+    description: 'Speech-to-text provider to use for voice transcription.',
+    type: 'string',
+    default: 'openai-whisper',
+    options: ['openai-whisper'],
+    category: 'Voice',
+  },
+  {
+    key: 'voice.apiKey',
+    label: 'API Key',
+    description: 'API key for the STT provider.',
+    type: 'string',
+    default: '',
+    category: 'Voice',
+    sensitive: true,
+  },
+  {
+    key: 'voice.model',
+    label: 'Model',
+    description: 'STT model identifier (e.g. whisper-1).',
+    type: 'string',
+    default: 'whisper-1',
+    category: 'Voice',
+  },
+  {
+    key: 'voice.baseUrl',
+    label: 'API Base URL',
+    description: 'Base URL for the STT provider API.',
+    type: 'string',
+    default: 'https://api.openai.com/v1',
+    category: 'Voice',
+  },
+  {
+    key: 'voice.silenceTimeoutMs',
+    label: 'Silence Timeout',
+    description: 'Silence duration (ms) before finalizing an utterance.',
+    type: 'number',
+    default: 800,
+    min: 200,
+    max: 5000,
+    category: 'Voice',
+  },
+  {
+    key: 'voice.energyThreshold',
+    label: 'Energy Threshold',
+    description: 'RMS energy threshold for voice activity detection (0–32767).',
+    type: 'number',
+    default: 500,
+    min: 50,
+    max: 10000,
+    category: 'Voice',
   },
 ];
 

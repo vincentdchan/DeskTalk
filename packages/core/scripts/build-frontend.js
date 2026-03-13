@@ -39,4 +39,9 @@ const indexHtmlSrc = join(root, 'src', 'frontend', 'index.html');
 const indexHtmlDest = join(outdir, 'index.html');
 copyFileSync(indexHtmlSrc, indexHtmlDest);
 
+// Copy AudioWorklet processor (must be served as a standalone JS file)
+const workletSrc = join(root, 'src', 'frontend', 'audio-worklet-processor.js');
+const workletDest = join(outdir, 'pcm-capture-processor.js');
+copyFileSync(workletSrc, workletDest);
+
 console.log('Frontend build complete → dist/frontend/');
