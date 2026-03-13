@@ -342,10 +342,10 @@ Or in `package.json`:
 
 `desktalk-build` performs two builds from the MiniApp's package root:
 
-| Output             | Source             | Target           | Format | Notes                                                                                                                                     |
-| ------------------ | ------------------ | ---------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/backend.js`  | `src/backend.ts`   | Node.js (es2022) | ESM    | No bundling of `node_modules` -- external dependencies are resolved at runtime.                                                           |
-| `dist/frontend.js` | `src/frontend.tsx` | Browser (es2022) | ESM    | Bundled with all non-`@desktalk/sdk` and non-`react` imports inlined. React and the SDK are marked external (provided by the core shell). |
+| Output             | Source             | Target           | Format | Notes                                                                                                                                                                                                             |
+| ------------------ | ------------------ | ---------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/backend.js`  | `src/backend.ts`   | Node.js (es2022) | ESM    | No bundling of `node_modules` -- external dependencies are resolved at runtime.                                                                                                                                   |
+| `dist/frontend.js` | `src/frontend.tsx` | Browser (es2022) | ESM    | Bundled with all non-`@desktalk/sdk` and non-`react` imports inlined. Imported CSS is compiled and injected automatically from the JS bundle. React and the SDK are marked external (provided by the core shell). |
 
 Both outputs include TypeScript declaration files (`*.d.ts`) and source maps.
 
@@ -353,7 +353,7 @@ Both outputs include TypeScript declaration files (`*.d.ts`) and source maps.
 
 - Backend source must be at `src/backend.ts` (or `.js`, `.mjs`).
 - Frontend source must be at `src/frontend.tsx` (or `.ts`, `.jsx`, `.js`).
-- CSS Modules (`*.module.css`) are supported in frontend builds.
+- CSS Modules (`*.module.css`) are supported in frontend builds and auto-injected into `dist/frontend.js`.
 - The tool reads `tsconfig.build.json` if present, otherwise uses sensible defaults.
 
 ### Configuration (optional)
@@ -374,3 +374,71 @@ export default {
   },
 } satisfies MiniAppBuildConfig;
 ```
+
+## Styling
+
+MiniApp frontends import CSS normally and the build tool injects the compiled stylesheet automatically from `dist/frontend.js`. MiniApp authors should not manually create `<style>` tags or maintain separate runtime CSS loader files.
+
+### CSS imports
+
+Place styles in regular CSS files or CSS Modules anywhere in the frontend source tree, then import them from the component that uses them.
+
+```
+src/
+  styles/
+    NoteApp.module.css
+  components/
+    NoteList.tsx
+    NoteEditor.tsx
+  frontend.tsx
+```
+
+```tsx
+import styles from '../styles/NoteApp.module.css';
+
+function NoteList() {
+  return <div className={styles.listPanel}>...</div>;
+}
+```
+
+`desktalk-build` collects every CSS import reachable from `src/frontend.tsx`, compiles it, and prepends a small loader function to `dist/frontend.js`. That loader injects the final stylesheet into `document.head` automatically when the MiniApp frontend module runs.
+
+This works for:
+
+- CSS Modules (`*.module.css`)
+- regular CSS files (`*.css`)
+- third-party package CSS imported from npm dependencies
+
+There is no separate `dist/frontend.css` artifact to load manually.
+
+### CSS Modules
+
+CSS Modules are processed with esbuild's `local-css` loader, so class names stay scoped to the MiniApp bundle.
+
+To satisfy TypeScript, add a `css-modules.d.ts` declaration file in `src/`:
+
+```ts
+declare module '*.module.css' {
+  const classes: { readonly [key: string]: string };
+  export default classes;
+}
+```
+
+### Global CSS
+
+If you need global rules such as `@keyframes`, resets, or styles for third-party DOM, put them in a normal imported CSS file instead of a manual runtime injection helper. For example:
+
+```tsx
+import './styles/editor.css';
+import styles from './styles/NoteApp.module.css';
+```
+
+Both files will be compiled into the injected stylesheet automatically.
+
+### Summary
+
+| Layer            | File                   | Scope                  | Use for                                               |
+| ---------------- | ---------------------- | ---------------------- | ----------------------------------------------------- |
+| CSS Modules      | `src/**/*.module.css`  | Locally scoped         | Component layout, colors, spacing, hover/focus states |
+| Global CSS       | `src/**/*.css`         | Bundle-wide stylesheet | `@keyframes`, resets, third-party DOM, shared rules   |
+| Type declaration | `src/css-modules.d.ts` | N/A                    | TypeScript support for `*.module.css` imports         |

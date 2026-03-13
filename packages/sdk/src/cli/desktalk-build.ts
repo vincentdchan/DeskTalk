@@ -12,10 +12,35 @@
 
 import * as esbuild from 'esbuild';
 import { execSync } from 'node:child_process';
-import { existsSync, rmSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
 
 const cwd = process.cwd();
+
+function sanitizeForDomId(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function hashString(value: string): string {
+  let hash = 5381;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 33) ^ value.charCodeAt(i);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function createCssInjectionBanner(css: string, packageName: string): string {
+  const styleId = `desktalk-style-${sanitizeForDomId(packageName)}-${hashString(css)}`;
+  return `(() => {
+  if (typeof document === 'undefined') return;
+  const styleId = ${JSON.stringify(styleId)};
+  if (document.getElementById(styleId)) return;
+  const style = document.createElement('style');
+  style.id = styleId;
+  style.textContent = ${JSON.stringify(css)};
+  document.head.appendChild(style);
+})();`;
+}
 
 // ─── Resolve entry points ────────────────────────────────────────────────────
 
@@ -51,6 +76,11 @@ if (existsSync(distDir)) {
   rmSync(distDir, { recursive: true, force: true });
 }
 
+const tempDir = join(cwd, '.desktalk-build');
+if (existsSync(tempDir)) {
+  rmSync(tempDir, { recursive: true, force: true });
+}
+
 // ─── Build backend ───────────────────────────────────────────────────────────
 
 console.log('[desktalk-build] Building backend…');
@@ -69,27 +99,68 @@ await esbuild.build({
 // ─── Build frontend ─────────────────────────────────────────────────────────
 
 console.log('[desktalk-build] Building frontend…');
-await esbuild.build({
-  entryPoints: [frontendEntry],
-  outfile: 'dist/frontend.js',
-  bundle: true,
-  format: 'esm',
-  platform: 'browser',
-  target: 'es2022',
-  sourcemap: true,
-  jsx: 'automatic',
-  loader: {
-    '.css': 'css',
-    '.module.css': 'local-css',
-    // Font files from third-party CSS (e.g. KaTeX) — use empty to avoid bloat
-    '.woff2': 'empty',
-    '.woff': 'empty',
-    '.ttf': 'empty',
-    '.eot': 'empty',
-  },
-  // React and the SDK are provided by the core shell — mark external
-  external: ['react', 'react/jsx-runtime', 'react-dom', '@desktalk/sdk'],
-});
+try {
+  await esbuild.build({
+    entryPoints: [frontendEntry],
+    outfile: join(tempDir, 'frontend.js'),
+    bundle: true,
+    format: 'esm',
+    platform: 'browser',
+    target: 'es2022',
+    sourcemap: true,
+    jsx: 'automatic',
+    loader: {
+      '.css': 'css',
+      '.module.css': 'local-css',
+      '.woff2': 'empty',
+      '.woff': 'empty',
+      '.ttf': 'empty',
+      '.eot': 'empty',
+    },
+    external: ['react', 'react/jsx-runtime', 'react-dom', '@desktalk/sdk'],
+  });
+
+  const packageJsonPath = join(cwd, 'package.json');
+  const packageName = existsSync(packageJsonPath)
+    ? ((JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { name?: string }).name ?? 'miniapp')
+    : 'miniapp';
+  const tempCssPath = join(tempDir, 'frontend.css');
+  const injectedCssBanner = existsSync(tempCssPath)
+    ? createCssInjectionBanner(readFileSync(tempCssPath, 'utf8'), packageName)
+    : undefined;
+
+  await esbuild.build({
+    entryPoints: [frontendEntry],
+    outfile: 'dist/frontend.js',
+    bundle: true,
+    format: 'esm',
+    platform: 'browser',
+    target: 'es2022',
+    sourcemap: true,
+    jsx: 'automatic',
+    loader: {
+      '.css': 'css',
+      '.module.css': 'local-css',
+      '.woff2': 'empty',
+      '.woff': 'empty',
+      '.ttf': 'empty',
+      '.eot': 'empty',
+    },
+    banner: injectedCssBanner ? { js: injectedCssBanner } : undefined,
+    external: ['react', 'react/jsx-runtime', 'react-dom', '@desktalk/sdk'],
+  });
+
+  for (const extraFile of ['frontend.css', 'frontend.css.map']) {
+    const extraPath = join(distDir, extraFile);
+    if (existsSync(extraPath)) {
+      rmSync(extraPath, { force: true });
+    }
+  }
+} finally {
+  if (existsSync(tempDir)) {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
 
 // ─── Generate declarations ──────────────────────────────────────────────────
 
