@@ -9,7 +9,7 @@ DeskTalk is a browser-based, OS-like desktop environment with an AI assistant. I
 ### High-Level Stack
 
 | Layer     | Technology                    |
-|-----------|-------------------------------|
+| --------- | ----------------------------- |
 | Frontend  | React                         |
 | State     | Zustand                       |
 | Styling   | CSS Modules                   |
@@ -38,14 +38,14 @@ desktalk/
 
 All packages are published under the `@desktalk` npm scope:
 
-| Package | npm name |
-|---------|----------|
-| Core | `@desktalk/core` |
-| SDK | `@desktalk/sdk` |
-| Note | `@desktalk/miniapp-note` |
-| Todo | `@desktalk/miniapp-todo` |
+| Package       | npm name                          |
+| ------------- | --------------------------------- |
+| Core          | `@desktalk/core`                  |
+| SDK           | `@desktalk/sdk`                   |
+| Note          | `@desktalk/miniapp-note`          |
+| Todo          | `@desktalk/miniapp-todo`          |
 | File Explorer | `@desktalk/miniapp-file-explorer` |
-| Preference | `@desktalk/miniapp-preference` |
+| Preference    | `@desktalk/miniapp-preference`    |
 
 The `@desktalk/core` package declares each built-in MiniApp as a dependency in its `package.json`. At build time all MiniApps are bundled together. At runtime the core discovers and registers them.
 
@@ -72,12 +72,12 @@ On first launch, the core creates workspace directories following **platform-sta
 
 #### Platform Paths
 
-| Purpose | Linux (XDG) | macOS | Windows |
-|---------|-------------|-------|---------|
-| Config  | `~/.config/desktalk/` | `~/Library/Application Support/DeskTalk/` | `%APPDATA%\DeskTalk\` |
-| Data    | `~/.local/share/desktalk/` | `~/Library/Application Support/DeskTalk/` | `%LOCALAPPDATA%\DeskTalk\` |
-| Logs    | `~/.local/state/desktalk/logs/` | `~/Library/Logs/DeskTalk/` | `%LOCALAPPDATA%\DeskTalk\logs\` |
-| Cache   | `~/.cache/desktalk/` | `~/Library/Caches/DeskTalk/` | `%LOCALAPPDATA%\DeskTalk\cache\` |
+| Purpose | Linux (XDG)                     | macOS                                     | Windows                          |
+| ------- | ------------------------------- | ----------------------------------------- | -------------------------------- |
+| Config  | `~/.config/desktalk/`           | `~/Library/Application Support/DeskTalk/` | `%APPDATA%\DeskTalk\`            |
+| Data    | `~/.local/share/desktalk/`      | `~/Library/Application Support/DeskTalk/` | `%LOCALAPPDATA%\DeskTalk\`       |
+| Logs    | `~/.local/state/desktalk/logs/` | `~/Library/Logs/DeskTalk/`                | `%LOCALAPPDATA%\DeskTalk\logs\`  |
+| Cache   | `~/.cache/desktalk/`            | `~/Library/Caches/DeskTalk/`              | `%LOCALAPPDATA%\DeskTalk\cache\` |
 
 #### Directory Layout
 
@@ -112,13 +112,13 @@ Using `<config>`, `<data>`, `<logs>`, `<cache>` as shorthand for the platform-re
   ...                          # Temporary/regenerable data
 ```
 
-| Path | Purpose | Accessed via |
-|------|---------|-------------|
-| `<data>/data/<id>/` | Scoped filesystem for the MiniApp. Files the MiniApp reads/writes live here. | `ctx.fs` |
-| `<data>/storage/<id>.json` | Scoped key-value store persisted as JSON. | `ctx.storage` |
-| `<logs>/<id>.log` | Scoped log output. | `ctx.logger` |
-| `<data>/miniapps/` | Installed third-party MiniApp npm packages. | Core only |
-| `<config>/config.json` | Global app configuration. | Core / Preference MiniApp |
+| Path                       | Purpose                                                                      | Accessed via              |
+| -------------------------- | ---------------------------------------------------------------------------- | ------------------------- |
+| `<data>/data/<id>/`        | Scoped filesystem for the MiniApp. Files the MiniApp reads/writes live here. | `ctx.fs`                  |
+| `<data>/storage/<id>.json` | Scoped key-value store persisted as JSON.                                    | `ctx.storage`             |
+| `<logs>/<id>.log`          | Scoped log output.                                                           | `ctx.logger`              |
+| `<data>/miniapps/`         | Installed third-party MiniApp npm packages.                                  | Core only                 |
+| `<config>/config.json`     | Global app configuration.                                                    | Core / Preference MiniApp |
 
 MiniApps never know or control their absolute paths. The core creates these directories automatically when a MiniApp is first activated, and all `ctx.fs` paths are resolved relative to `<data>/data/<id>/`. This is analogous to VSCode where extensions access `context.storageUri` without knowing the underlying filesystem location.
 
@@ -145,219 +145,16 @@ desktalk list
 
 This is analogous to VSCode where built-in extensions (e.g., TypeScript, Git) coexist with marketplace extensions under the same API contract.
 
-### Exported Interfaces
+### MiniApp Development
 
-Every MiniApp package must export the following from its main entry point. This is the contract between the MiniApp and the DeskTalk host, similar to how a VSCode extension exports `activate` / `deactivate` from `extension.ts`.
+For the full MiniApp development guide — package structure, exported interfaces, entry files, lifecycle, communication hooks, and the standard build toolchain — see [miniapp-development.md](./miniapp-development.md).
 
-```ts
-import type { MiniAppContext } from '@desktalk/sdk';
+**Key design points:**
 
-/**
- * Static metadata — read by the core at discovery time.
- * Analogous to the `contributes` section in a VSCode extension's package.json.
- */
-export const manifest: MiniAppManifest = {
-  id: 'note',
-  name: 'Note',
-  icon: NoteIcon,
-  version: '1.0.0',
-};
-
-/**
- * Called once when the MiniApp is activated (window first opened).
- * Receives a context object with hooks for communicating with the host.
- * Analogous to VSCode's `activate(context: ExtensionContext)`.
- */
-export function activate(ctx: MiniAppContext): MiniAppActivation {
-  // Register backend command handlers, subscriptions, etc.
-  return {
-    component: NoteApp,  // Root React component rendered in the window
-  };
-}
-
-/**
- * Called when the MiniApp is deactivated (all windows closed, or uninstall).
- * Clean up resources. Analogous to VSCode's `deactivate()`.
- */
-export function deactivate(): void {
-  // cleanup
-}
-```
-
-#### MiniAppManifest
-
-```ts
-export interface MiniAppManifest {
-  /** Unique identifier, e.g. "note" */
-  id: string;
-  /** Display name shown in the Dock */
-  name: string;
-  /** Icon (path or React component) */
-  icon: string | React.ComponentType;
-  /** SemVer version */
-  version: string;
-  /** Optional human-readable description */
-  description?: string;
-}
-```
-
-#### MiniAppActivation
-
-```ts
-export interface MiniAppActivation {
-  /** Root React component rendered inside the DeskTalk window */
-  component: React.ComponentType;
-}
-```
-
-### Lifecycle
-
-| Phase        | Trigger | What happens |
-|--------------|---------|-------------|
-| **Discovery** | `desktalk start` | Core scans installed packages and reads each `manifest` export. Icons appear in the Dock. |
-| **Activation** | User opens the MiniApp (or AI triggers it) | Core calls `activate(ctx)`. The returned `component` is rendered in a new window. |
-| **Running** | User/AI interacts | MiniApp uses hooks from `ctx` to communicate with the backend. |
-| **Deactivation** | All windows of the MiniApp are closed | Core calls `deactivate()`. Resources are released. |
-| **Uninstall** | `desktalk uninstall <name>` | Core calls `deactivate()` if active, then removes the package. |
-
-### Communication Hooks (MiniAppContext)
-
-MiniApps **never** create their own HTTP servers, routes, or direct database connections. Instead, the core provides a `MiniAppContext` object (passed to `activate`) containing hooks for all backend communication. This is analogous to the `vscode` API namespace that VSCode extensions import.
-
-```ts
-export interface MiniAppContext {
-  /**
-   * Resolved absolute paths for this MiniApp, provided by the core.
-   * MiniApps should use these instead of constructing paths themselves.
-   * Analogous to VSCode's `ExtensionContext.storageUri` / `logUri`.
-   */
-  paths: MiniAppPaths;
-
-  /**
-   * Scoped key-value storage for this MiniApp.
-   * Analogous to VSCode's `ExtensionContext.globalState` / `workspaceState`.
-   */
-  storage: StorageHook;
-
-  /**
-   * Filesystem access scoped to this MiniApp's data directory (paths.data).
-   * Analogous to VSCode's `ExtensionContext.storageUri`.
-   */
-  fs: FileSystemHook;
-
-  /**
-   * Send messages between frontend and backend within this MiniApp.
-   * Analogous to VSCode's `Webview.postMessage` / `onDidReceiveMessage`.
-   */
-  messaging: MessagingHook;
-
-  /**
-   * Register disposable resources cleaned up on deactivation.
-   * Analogous to VSCode's `ExtensionContext.subscriptions`.
-   */
-  subscriptions: Disposable[];
-
-  /**
-   * Logger scoped to this MiniApp.
-   */
-  logger: Logger;
-}
-```
-
-#### MiniAppPaths
-
-The core resolves all platform-specific directories and passes them to the MiniApp at activation. MiniApps never hardcode or guess paths — they always receive them from the core.
-
-```ts
-export interface MiniAppPaths {
-  /** Scoped data directory for this MiniApp (e.g., <data>/data/note/) */
-  data: string;
-  /** Scoped storage file for this MiniApp (e.g., <data>/storage/note.json) */
-  storage: string;
-  /** Scoped log file for this MiniApp (e.g., <logs>/note.log) */
-  log: string;
-  /** Scoped cache directory for this MiniApp (e.g., <cache>/note/) */
-  cache: string;
-}
-```
-
-#### StorageHook
-
-A scoped key-value store persisted by the core at `ctx.paths.storage`. MiniApps never manage their own persistence files. Analogous to VSCode's `ExtensionContext.globalState`.
-
-```ts
-interface StorageHook {
-  get<T>(key: string): Promise<T | undefined>;
-  set<T>(key: string, value: T): Promise<void>;
-  delete(key: string): Promise<void>;
-  list(): Promise<string[]>;
-  /** Query entries by prefix or filter */
-  query<T>(options: { prefix?: string; filter?: (v: T) => boolean }): Promise<T[]>;
-}
-```
-
-#### FileSystemHook
-
-Scoped filesystem access rooted at `ctx.paths.data`. All paths passed to these methods are resolved relative to that root. The core creates the directory on first activation and prevents traversal outside it. Analogous to VSCode's `ExtensionContext.storageUri` combined with `vscode.workspace.fs`.
-
-```ts
-interface FileSystemHook {
-  readFile(path: string): Promise<string>;
-  writeFile(path: string, content: string): Promise<void>;
-  deleteFile(path: string): Promise<void>;
-  readDir(path: string): Promise<FileEntry[]>;
-  mkdir(path: string): Promise<void>;
-  stat(path: string): Promise<FileStat>;
-  exists(path: string): Promise<boolean>;
-}
-```
-
-#### MessagingHook
-
-Bidirectional message passing between the MiniApp's frontend (React) and backend (activate context). This replaces direct HTTP endpoints.
-
-```ts
-// Backend side (inside activate)
-interface MessagingHook {
-  /** Register a handler for a named command from the frontend */
-  onCommand<TReq, TRes>(command: string, handler: (data: TReq) => Promise<TRes>): Disposable;
-  /** Push an event to the frontend */
-  emit(event: string, data: unknown): void;
-}
-
-// Frontend side (React hook provided by @desktalk/sdk)
-function useCommand<TReq, TRes>(command: string): (data: TReq) => Promise<TRes>;
-function useEvent<T>(event: string, handler: (data: T) => void): void;
-```
-
-**Example — Note MiniApp using messaging instead of HTTP:**
-
-```ts
-// Backend (activate)
-export function activate(ctx: MiniAppContext) {
-  ctx.messaging.onCommand('notes.list', async () => {
-    const notes = await ctx.storage.query<Note>({ prefix: 'note:' });
-    return notes;
-  });
-
-  ctx.messaging.onCommand('notes.create', async (data: { title: string; content: string }) => {
-    const note = { id: slug(data.title), ...data, createdAt: new Date().toISOString() };
-    await ctx.storage.set(`note:${note.id}`, note);
-    return note;
-  });
-
-  return { component: NoteApp };
-}
-
-// Frontend (React)
-const NoteList = () => {
-  const listNotes = useCommand<void, Note[]>('notes.list');
-  const [notes, setNotes] = useState<Note[]>([]);
-
-  useEffect(() => { listNotes().then(setNotes); }, []);
-  // ...
-};
-```
+- Each MiniApp has **two separate entry files**: a backend entry (`src/backend.ts`) that runs on the Node.js server, and a frontend entry (`src/frontend.tsx`) that runs in the browser.
+- The backend entry exports `manifest`, `activate(ctx)`, and `deactivate()`. It handles command registration, storage, and filesystem access.
+- The frontend entry exports a default React component rendered inside a DeskTalk window. It communicates with the backend exclusively through SDK hooks (`useCommand`, `useEvent`).
+- The `@desktalk/sdk` package provides a standard build CLI (`desktalk-build`) so MiniApp authors do not need to configure their own bundler.
 
 ## Window Management
 
@@ -377,27 +174,27 @@ Window management is the central feature of DeskTalk.
 |-----------------------|
 ```
 
-| Region      | Description |
-|-------------|-------------|
+| Region      | Description                                                                                                                                                                                                                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Actions Bar | A global bar at the top of the screen, similar to the macOS Menu Bar. It is **not** part of any individual MiniApp window. It displays both **built-in window actions** (provided by the core) and **MiniApp-specific actions** (provided by the focused MiniApp via `<ActionsProvider>`). |
 
 ### Built-in Window Actions
 
 The core provides a set of built-in actions that are always present in the Actions Bar for every window. These are managed by the window manager, not by MiniApps.
 
-| Action     | Description |
-|------------|-------------|
-| Maximize   | Toggle the focused window between maximized and normal size. |
-| Minimize   | Minimize the focused window to the Dock. |
-| Close      | Close the focused window. Triggers MiniApp deactivation if it was the last window for that MiniApp. |
+| Action   | Description                                                                                         |
+| -------- | --------------------------------------------------------------------------------------------------- |
+| Maximize | Toggle the focused window between maximized and normal size.                                        |
+| Minimize | Minimize the focused window to the Dock.                                                            |
+| Close    | Close the focused window. Triggers MiniApp deactivation if it was the last window for that MiniApp. |
 
 These built-in actions appear alongside any MiniApp-specific actions. For example, when a Note window is focused the Actions Bar shows: `Maximize | Minimize | Close | Create Note | Delete Note | Search Notes | ...`
 
-| Region      | Description |
-|-------------|-------------|
-| Window Area | The main workspace where MiniApp windows are rendered. Supports opening, closing, moving, resizing, focusing, and minimizing windows. |
+| Region      | Description                                                                                                                                                                  |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Window Area | The main workspace where MiniApp windows are rendered. Supports opening, closing, moving, resizing, focusing, and minimizing windows.                                        |
 | Info Panel  | A right-side panel that displays AI session information: thinking state, conversation messages, and token/cost usage. Powered by pi (see [AI Integration](#ai-integration)). |
-| Dock        | A macOS-style dock at the bottom listing all available MiniApps for quick launch. |
+| Dock        | A macOS-style dock at the bottom listing all available MiniApps for quick launch.                                                                                            |
 
 ### Window Lifecycle
 
@@ -421,7 +218,9 @@ Actions are the bridge between the AI and the MiniApp UI.
   <Action
     name="Add a TODO"
     description="Create a new todo item"
-    handler={async (params) => { /* ... */ }}
+    handler={async (params) => {
+      /* ... */
+    }}
   />
 </ActionsProvider>
 ```
@@ -505,10 +304,10 @@ const { session } = await createAgentSession({
 
 Pi's built-in tools (`read`, `bash`, `edit`, `write`) are **disabled** for DeskTalk — the agent should not have direct filesystem or shell access. Instead, the AI interacts with DeskTalk through two custom tools:
 
-| Tool | Description |
-|------|-------------|
-| `list_actions` | Returns the list of `<Action>` declarations registered by the currently focused MiniApp window. Each entry includes the action's `name`, `description`, and parameter schema. |
-| `invoke_action` | Calls a named action with parameters. The core resolves the action handler registered by the focused MiniApp and executes it. Returns the action's result. |
+| Tool            | Description                                                                                                                                                                   |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_actions`  | Returns the list of `<Action>` declarations registered by the currently focused MiniApp window. Each entry includes the action's `name`, `description`, and parameter schema. |
+| `invoke_action` | Calls a named action with parameters. The core resolves the action handler registered by the focused MiniApp and executes it. Returns the action's result.                    |
 
 ```ts
 import { Type } from '@sinclair/typebox';
@@ -534,9 +333,11 @@ const invokeActionTool: ToolDefinition = {
   description: 'Invoke a named action in the currently focused DeskTalk window.',
   parameters: Type.Object({
     name: Type.String({ description: 'The action name to invoke' }),
-    params: Type.Optional(Type.Record(Type.String(), Type.Unknown(), {
-      description: 'Parameters to pass to the action handler',
-    })),
+    params: Type.Optional(
+      Type.Record(Type.String(), Type.Unknown(), {
+        description: 'Parameters to pass to the action handler',
+      }),
+    ),
   }),
   execute: async (_id, { name, params }) => {
     const result = await windowManager.invokeAction(name, params);
@@ -561,14 +362,14 @@ session.subscribe((event) => {
 
 Key event types forwarded to the frontend:
 
-| Event | Frontend use |
-|-------|-------------|
-| `message_update` (text_delta) | Append streaming text to the chat in the Info Panel. |
-| `message_update` (thinking_delta) | Show thinking content in a collapsible block. |
-| `tool_execution_start` / `tool_execution_end` | Show which action the AI is invoking. |
-| `agent_start` / `agent_end` | Toggle "AI is thinking" indicator. |
-| `turn_end` | Update token/cost counters from `event.message.usage`. |
-| `auto_compaction_start` / `auto_compaction_end` | Show compaction status. |
+| Event                                           | Frontend use                                           |
+| ----------------------------------------------- | ------------------------------------------------------ |
+| `message_update` (text_delta)                   | Append streaming text to the chat in the Info Panel.   |
+| `message_update` (thinking_delta)               | Show thinking content in a collapsible block.          |
+| `tool_execution_start` / `tool_execution_end`   | Show which action the AI is invoking.                  |
+| `agent_start` / `agent_end`                     | Toggle "AI is thinking" indicator.                     |
+| `turn_end`                                      | Update token/cost counters from `event.message.usage`. |
+| `auto_compaction_start` / `auto_compaction_end` | Show compaction status.                                |
 
 ### Frontend — Info Panel
 
@@ -576,12 +377,12 @@ The Info Panel is the user-facing AI interface, rendered as a permanent right-si
 
 #### Sections
 
-| Section | Content |
-|---------|---------|
-| **Chat** | Scrollable list of user and assistant messages. User types prompts at the bottom. Messages render Markdown. |
-| **Thinking** | Collapsible block showing the model's chain-of-thought when thinking is enabled. |
+| Section        | Content                                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Chat**       | Scrollable list of user and assistant messages. User types prompts at the bottom. Messages render Markdown.        |
+| **Thinking**   | Collapsible block showing the model's chain-of-thought when thinking is enabled.                                   |
 | **Tool Calls** | Inline indicators showing when the AI invokes `list_actions` or `invoke_action`, including parameters and results. |
-| **Status Bar** | Current model name, thinking level, token usage (input/output/cache), and estimated cost. |
+| **Status Bar** | Current model name, thinking level, token usage (input/output/cache), and estimated cost.                          |
 
 #### Sending Prompts
 
@@ -615,26 +416,26 @@ Available models come from `modelRegistry.getAvailable()`, which checks which pr
 
 This is the end-to-end flow when the AI decides to invoke a MiniApp action:
 
-1. User types a prompt in the Info Panel, e.g. *"Create a note titled Shopping List"*.
+1. User types a prompt in the Info Panel, e.g. _"Create a note titled Shopping List"_.
 2. Backend calls `session.prompt(message)`.
 3. Pi's LLM decides to call `list_actions` to see what's available.
 4. The `list_actions` tool reads the focused window's registered actions (e.g., `Create Note`, `Delete Note`, `Search Notes`).
 5. Pi's LLM decides to call `invoke_action` with `{ name: "Create Note", params: { title: "Shopping List" } }`.
 6. The core resolves the `Create Note` handler registered by the Note MiniApp's `<Action>` component and executes it.
 7. The action handler uses `ctx.messaging` / `ctx.storage` to create the note and returns a result.
-8. Pi receives the tool result and generates a final text response: *"I've created a note titled 'Shopping List'."*
+8. Pi receives the tool result and generates a final text response: _"I've created a note titled 'Shopping List'."_
 9. The response streams to the Info Panel via WebSocket events.
 
 ### Authentication and Configuration
 
 Pi credentials (API keys, OAuth tokens) are stored at `<config>/pi-auth.json` via pi's `AuthStorage`. The Preference MiniApp exposes settings for:
 
-| Setting | Description |
-|---------|-------------|
-| LLM Provider | Which provider to use (Anthropic, OpenAI, etc.) |
-| Model | Which model to use within the provider |
-| Thinking Level | off, minimal, low, medium, high |
-| API Key | Per-provider API key entry |
+| Setting        | Description                                     |
+| -------------- | ----------------------------------------------- |
+| LLM Provider   | Which provider to use (Anthropic, OpenAI, etc.) |
+| Model          | Which model to use within the provider          |
+| Thinking Level | off, minimal, low, medium, high                 |
+| API Key        | Per-provider API key entry                      |
 
 These settings map to `session.setModel()` and `session.setThinkingLevel()` calls on the backend.
 
@@ -648,10 +449,10 @@ Pi sessions are stored as JSONL files in `<data>/ai-sessions/`. Pi's `SessionMan
 
 ### Dependencies
 
-| Package | Purpose |
-|---------|---------|
+| Package                         | Purpose                                                                                 |
+| ------------------------------- | --------------------------------------------------------------------------------------- |
 | `@mariozechner/pi-coding-agent` | SDK entry point: `createAgentSession`, `AuthStorage`, `ModelRegistry`, `SessionManager` |
-| `@sinclair/typebox` | JSON Schema definitions for custom tool parameters (peer dependency of pi) |
+| `@sinclair/typebox`             | JSON Schema definitions for custom tool parameters (peer dependency of pi)              |
 
 The `@desktalk/core` package declares `@mariozechner/pi-coding-agent` as a dependency. No other DeskTalk packages need to depend on pi directly.
 
@@ -659,12 +460,12 @@ The `@desktalk/core` package declares `@mariozechner/pi-coding-agent` as a depen
 
 DeskTalk ships with four built-in MiniApps. Each has its own detailed spec in `docs/miniapps/`.
 
-| MiniApp         | Summary |
-|-----------------|---------|
-| Note            | Markdown note-taking with YAML front matter and Milkdown editor. |
-| Todo            | Task management similar to macOS Reminders. |
-| File Explorer   | Simple filesystem browser. |
-| Preference      | App and window configuration UI. |
+| MiniApp       | Summary                                                          |
+| ------------- | ---------------------------------------------------------------- |
+| Note          | Markdown note-taking with YAML front matter and Milkdown editor. |
+| Todo          | Task management similar to macOS Reminders.                      |
+| File Explorer | Simple filesystem browser.                                       |
+| Preference    | App and window configuration UI.                                 |
 
 ## Engineering Guidelines
 

@@ -1,0 +1,366 @@
+# MiniApp Development Guide
+
+This document describes how to build a MiniApp for DeskTalk. It covers the package structure, entry files, exported interfaces, lifecycle, communication hooks, and the standard build toolchain.
+
+For the overall system architecture, workspace directories, and installation mechanics, see [spec.md](./spec.md).
+
+## Package Structure
+
+Every MiniApp is an npm package with **two separate entry files** — one for the backend (Node.js) and one for the frontend (React). The core loads each independently: the backend entry runs on the server, and the frontend entry is bundled for the browser.
+
+```
+miniapp-note/
+  src/
+    backend.ts          # Backend entry — exports manifest, activate(), deactivate()
+    frontend.tsx        # Frontend entry — exports the root React component
+    components/         # React components (imported by frontend.tsx)
+    ...
+  package.json
+  tsconfig.build.json
+```
+
+### package.json
+
+```json
+{
+  "name": "@desktalk/miniapp-note",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./backend": {
+      "types": "./dist/backend.d.ts",
+      "import": "./dist/backend.js"
+    },
+    "./frontend": {
+      "types": "./dist/frontend.d.ts",
+      "import": "./dist/frontend.js"
+    }
+  },
+  "scripts": {
+    "build": "desktalk-build"
+  },
+  "dependencies": {
+    "@desktalk/sdk": "workspace:*",
+    "react": "^19.0.0"
+  }
+}
+```
+
+The two sub-path exports (`./backend` and `./frontend`) allow the core to import them separately:
+
+```ts
+// Server-side — imports only the backend entry
+import { manifest, activate, deactivate } from '@desktalk/miniapp-note/backend';
+
+// Frontend bundle — imports only the frontend entry
+import { default as NoteApp } from '@desktalk/miniapp-note/frontend';
+```
+
+## Backend Entry (`backend.ts`)
+
+The backend entry runs on the DeskTalk Node.js server. It exports the MiniApp's metadata and lifecycle hooks. It should **never** import React or any browser-only code.
+
+```ts
+import type { MiniAppManifest, MiniAppContext, MiniAppBackendActivation } from '@desktalk/sdk';
+
+/**
+ * Static metadata — read by the core at discovery time.
+ * Analogous to the `contributes` section in a VSCode extension's package.json.
+ */
+export const manifest: MiniAppManifest = {
+  id: 'note',
+  name: 'Note',
+  icon: '\uD83D\uDDD2\uFE0F',
+  version: '1.0.0',
+  description: 'Markdown note-taking with tags and YAML front matter',
+};
+
+/**
+ * Called once when the MiniApp is activated (window first opened).
+ * Receives a context object with hooks for communicating with the host.
+ * Analogous to VSCode's `activate(context: ExtensionContext)`.
+ */
+export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
+  // Register backend command handlers
+  ctx.messaging.onCommand('notes.list', async () => {
+    const notes = await ctx.storage.query<Note>({ prefix: 'note:' });
+    return notes;
+  });
+
+  ctx.messaging.onCommand('notes.create', async (data: { title: string; content: string }) => {
+    const note = { id: slug(data.title), ...data, createdAt: new Date().toISOString() };
+    await ctx.storage.set(`note:${note.id}`, note);
+    return note;
+  });
+
+  return {};
+}
+
+/**
+ * Called when the MiniApp is deactivated (all windows closed, or uninstall).
+ * Clean up resources. Analogous to VSCode's `deactivate()`.
+ */
+export function deactivate(): void {
+  // cleanup
+}
+```
+
+## Frontend Entry (`frontend.tsx`)
+
+The frontend entry runs in the browser. It exports a default React component that the core renders inside a window. It communicates with the backend exclusively through SDK hooks (`useCommand`, `useEvent`).
+
+```tsx
+import React, { useEffect, useState } from 'react';
+import { useCommand, ActionsProvider, Action } from '@desktalk/sdk';
+
+interface Note {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+}
+
+function NoteApp() {
+  const listNotes = useCommand<void, Note[]>('notes.list');
+  const createNote = useCommand<{ title: string; content: string }, Note>('notes.create');
+  const [notes, setNotes] = useState<Note[]>([]);
+
+  useEffect(() => {
+    listNotes().then(setNotes);
+  }, []);
+
+  return (
+    <ActionsProvider>
+      <Action
+        name="Create Note"
+        description="Create a new note"
+        handler={async (params) => {
+          const note = await createNote(params as { title: string; content: string });
+          setNotes((prev) => [...prev, note]);
+          return note;
+        }}
+      />
+      <div>
+        <h2>Notes</h2>
+        {notes.map((n) => (
+          <div key={n.id}>{n.title}</div>
+        ))}
+      </div>
+    </ActionsProvider>
+  );
+}
+
+export default NoteApp;
+```
+
+## Exported Interfaces
+
+### MiniAppManifest
+
+```ts
+export interface MiniAppManifest {
+  /** Unique identifier, e.g. "note" */
+  id: string;
+  /** Display name shown in the Dock */
+  name: string;
+  /** Icon (emoji string or path) */
+  icon: string;
+  /** SemVer version */
+  version: string;
+  /** Optional human-readable description */
+  description?: string;
+}
+```
+
+### MiniAppBackendActivation
+
+```ts
+export interface MiniAppBackendActivation {
+  /**
+   * Reserved for future use (e.g., contribution points).
+   * Backend activate() no longer returns a React component.
+   */
+}
+```
+
+### MiniAppFrontendComponent
+
+The frontend entry's default export must be a `React.ComponentType` — the root component rendered inside the DeskTalk window.
+
+## Lifecycle
+
+| Phase            | Trigger                                    | What happens                                                                                                                            |
+| ---------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Discovery**    | `desktalk start`                           | Core scans installed packages and reads each `manifest` export from the backend entry. Icons appear in the Dock.                        |
+| **Activation**   | User opens the MiniApp (or AI triggers it) | Core calls the backend entry's `activate(ctx)` to set up command handlers, then loads the frontend entry's component into a new window. |
+| **Running**      | User/AI interacts                          | Frontend uses SDK hooks (`useCommand`, `useEvent`) to communicate with backend handlers.                                                |
+| **Deactivation** | All windows of the MiniApp are closed      | Core calls the backend entry's `deactivate()`. Resources are released.                                                                  |
+| **Uninstall**    | `desktalk uninstall <name>`                | Core calls `deactivate()` if active, then removes the package.                                                                          |
+
+## Communication Hooks (MiniAppContext)
+
+MiniApps **never** create their own HTTP servers, routes, or direct database connections. Instead, the core provides a `MiniAppContext` object (passed to the backend `activate`) containing hooks for all backend communication. This is analogous to the `vscode` API namespace that VSCode extensions import.
+
+```ts
+export interface MiniAppContext {
+  /**
+   * Resolved absolute paths for this MiniApp, provided by the core.
+   * MiniApps should use these instead of constructing paths themselves.
+   * Analogous to VSCode's `ExtensionContext.storageUri` / `logUri`.
+   */
+  paths: MiniAppPaths;
+
+  /**
+   * Scoped key-value storage for this MiniApp.
+   * Analogous to VSCode's `ExtensionContext.globalState` / `workspaceState`.
+   */
+  storage: StorageHook;
+
+  /**
+   * Filesystem access scoped to this MiniApp's data directory (paths.data).
+   * Analogous to VSCode's `ExtensionContext.storageUri`.
+   */
+  fs: FileSystemHook;
+
+  /**
+   * Send messages between frontend and backend within this MiniApp.
+   * Analogous to VSCode's `Webview.postMessage` / `onDidReceiveMessage`.
+   */
+  messaging: MessagingHook;
+
+  /**
+   * Register disposable resources cleaned up on deactivation.
+   * Analogous to VSCode's `ExtensionContext.subscriptions`.
+   */
+  subscriptions: Disposable[];
+
+  /**
+   * Logger scoped to this MiniApp.
+   */
+  logger: Logger;
+}
+```
+
+### MiniAppPaths
+
+The core resolves all platform-specific directories and passes them to the MiniApp at activation. MiniApps never hardcode or guess paths -- they always receive them from the core.
+
+```ts
+export interface MiniAppPaths {
+  /** Scoped data directory for this MiniApp (e.g., <data>/data/note/) */
+  data: string;
+  /** Scoped storage file for this MiniApp (e.g., <data>/storage/note.json) */
+  storage: string;
+  /** Scoped log file for this MiniApp (e.g., <logs>/note.log) */
+  log: string;
+  /** Scoped cache directory for this MiniApp (e.g., <cache>/note/) */
+  cache: string;
+}
+```
+
+### StorageHook
+
+A scoped key-value store persisted by the core at `ctx.paths.storage`. MiniApps never manage their own persistence files. Analogous to VSCode's `ExtensionContext.globalState`.
+
+```ts
+interface StorageHook {
+  get<T>(key: string): Promise<T | undefined>;
+  set<T>(key: string, value: T): Promise<void>;
+  delete(key: string): Promise<void>;
+  list(): Promise<string[]>;
+  /** Query entries by prefix or filter */
+  query<T>(options: { prefix?: string; filter?: (v: T) => boolean }): Promise<T[]>;
+}
+```
+
+### FileSystemHook
+
+Scoped filesystem access rooted at `ctx.paths.data`. All paths passed to these methods are resolved relative to that root. The core creates the directory on first activation and prevents traversal outside it. Analogous to VSCode's `ExtensionContext.storageUri` combined with `vscode.workspace.fs`.
+
+```ts
+interface FileSystemHook {
+  readFile(path: string): Promise<string>;
+  writeFile(path: string, content: string): Promise<void>;
+  deleteFile(path: string): Promise<void>;
+  readDir(path: string): Promise<FileEntry[]>;
+  mkdir(path: string): Promise<void>;
+  stat(path: string): Promise<FileStat>;
+  exists(path: string): Promise<boolean>;
+}
+```
+
+### MessagingHook
+
+Bidirectional message passing between the MiniApp's frontend (React) and backend (activate context). This replaces direct HTTP endpoints.
+
+```ts
+// Backend side (inside activate)
+interface MessagingHook {
+  /** Register a handler for a named command from the frontend */
+  onCommand<TReq, TRes>(command: string, handler: (data: TReq) => Promise<TRes>): Disposable;
+  /** Push an event to the frontend */
+  emit(event: string, data: unknown): void;
+}
+
+// Frontend side (React hooks provided by @desktalk/sdk)
+function useCommand<TReq, TRes>(command: string): (data: TReq) => Promise<TRes>;
+function useEvent<T>(event: string, handler: (data: T) => void): void;
+```
+
+## Build Toolchain
+
+The `@desktalk/sdk` package provides a standard build CLI: **`desktalk-build`**. MiniApp authors do not need to configure esbuild, Vite, or TypeScript output settings themselves.
+
+### Usage
+
+```bash
+# In a MiniApp package directory
+desktalk-build
+```
+
+Or in `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "desktalk-build"
+  }
+}
+```
+
+### What it does
+
+`desktalk-build` performs two builds from the MiniApp's package root:
+
+| Output             | Source             | Target           | Format | Notes                                                                                                                                     |
+| ------------------ | ------------------ | ---------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/backend.js`  | `src/backend.ts`   | Node.js (es2022) | ESM    | No bundling of `node_modules` -- external dependencies are resolved at runtime.                                                           |
+| `dist/frontend.js` | `src/frontend.tsx` | Browser (es2022) | ESM    | Bundled with all non-`@desktalk/sdk` and non-`react` imports inlined. React and the SDK are marked external (provided by the core shell). |
+
+Both outputs include TypeScript declaration files (`*.d.ts`) and source maps.
+
+### Conventions
+
+- Backend source must be at `src/backend.ts` (or `.js`, `.mjs`).
+- Frontend source must be at `src/frontend.tsx` (or `.ts`, `.jsx`, `.js`).
+- CSS Modules (`*.module.css`) are supported in frontend builds.
+- The tool reads `tsconfig.build.json` if present, otherwise uses sensible defaults.
+
+### Configuration (optional)
+
+For advanced cases, a `desktalk.config.ts` file in the package root can override defaults:
+
+```ts
+import type { MiniAppBuildConfig } from '@desktalk/sdk/build';
+
+export default {
+  backend: {
+    entry: 'src/backend.ts', // default
+    external: [], // additional externals
+  },
+  frontend: {
+    entry: 'src/frontend.tsx', // default
+    external: [], // additional externals beyond react/@desktalk/sdk
+  },
+} satisfies MiniAppBuildConfig;
+```
