@@ -1,0 +1,29 @@
+.shell {
+  display: grid;
+  grid-template-rows: var(--actions-bar-height) 1fr var(--dock-height);
+  grid-template-columns: 1fr var(--info-panel-width);
+  grid-template-areas:
+    'actionsbar actionsbar'
+    'desktop    infopanel'
+    'dock       dock';
+  width: 100%;
+  height: 100%;
+}
+
+.actionsBar {
+  grid-area: actionsbar;
+}
+
+.desktop {
+  grid-area: desktop;
+  position: relative;
+  overflow: hidden;
+}
+
+.infoPanel {
+  grid-area: infopanel;
+}
+
+.dock {
+  grid-area: dock;
+}

@@ -1,0 +1,50 @@
+.actionsBar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 12px;
+  background: var(--color-actions-bar-bg);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+  height: 100%;
+  overflow-x: auto;
+}
+
+.appName {
+  font-weight: 600;
+  color: var(--color-accent);
+  margin-right: 12px;
+  white-space: nowrap;
+}
+
+.separator {
+  width: 1px;
+  height: 16px;
+  background: var(--color-border);
+  margin: 0 6px;
+}
+
+.action {
+  padding: 4px 10px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.action:hover {
+  background: var(--color-surface-hover);
+}
+
+.builtinAction {
+  composes: action;
+  color: var(--color-text-muted);
+}
+
+.builtinAction:hover {
+  color: var(--color-text);
+}
