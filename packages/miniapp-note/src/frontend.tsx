@@ -5,9 +5,21 @@ import { TagFilter } from './components/TagFilter';
 import { NoteList } from './components/NoteList';
 import { NoteEditor } from './components/NoteEditor';
 import { NoteActions } from './components/NoteActions';
+import { NOTE_APP_RUNTIME_CSS, NOTE_APP_STYLE_ID } from './styles/runtime-css';
 import styles from './styles/NoteApp.module.css';
 
 function NoteApp() {
+  useEffect(() => {
+    if (document.getElementById(NOTE_APP_STYLE_ID)) {
+      return;
+    }
+
+    const style = document.createElement('style');
+    style.id = NOTE_APP_STYLE_ID;
+    style.textContent = NOTE_APP_RUNTIME_CSS;
+    document.head.appendChild(style);
+  }, []);
+
   // ─── State ───────────────────────────────────────────────────────────────
   const [notes, setNotes] = useState<NoteMeta[]>([]);
   const [tags, setTags] = useState<TagCount[]>([]);
