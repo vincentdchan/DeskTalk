@@ -1,0 +1,121 @@
+import { useCallback, useEffect, useRef } from 'react';
+
+/**
+ * Internal context for the WebSocket connection.
+ * Set by the core shell at startup.
+ */
+let wsInstance: WebSocket | null = null;
+let pendingRequests: Map<string, { resolve: (data: unknown) => void; reject: (err: Error) => void }> =
+  new Map();
+let eventListeners: Map<string, Set<(data: unknown) => void>> = new Map();
+
+let requestIdCounter = 0;
+
+function getNextRequestId(): string {
+  return `req-${++requestIdCounter}-${Date.now()}`;
+}
+
+/**
+ * Initialize the messaging system with a WebSocket connection.
+ * Called by the core shell, not by MiniApps directly.
+ */
+export function initMessaging(ws: WebSocket): void {
+  wsInstance = ws;
+
+  ws.addEventListener('message', (event) => {
+    try {
+      const msg = JSON.parse(event.data as string);
+      if (msg.type === 'command:response') {
+        const pending = pendingRequests.get(msg.requestId);
+        if (pending) {
+          pendingRequests.delete(msg.requestId);
+          if (msg.error) {
+            pending.reject(new Error(msg.error));
+          } else {
+            pending.resolve(msg.data);
+          }
+        }
+      } else if (msg.type === 'event') {
+        const listeners = eventListeners.get(msg.event);
+        if (listeners) {
+          for (const listener of listeners) {
+            listener(msg.data);
+          }
+        }
+      }
+    } catch {
+      // Ignore malformed messages
+    }
+  });
+}
+
+/**
+ * React hook to invoke a backend command registered via ctx.messaging.onCommand().
+ *
+ * Usage:
+ * ```ts
+ * const listNotes = useCommand<void, Note[]>('notes.list');
+ * const notes = await listNotes();
+ * ```
+ */
+export function useCommand<TReq, TRes>(command: string): (data?: TReq) => Promise<TRes> {
+  return useCallback(
+    (data?: TReq): Promise<TRes> => {
+      return new Promise((resolve, reject) => {
+        if (!wsInstance || wsInstance.readyState !== WebSocket.OPEN) {
+          reject(new Error('WebSocket not connected'));
+          return;
+        }
+
+        const requestId = getNextRequestId();
+        pendingRequests.set(requestId, {
+          resolve: resolve as (data: unknown) => void,
+          reject,
+        });
+
+        wsInstance.send(
+          JSON.stringify({
+            type: 'command:invoke',
+            command,
+            requestId,
+            data: data ?? null,
+          }),
+        );
+      });
+    },
+    [command],
+  );
+}
+
+/**
+ * React hook to listen for backend events emitted via ctx.messaging.emit().
+ *
+ * Usage:
+ * ```ts
+ * useEvent<Note>('note:updated', (note) => {
+ *   console.log('Note updated:', note);
+ * });
+ * ```
+ */
+export function useEvent<T>(event: string, handler: (data: T) => void): void {
+  const handlerRef = useRef(handler);
+  handlerRef.current = handler;
+
+  useEffect(() => {
+    const wrappedHandler = (data: unknown) => {
+      handlerRef.current(data as T);
+    };
+
+    if (!eventListeners.has(event)) {
+      eventListeners.set(event, new Set());
+    }
+    eventListeners.get(event)!.add(wrappedHandler);
+
+    return () => {
+      eventListeners.get(event)?.delete(wrappedHandler);
+      if (eventListeners.get(event)?.size === 0) {
+        eventListeners.delete(event);
+      }
+    };
+  }, [event]);
+}

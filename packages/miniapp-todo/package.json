@@ -1,0 +1,26 @@
+{
+  "name": "@desktalk/miniapp-todo",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@desktalk/sdk": "workspace:*",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/react": "^19.0.0"
+  }
+}

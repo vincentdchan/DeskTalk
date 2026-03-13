@@ -1,0 +1,47 @@
+{
+  "name": "@desktalk/core",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "desktalk": "./dist/cli/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/build-frontend.js",
+    "build:server": "tsc -p tsconfig.build.json",
+    "build:frontend": "node scripts/build-frontend.js",
+    "start": "node dist/cli/index.js start",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@desktalk/miniapp-file-explorer": "workspace:*",
+    "@desktalk/miniapp-note": "workspace:*",
+    "@desktalk/miniapp-preference": "workspace:*",
+    "@desktalk/miniapp-todo": "workspace:*",
+    "@desktalk/sdk": "workspace:*",
+    "@fastify/static": "^8.0.0",
+    "@fastify/websocket": "^11.0.0",
+    "commander": "^13.0.0",
+    "env-paths": "^3.0.0",
+    "fastify": "^5.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0"
+  }
+}
