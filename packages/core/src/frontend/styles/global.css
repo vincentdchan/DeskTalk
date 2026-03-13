@@ -16,6 +16,11 @@
   --color-window-chrome: #222240;
   --color-window-body: #1e1e2e;
 
+  /* macOS-style top bar */
+  --color-top-bar-bg: linear-gradient(180deg, #3b8ad9 0%, #2d6da8 100%);
+  --color-top-bar-text: #ffffff;
+  --color-top-bar-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
 
@@ -24,6 +29,9 @@
   --info-panel-width: 320px;
   --window-chrome-height: 36px;
   --border-radius: 8px;
+
+  /* Desktop wallpaper - using a gradient fallback, actual image loaded via JS */
+  --desktop-wallpaper: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e8ba3 100%);
 }
 
 * {
@@ -32,7 +40,9 @@
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   width: 100%;
   height: 100%;
   overflow: hidden;

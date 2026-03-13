@@ -3,24 +3,25 @@
   align-items: center;
   gap: 2px;
   padding: 0 12px;
-  background: var(--color-actions-bar-bg);
-  border-bottom: 1px solid var(--color-border);
-  font-size: 12px;
+  background: var(--color-top-bar-bg);
+  font-size: 13px;
   height: 100%;
   overflow-x: auto;
+  color: var(--color-top-bar-text);
 }
 
 .appName {
   font-weight: 600;
-  color: var(--color-accent);
+  color: var(--color-top-bar-text);
   margin-right: 12px;
   white-space: nowrap;
+  text-shadow: var(--color-top-bar-text-shadow);
 }
 
 .separator {
   width: 1px;
   height: 16px;
-  background: var(--color-border);
+  background: rgba(255, 255, 255, 0.3);
   margin: 0 6px;
 }
 
@@ -28,23 +29,24 @@
   padding: 4px 10px;
   border: none;
   background: transparent;
-  color: var(--color-text);
+  color: var(--color-top-bar-text);
   cursor: pointer;
   border-radius: 4px;
   white-space: nowrap;
   font-size: 12px;
   font-family: inherit;
+  text-shadow: var(--color-top-bar-text-shadow);
 }
 
 .action:hover {
-  background: var(--color-surface-hover);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .builtinAction {
   composes: action;
-  color: var(--color-text-muted);
+  opacity: 0.9;
 }
 
 .builtinAction:hover {
-  color: var(--color-text);
+  opacity: 1;
 }
