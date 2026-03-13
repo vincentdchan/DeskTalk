@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import type { NoteMeta } from '../types';
 import styles from '../styles/NoteApp.module.css';
 

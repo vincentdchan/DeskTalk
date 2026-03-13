@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Crepe } from '@milkdown/crepe';
-import { MilkdownProvider, Milkdown, useEditor, useInstance } from '@milkdown/react';
+import { MilkdownProvider, Milkdown, useEditor } from '@milkdown/react';
 import type { Note } from '../types';
 import styles from '../styles/NoteApp.module.css';
 
@@ -31,7 +31,6 @@ interface NoteEditorProps {
 function EditorInner({ note, onSave }: { note: Note; onSave: (content: string) => void }) {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'idle'>('idle');
-  const noteIdRef = useRef(note.id);
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
 
@@ -41,7 +40,7 @@ function EditorInner({ note, onSave }: { note: Note; onSave: (content: string) =
 
   const crepeRef = useRef<Crepe | null>(null);
 
-  const { loading } = useEditor(
+  useEditor(
     (root) => {
       const crepe = new Crepe({
         root,

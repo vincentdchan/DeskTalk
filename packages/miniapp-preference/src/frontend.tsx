@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useCommand, useEvent } from '@desktalk/sdk';
-import { CATEGORIES, PREFERENCE_SCHEMAS, getSchemasByCategory, getDefaultConfig } from './schema';
-import type { Config, PreferenceSchema } from './schema';
+import { CATEGORIES, getSchemasByCategory, getDefaultConfig } from './schema';
+import type { Config } from './schema';
 import { PreferenceCategoryList } from './components/PreferenceCategoryList';
 import { PreferenceSection } from './components/PreferenceSection';
 import { PreferenceRow } from './components/PreferenceRow';

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useEffect } from 'react';
+import React, { useCallback, useRef } from 'react';
 import type { WindowState } from '@desktalk/sdk';
 import { useWindowManager } from '../stores/window-manager.js';
 import styles from '../styles/Window.module.css';

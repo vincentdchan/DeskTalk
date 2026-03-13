@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import type { TagCount } from '../types';
 import styles from '../styles/NoteApp.module.css';
 

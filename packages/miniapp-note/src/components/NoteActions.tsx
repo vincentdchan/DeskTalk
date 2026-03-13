@@ -21,7 +21,7 @@ export function NoteActions({
   onNoteDeleted,
   onSearch,
   onNoteUpdated,
-  onRefresh,
+  onRefresh: _onRefresh,
 }: NoteActionsProps) {
   const createNote = useCommand<{ title?: string; content?: string; tags?: string[] }, Note>(
     'notes.create',
