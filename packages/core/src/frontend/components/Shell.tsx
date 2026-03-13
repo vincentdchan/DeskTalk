@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { MiniAppManifest, WindowState } from '@desktalk/sdk';
+import { initMessaging, MiniAppIdProvider } from '@desktalk/sdk';
 import { useWindowManager } from '../stores/window-manager.js';
 import { ActionsBar } from './ActionsBar.js';
 import { Dock, type DockMiniApp } from './Dock.js';
@@ -22,6 +23,7 @@ function MiniAppLoadError({ miniAppId, message }: { miniAppId: string; message: 
 
 /**
  * Window content that loads the MiniApp bundle on demand.
+ * Wrapped in MiniAppIdProvider so useCommand/useEvent can resolve the miniAppId.
  */
 function MiniAppWindow({ miniAppId }: { miniAppId: string }) {
   const [Component, setComponent] = useState<React.ComponentType | null>(null);
@@ -56,7 +58,11 @@ function MiniAppWindow({ miniAppId }: { miniAppId: string }) {
     return <MiniAppLoadError miniAppId={miniAppId} message="Loading MiniApp..." />;
   }
 
-  return <Component />;
+  return (
+    <MiniAppIdProvider miniAppId={miniAppId}>
+      <Component />
+    </MiniAppIdProvider>
+  );
 }
 
 function toDockMiniApps(manifests: MiniAppManifest[], windows: WindowState[]): DockMiniApp[] {
@@ -68,7 +74,48 @@ function toDockMiniApps(manifests: MiniAppManifest[], windows: WindowState[]): D
   }));
 }
 
+/**
+ * Hook that creates and manages the WebSocket connection to the server.
+ * Returns true when the connection is open and ready for messaging.
+ */
+function useWebSocket(): boolean {
+  const [ready, setReady] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    // Build WS URL relative to the current page origin
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${location.host}/ws`;
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.addEventListener('open', () => {
+      console.log('[shell] WebSocket connected');
+      initMessaging(ws);
+      setReady(true);
+    });
+
+    ws.addEventListener('close', () => {
+      console.log('[shell] WebSocket disconnected');
+      setReady(false);
+    });
+
+    ws.addEventListener('error', (event) => {
+      console.error('[shell] WebSocket error:', event);
+    });
+
+    return () => {
+      ws.close();
+      wsRef.current = null;
+    };
+  }, []);
+
+  return ready;
+}
+
 export function Shell() {
+  const wsReady = useWebSocket();
+
   const windows = useWindowManager((s) => s.windows);
   const openWindow = useWindowManager((s) => s.openWindow);
 
@@ -113,7 +160,7 @@ export function Shell() {
           method: 'POST',
         });
         if (!response.ok) {
-          throw new Error(`Failed to activate MiniApp \"${miniAppId}\"`);
+          throw new Error(`Failed to activate MiniApp "${miniAppId}"`);
         }
 
         openWindow(miniAppId, title);
@@ -131,11 +178,17 @@ export function Shell() {
       </div>
 
       <div className={styles.desktop}>
-        {windows.map((win) => (
-          <WindowChrome key={win.id} window={win}>
-            <MiniAppWindow miniAppId={win.miniAppId} />
-          </WindowChrome>
-        ))}
+        {wsReady
+          ? windows.map((win) => (
+              <WindowChrome key={win.id} window={win}>
+                <MiniAppWindow miniAppId={win.miniAppId} />
+              </WindowChrome>
+            ))
+          : windows.length > 0 && (
+              <div style={{ padding: 24, color: 'var(--color-text-muted)' }}>
+                Connecting to server...
+              </div>
+            )}
       </div>
 
       <div className={styles.infoPanel}>

@@ -25,3 +25,9 @@ export type { WindowState, WindowPosition, WindowSize } from './types/window.js'
 
 export { useCommand, useEvent } from './hooks/messaging.js';
 export { ActionsProvider, Action } from './components/Actions.js';
+
+// ─── Core Shell Internals ────────────────────────────────────────────────────
+// These are used by the core shell to wire up infrastructure.
+// MiniApps should NOT use these directly.
+
+export { initMessaging, MiniAppIdProvider } from './hooks/messaging.js';

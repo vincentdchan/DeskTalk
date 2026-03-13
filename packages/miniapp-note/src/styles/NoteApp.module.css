@@ -1,0 +1,344 @@
+/* ─── Layout ──────────────────────────────────────────────────────────────── */
+
+.root {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-window-body, #1e1e2e);
+  color: var(--color-text, #e0e0f0);
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
+}
+
+/* ─── Tag Filter Panel ───────────────────────────────────────────────────── */
+
+.tagPanel {
+  width: 160px;
+  min-width: 160px;
+  border-right: 1px solid var(--color-border, #3a3a5c);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.tagHeader {
+  padding: 12px 14px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted, #8888aa);
+}
+
+.tagList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tagItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-text, #e0e0f0);
+  transition: background 0.1s;
+}
+
+.tagItem:hover {
+  background: var(--color-surface-hover, #32324a);
+}
+
+.tagItemActive {
+  composes: tagItem;
+  background: var(--color-surface, #282840);
+  color: var(--color-accent, #7c6ff7);
+  font-weight: 500;
+}
+
+.tagCount {
+  font-size: 11px;
+  color: var(--color-text-muted, #8888aa);
+  min-width: 20px;
+  text-align: right;
+}
+
+/* ─── Note List Panel ────────────────────────────────────────────────────── */
+
+.listPanel {
+  width: 260px;
+  min-width: 200px;
+  border-right: 1px solid var(--color-border, #3a3a5c);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.listHeader {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border, #3a3a5c);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.searchInput {
+  flex: 1;
+  background: var(--color-surface, #282840);
+  border: 1px solid var(--color-border, #3a3a5c);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--color-text, #e0e0f0);
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.searchInput::placeholder {
+  color: var(--color-text-muted, #8888aa);
+}
+
+.searchInput:focus {
+  border-color: var(--color-accent, #7c6ff7);
+}
+
+.newNoteBtn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--color-border, #3a3a5c);
+  border-radius: 6px;
+  background: var(--color-surface, #282840);
+  color: var(--color-text, #e0e0f0);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.newNoteBtn:hover {
+  background: var(--color-surface-hover, #32324a);
+  border-color: var(--color-accent, #7c6ff7);
+  color: var(--color-accent, #7c6ff7);
+}
+
+.noteList {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.noteItem {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border, #3a3a5c);
+  transition: background 0.1s;
+}
+
+.noteItem:hover {
+  background: var(--color-surface-hover, #32324a);
+}
+
+.noteItemActive {
+  composes: noteItem;
+  background: var(--color-surface, #282840);
+  border-left: 3px solid var(--color-accent, #7c6ff7);
+  padding-left: 11px;
+}
+
+.noteTitle {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notePreview {
+  font-size: 12px;
+  color: var(--color-text-muted, #8888aa);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.noteDate {
+  font-size: 11px;
+  color: var(--color-text-muted, #8888aa);
+  opacity: 0.7;
+}
+
+.emptyState {
+  padding: 24px 14px;
+  text-align: center;
+  color: var(--color-text-muted, #8888aa);
+  font-size: 13px;
+}
+
+/* ─── Editor Panel ───────────────────────────────────────────────────────── */
+
+.editorPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.editorHeader {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border, #3a3a5c);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.editorTitle {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.editorTags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.editorTag {
+  background: var(--color-surface, #282840);
+  border: 1px solid var(--color-border, #3a3a5c);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--color-accent, #7c6ff7);
+}
+
+.editorBody {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+}
+
+.editorPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-muted, #8888aa);
+  font-size: 14px;
+}
+
+/* ─── Milkdown overrides (dark theme) ────────────────────────────────────── */
+
+.editorBody :global(.milkdown) {
+  height: 100%;
+  background: transparent;
+  color: var(--color-text, #e0e0f0);
+}
+
+.editorBody :global(.milkdown .editor) {
+  padding: 16px 20px;
+  min-height: 100%;
+  outline: none;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.editorBody :global(.milkdown .editor h1) {
+  font-size: 1.6em;
+  margin: 0.8em 0 0.4em;
+}
+.editorBody :global(.milkdown .editor h2) {
+  font-size: 1.35em;
+  margin: 0.7em 0 0.35em;
+}
+.editorBody :global(.milkdown .editor h3) {
+  font-size: 1.15em;
+  margin: 0.6em 0 0.3em;
+}
+
+.editorBody :global(.milkdown .editor p) {
+  margin: 0.5em 0;
+}
+
+.editorBody :global(.milkdown .editor code) {
+  font-family: var(--font-mono, 'SF Mono', monospace);
+  background: var(--color-surface, #282840);
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.editorBody :global(.milkdown .editor pre) {
+  background: var(--color-surface, #282840);
+  border: 1px solid var(--color-border, #3a3a5c);
+  border-radius: 6px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  margin: 0.8em 0;
+}
+
+.editorBody :global(.milkdown .editor pre code) {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+.editorBody :global(.milkdown .editor blockquote) {
+  border-left: 3px solid var(--color-accent, #7c6ff7);
+  padding-left: 14px;
+  margin: 0.8em 0;
+  color: var(--color-text-muted, #8888aa);
+}
+
+.editorBody :global(.milkdown .editor a) {
+  color: var(--color-accent, #7c6ff7);
+  text-decoration: none;
+}
+
+.editorBody :global(.milkdown .editor a:hover) {
+  text-decoration: underline;
+}
+
+.editorBody :global(.milkdown .editor hr) {
+  border: none;
+  border-top: 1px solid var(--color-border, #3a3a5c);
+  margin: 1.5em 0;
+}
+
+.editorBody :global(.milkdown .editor ul),
+.editorBody :global(.milkdown .editor ol) {
+  padding-left: 24px;
+  margin: 0.5em 0;
+}
+
+.editorBody :global(.milkdown .editor li) {
+  margin: 0.2em 0;
+}
+
+.editorBody :global(.milkdown .editor img) {
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+/* Status indicator */
+.saveStatus {
+  font-size: 11px;
+  color: var(--color-text-muted, #8888aa);
+  opacity: 0.7;
+}
+
+.saveStatusSaving {
+  composes: saveStatus;
+  color: var(--color-warning, #e0a050);
+}

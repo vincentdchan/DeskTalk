@@ -1,12 +1,49 @@
-import { useCallback, useEffect, useRef } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef } from 'react';
+
+// ─── MiniApp ID Context ──────────────────────────────────────────────────────
+
+/**
+ * React context that provides the current MiniApp's ID to hooks.
+ * The core shell wraps each MiniApp window with this provider.
+ */
+const MiniAppIdContext = createContext<string | null>(null);
+
+/**
+ * Provider component that injects the miniAppId into context.
+ * Used by the core shell — MiniApps should NOT use this directly.
+ */
+export function MiniAppIdProvider({
+  miniAppId,
+  children,
+}: {
+  miniAppId: string;
+  children: React.ReactNode;
+}) {
+  return React.createElement(MiniAppIdContext.Provider, { value: miniAppId }, children);
+}
+
+/**
+ * Hook to read the current MiniApp's ID from context.
+ */
+export function useMiniAppId(): string {
+  const id = useContext(MiniAppIdContext);
+  if (!id) {
+    throw new Error('useMiniAppId must be used inside a <MiniAppIdProvider>');
+  }
+  return id;
+}
+
+// ─── WebSocket / Messaging ───────────────────────────────────────────────────
 
 /**
  * Internal context for the WebSocket connection.
  * Set by the core shell at startup.
  */
 let wsInstance: WebSocket | null = null;
-let pendingRequests: Map<string, { resolve: (data: unknown) => void; reject: (err: Error) => void }> =
-  new Map();
+let pendingRequests: Map<
+  string,
+  { resolve: (data: unknown) => void; reject: (err: Error) => void }
+> = new Map();
 let eventListeners: Map<string, Set<(data: unknown) => void>> = new Map();
 
 let requestIdCounter = 0;
@@ -52,6 +89,8 @@ export function initMessaging(ws: WebSocket): void {
 /**
  * React hook to invoke a backend command registered via ctx.messaging.onCommand().
  *
+ * Must be used inside a <MiniAppIdProvider> so the command is routed correctly.
+ *
  * Usage:
  * ```ts
  * const listNotes = useCommand<void, Note[]>('notes.list');
@@ -59,6 +98,8 @@ export function initMessaging(ws: WebSocket): void {
  * ```
  */
 export function useCommand<TReq, TRes>(command: string): (data?: TReq) => Promise<TRes> {
+  const miniAppId = useMiniAppId();
+
   return useCallback(
     (data?: TReq): Promise<TRes> => {
       return new Promise((resolve, reject) => {
@@ -76,6 +117,7 @@ export function useCommand<TReq, TRes>(command: string): (data?: TReq) => Promis
         wsInstance.send(
           JSON.stringify({
             type: 'command:invoke',
+            miniAppId,
             command,
             requestId,
             data: data ?? null,
@@ -83,7 +125,7 @@ export function useCommand<TReq, TRes>(command: string): (data?: TReq) => Promis
         );
       });
     },
-    [command],
+    [miniAppId, command],
   );
 }
 

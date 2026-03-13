@@ -78,6 +78,15 @@ await esbuild.build({
   target: 'es2022',
   sourcemap: true,
   jsx: 'automatic',
+  loader: {
+    '.css': 'css',
+    '.module.css': 'local-css',
+    // Font files from third-party CSS (e.g. KaTeX) — use empty to avoid bloat
+    '.woff2': 'empty',
+    '.woff': 'empty',
+    '.ttf': 'empty',
+    '.eot': 'empty',
+  },
   // React and the SDK are provided by the core shell — mark external
   external: ['react', 'react/jsx-runtime', 'react-dom', '@desktalk/sdk'],
 });
