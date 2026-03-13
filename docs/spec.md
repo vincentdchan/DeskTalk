@@ -65,6 +65,7 @@ The MiniApp system follows the same principles as VSCode extensions:
 - They are **discovered and activated** by the core host, not self-started.
 - They communicate with the backend exclusively through **hooks provided by the core**, never by creating their own HTTP servers or routes.
 - The core is the single authority for networking, storage, and lifecycle.
+- The core enforces **permission-based access control** — certain privileged APIs (e.g., global configuration) are only available to authorized MiniApps (see [Privileged Access & Permissions](#privileged-access--permissions)).
 
 ### Workspace Directory
 
@@ -85,7 +86,7 @@ Using `<config>`, `<data>`, `<logs>`, `<cache>` as shorthand for the platform-re
 
 ```
 <config>/
-  config.json                  # Global app configuration (managed by Preference MiniApp)
+  config.toml                  # Global app configuration (TOML format, managed by core; privileged — only Preference MiniApp may write)
 
 <data>/
   miniapps/                    # Installed third-party MiniApp packages
@@ -112,13 +113,13 @@ Using `<config>`, `<data>`, `<logs>`, `<cache>` as shorthand for the platform-re
   ...                          # Temporary/regenerable data
 ```
 
-| Path                       | Purpose                                                                      | Accessed via              |
-| -------------------------- | ---------------------------------------------------------------------------- | ------------------------- |
-| `<data>/data/<id>/`        | Scoped filesystem for the MiniApp. Files the MiniApp reads/writes live here. | `ctx.fs`                  |
-| `<data>/storage/<id>.json` | Scoped key-value store persisted as JSON.                                    | `ctx.storage`             |
-| `<logs>/<id>.log`          | Scoped log output.                                                           | `ctx.logger`              |
-| `<data>/miniapps/`         | Installed third-party MiniApp npm packages.                                  | Core only                 |
-| `<config>/config.json`     | Global app configuration.                                                    | Core / Preference MiniApp |
+| Path                       | Purpose                                                                                                                                                                                                   | Accessed via                                              |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `<data>/data/<id>/`        | Scoped filesystem for the MiniApp. Files the MiniApp reads/writes live here.                                                                                                                              | `ctx.fs`                                                  |
+| `<data>/storage/<id>.json` | Scoped key-value store persisted as JSON.                                                                                                                                                                 | `ctx.storage`                                             |
+| `<logs>/<id>.log`          | Scoped log output.                                                                                                                                                                                        | `ctx.logger`                                              |
+| `<data>/miniapps/`         | Installed third-party MiniApp npm packages.                                                                                                                                                               | Core only                                                 |
+| `<config>/config.toml`     | Global app configuration (TOML). Managed by the core. **Only** the Preference MiniApp has write access via `ctx.config` (enforced by the core; see [Privileged Access](#privileged-access--permissions)). | Core (read/write) / Preference MiniApp (via `ctx.config`) |
 
 MiniApps never know or control their absolute paths. The core creates these directories automatically when a MiniApp is first activated, and all `ctx.fs` paths are resolved relative to `<data>/data/<id>/`. This is analogous to VSCode where extensions access `context.storageUri` without knowing the underlying filesystem location.
 
@@ -144,6 +145,68 @@ desktalk list
 3. Built-in MiniApps (Note, Todo, File Explorer, Preference) ship with the core package and are always available — they follow the same interfaces as third-party MiniApps.
 
 This is analogous to VSCode where built-in extensions (e.g., TypeScript, Git) coexist with marketplace extensions under the same API contract.
+
+### Privileged Access & Permissions
+
+The global configuration file (`<config>/config.toml`) stores all application settings in [TOML](https://toml.io) format. The core is the sole owner of this file — it handles all reads, writes, parsing, and serialization. MiniApps (including Preference) never touch the file directly; they go through the core's `ConfigHook` API. Because the config controls critical application behavior — server bind address, AI credentials, window defaults, dock layout, etc. — the core enforces strict access control.
+
+#### Design Principle
+
+Only the **Preference MiniApp** (`id: "preference"`) is authorized to read and write the global configuration. All other MiniApps — both built-in and third-party — are denied access. This is enforced at the core level, not by convention.
+
+#### ConfigHook (Privileged)
+
+The core provides a `ConfigHook` interface for reading and writing the global configuration. The core manages all file I/O internally (`<config>/config.toml`) — the hook exposes only a typed key-value API. This hook is **only** injected into the `MiniAppContext` when the MiniApp's manifest declares `id: "preference"`. For all other MiniApps, `ctx.config` is `undefined`.
+
+```ts
+interface ConfigHook {
+  /** Get all settings as a flat key-value map. */
+  getAll(): Promise<Config>;
+  /** Get a single setting's value. Returns undefined if not set. */
+  get(key: string): Promise<string | number | boolean | undefined>;
+  /** Set a single setting's value. Core persists to <config>/config.toml immediately. */
+  set(key: string, value: string | number | boolean): Promise<void>;
+  /** Reset a single setting to its default value. */
+  reset(key: string): Promise<void>;
+  /** Reset all settings to defaults. */
+  resetAll(): Promise<void>;
+}
+```
+
+#### Enforcement Rules
+
+| Rule                        | Description                                                                                                                                                                                                                                                                                        |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Manifest ID check**       | At activation time, the core checks `manifest.id`. Only `"preference"` receives `ctx.config`. All other IDs receive `ctx.config === undefined`.                                                                                                                                                    |
+| **Built-in only**           | The Preference MiniApp ships as a built-in package (`@desktalk/miniapp-preference`). Third-party packages cannot claim the `"preference"` ID — the core rejects duplicate IDs, and built-in MiniApps take priority over installed packages.                                                        |
+| **Command namespace guard** | The `preferences.*` command namespace is reserved. The core rejects any `ctx.messaging.onCommand('preferences.*', ...)` registration from MiniApps other than `"preference"`.                                                                                                                      |
+| **Config file permissions** | The core writes `<config>/config.toml` with restricted filesystem permissions (`0600`) so only the current user can read it. This protects sensitive values like AI API keys.                                                                                                                      |
+| **Read-only broadcast**     | When a config value changes, the core broadcasts a `config:changed` event to all MiniApps so they can react (e.g., the shell updates its theme). The event payload contains only the changed key and new value — never the full config or sensitive fields (API keys are omitted from broadcasts). |
+
+#### How Other MiniApps React to Config Changes
+
+MiniApps that need to respond to configuration changes (e.g., theme switching) subscribe to the `config:changed` event via `ctx.messaging`. They do **not** read `config.toml` directly — all file I/O is handled by the core.
+
+```ts
+// Inside any MiniApp's activate()
+ctx.messaging.onEvent(
+  'config:changed',
+  (change: { key: string; value: string | number | boolean }) => {
+    if (change.key === 'general.theme') {
+      // React to theme change
+    }
+  },
+);
+```
+
+The core also provides a read-only API for non-sensitive settings that any MiniApp can query:
+
+```ts
+// Available to all MiniApps via ctx.messaging
+ctx.messaging.onCommand('config.getPublic', async (data: { key: string }) => { ... });
+```
+
+This returns values for non-sensitive keys only (e.g., theme, language, window defaults). Requests for sensitive keys (e.g., `ai.apiKey`) return an error.
 
 ### MiniApp Development
 
@@ -460,12 +523,12 @@ The `@desktalk/core` package declares `@mariozechner/pi-coding-agent` as a depen
 
 DeskTalk ships with four built-in MiniApps. Each has its own detailed spec in `docs/miniapps/`.
 
-| MiniApp       | Summary                                                          |
-| ------------- | ---------------------------------------------------------------- |
-| Note          | Markdown note-taking with YAML front matter and Milkdown editor. |
-| Todo          | Task management similar to macOS Reminders.                      |
-| File Explorer | Simple filesystem browser.                                       |
-| Preference    | App and window configuration UI.                                 |
+| MiniApp       | Summary                                                                                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Note          | Markdown note-taking with YAML front matter and Milkdown editor.                                                                                              |
+| Todo          | Task management similar to macOS Reminders.                                                                                                                   |
+| File Explorer | Simple filesystem browser.                                                                                                                                    |
+| Preference    | App and window configuration UI. **Privileged** — sole MiniApp with write access to global config (see [Privileged Access](#privileged-access--permissions)). |
 
 ## Engineering Guidelines
 

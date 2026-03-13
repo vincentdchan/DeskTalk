@@ -238,6 +238,16 @@ export interface MiniAppContext {
    * Logger scoped to this MiniApp.
    */
   logger: Logger;
+
+  /**
+   * Privileged access to the global configuration (<config>/config.toml).
+   * Only available to the Preference MiniApp (manifest.id === "preference").
+   * For all other MiniApps this is `undefined`.
+   * The core manages all TOML file I/O internally — the hook exposes only
+   * a typed key-value API.
+   * See docs/spec.md — Privileged Access & Permissions.
+   */
+  config?: ConfigHook;
 }
 ```
 
