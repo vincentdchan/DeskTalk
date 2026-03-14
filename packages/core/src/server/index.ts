@@ -4,8 +4,9 @@ import fastifyStatic from '@fastify/static';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
-import { addClient, broadcastRaw, handleCommand } from '../services/messaging.js';
+import { addClient, broadcastRaw } from '../services/messaging.js';
 import { registry } from '../services/miniapp-registry.js';
+import { processManager } from '../services/backend-process-manager.js';
 import { PiSessionService } from '../services/ai/pi-session-service.js';
 import { getStoredPreference } from '../services/preferences.js';
 import { loadMergedLocaleMessages } from '../services/i18n.js';
@@ -34,8 +35,8 @@ export async function createServer(options: ServerOptions) {
   const windowManager = new WindowManagerService(
     join(workspacePaths.data, 'storage', 'window-state.json'),
   );
-  windowManager.activatePersistedMiniApps((miniAppId) => {
-    registry.activate(miniAppId);
+  windowManager.activatePersistedMiniApps(async (miniAppId) => {
+    await registry.activate(miniAppId);
   });
 
   // ─── Pending requests for action invocations brokered to the frontend ───
@@ -163,7 +164,7 @@ export async function createServer(options: ServerOptions) {
         if (msg.type === 'command:invoke') {
           const { miniAppId, command, requestId, data } = msg;
           try {
-            const result = await handleCommand(miniAppId, command, data);
+            const result = await processManager.sendCommand(miniAppId, command, data);
             socket.send(
               JSON.stringify({
                 type: 'command:response',
@@ -485,14 +486,14 @@ export async function createServer(options: ServerOptions) {
   // REST API: Activate a MiniApp
   app.post<{ Params: { id: string } }>('/api/miniapps/:id/activate', async (req) => {
     const { id } = req.params;
-    registry.activate(id);
+    await registry.activate(id);
     return { id, activated: true };
   });
 
   // REST API: Deactivate a MiniApp
   app.post<{ Params: { id: string } }>('/api/miniapps/:id/deactivate', async (req) => {
     const { id } = req.params;
-    registry.deactivate(id);
+    await registry.deactivate(id);
     return { id, deactivated: true };
   });
 

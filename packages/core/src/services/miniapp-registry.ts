@@ -1,20 +1,17 @@
-import type { MiniAppManifest, MiniAppBackendActivation, MiniAppContext } from '@desktalk/sdk';
+import type { MiniAppManifest, MiniAppBackendActivation } from '@desktalk/sdk';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { resolveMiniAppPaths } from './workspace.js';
-import { createStorageHook } from './storage.js';
-import { createFileSystemHook } from './filesystem.js';
-import { createMessagingHook } from './messaging.js';
-import { createLogger } from './logger.js';
 import { getStoredPreference } from './preferences.js';
-import { createPackageLocalizer } from './i18n.js';
+import { processManager } from './backend-process-manager.js';
 
 /**
  * MiniApp backend module — what a MiniApp's backend entry exports.
+ * Only manifest is used in the main process; the full module runs in a child.
  */
 export interface MiniAppBackendModule {
   manifest: MiniAppManifest;
-  activate(ctx: MiniAppContext): MiniAppBackendActivation;
+  activate(ctx: unknown): MiniAppBackendActivation;
   deactivate(): void;
 }
 
@@ -23,14 +20,16 @@ export interface MiniAppBackendModule {
  */
 export interface MiniAppEntry {
   manifest: MiniAppManifest;
-  module: MiniAppBackendModule;
   packageRoot: string;
-  activation: MiniAppBackendActivation | null;
-  context: MiniAppContext | null;
+  /** Resolved import specifier the child process can use to load the module. */
+  backendPath: string;
 }
 
 /**
  * Registry that manages MiniApp discovery, activation, and deactivation.
+ *
+ * Activation now spawns an isolated child process per MiniApp via the
+ * BackendProcessManager. The main process never runs backend code directly.
  */
 class MiniAppRegistry {
   private entries = new Map<string, MiniAppEntry>();
@@ -38,74 +37,53 @@ class MiniAppRegistry {
   /**
    * Register a MiniApp module (built-in or third-party).
    */
-  register(mod: MiniAppBackendModule, packageRoot: string): void {
-    const { manifest } = mod;
+  register(manifest: MiniAppManifest, packageRoot: string, backendPath: string): void {
     if (this.entries.has(manifest.id)) {
       throw new Error(`MiniApp already registered: ${manifest.id}`);
     }
     this.entries.set(manifest.id, {
       manifest,
-      module: mod,
       packageRoot,
-      activation: null,
-      context: null,
+      backendPath,
     });
   }
 
   /**
-   * Activate a MiniApp — creates its context and calls activate().
+   * Activate a MiniApp — spawns an isolated child process.
    */
-  activate(id: string): MiniAppBackendActivation {
+  async activate(id: string): Promise<void> {
     const entry = this.entries.get(id);
     if (!entry) {
       throw new Error(`MiniApp not found: ${id}`);
     }
-    if (entry.activation) {
-      return entry.activation;
+    if (processManager.isRunning(id)) {
+      return;
     }
 
     const paths = resolveMiniAppPaths(id);
     const locale = String(getStoredPreference('general.language') ?? 'en');
-    const context: MiniAppContext = {
-      paths,
-      storage: createStorageHook(paths.storage),
-      fs: createFileSystemHook(paths.data),
-      messaging: createMessagingHook(id),
-      subscriptions: [],
-      logger: createLogger(paths.log, id),
-      i18n: createPackageLocalizer({
-        packageRoot: entry.packageRoot,
-        defaultScope: id,
-        locale,
-      }),
-    };
 
-    entry.context = context;
-    entry.activation = entry.module.activate(context);
-    context.logger.info('MiniApp activated');
-    return entry.activation;
+    await processManager.spawn(
+      id,
+      entry.backendPath,
+      entry.packageRoot,
+      paths,
+      locale,
+    );
   }
 
   /**
-   * Deactivate a MiniApp — calls deactivate() and cleans up.
+   * Deactivate a MiniApp — stops its child process.
    */
-  deactivate(id: string): void {
-    const entry = this.entries.get(id);
-    if (!entry || !entry.activation) {
-      return;
-    }
+  async deactivate(id: string): Promise<void> {
+    await processManager.kill(id);
+  }
 
-    // Dispose all subscriptions
-    if (entry.context) {
-      for (const sub of entry.context.subscriptions) {
-        sub.dispose();
-      }
-      entry.context.logger.info('MiniApp deactivated');
-    }
-
-    entry.module.deactivate();
-    entry.activation = null;
-    entry.context = null;
+  /**
+   * Check if a MiniApp is activated (child process running).
+   */
+  isActivated(id: string): boolean {
+    return processManager.isRunning(id);
   }
 
   /**
@@ -120,14 +98,6 @@ class MiniAppRegistry {
    */
   getEntry(id: string): MiniAppEntry | undefined {
     return this.entries.get(id);
-  }
-
-  /**
-   * Check if a MiniApp is activated.
-   */
-  isActivated(id: string): boolean {
-    const entry = this.entries.get(id);
-    return entry?.activation != null;
   }
 
   /**
@@ -156,16 +126,16 @@ export async function registerBuiltinMiniApps(): Promise<void> {
     '@desktalk/miniapp-preference/backend',
   ];
 
-  for (const backendPath of builtins) {
+  for (const specifier of builtins) {
     try {
-      const mod = (await import(backendPath)) as MiniAppBackendModule;
-      const backendFile = fileURLToPath(import.meta.resolve(backendPath));
+      const mod = (await import(specifier)) as MiniAppBackendModule;
+      const backendFile = fileURLToPath(import.meta.resolve(specifier));
       const packageRoot = join(dirname(backendFile), '..');
-      registry.register(mod, packageRoot);
+      registry.register(mod.manifest, packageRoot, specifier);
     } catch (err) {
       // Built-in MiniApp not available yet — skip during early development
       console.warn(
-        `[registry] Could not load built-in MiniApp "${backendPath}":`,
+        `[registry] Could not load built-in MiniApp "${specifier}":`,
         (err as Error).message,
       );
     }
