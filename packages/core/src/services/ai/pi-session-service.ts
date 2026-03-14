@@ -3,11 +3,15 @@ import { dirname, join } from 'node:path';
 import {
   AuthStorage,
   createAgentSession,
+  DefaultResourceLoader,
   ModelRegistry,
   SessionManager,
   type AgentSession,
   type AgentSessionEvent,
 } from '@mariozechner/pi-coding-agent';
+import { createWindowControlTool, type SendAiCommand } from './window-tools.js';
+import type { WindowManagerService } from '../window-manager.js';
+import { registry } from '../miniapp-registry.js';
 import type { WorkspacePaths } from '../workspace.js';
 
 export type ChatSource = 'text' | 'voice';
@@ -126,6 +130,7 @@ export class PiSessionService {
   private readonly metadataFilePath: string;
   private readonly getPreference: PreferenceReader;
   private readonly session: AgentSession;
+  private readonly resourceLoader: DefaultResourceLoader;
 
   private constructor(options: {
     session: AgentSession;
@@ -134,6 +139,7 @@ export class PiSessionService {
     sessionManager: SessionManager;
     metadataFilePath: string;
     getPreference: PreferenceReader;
+    resourceLoader: DefaultResourceLoader;
   }) {
     this.session = options.session;
     this.authStorage = options.authStorage;
@@ -141,11 +147,19 @@ export class PiSessionService {
     this.sessionManager = options.sessionManager;
     this.metadataFilePath = options.metadataFilePath;
     this.getPreference = options.getPreference;
+    this.resourceLoader = options.resourceLoader;
   }
 
   static async create(
     workspacePaths: WorkspacePaths,
     getPreference: PreferenceReader,
+    windowManager: WindowManagerService,
+    invokeAction: (
+      windowId: string,
+      actionName: string,
+      actionParams?: Record<string, unknown>,
+    ) => Promise<unknown>,
+    sendAiCommand: SendAiCommand,
   ): Promise<PiSessionService> {
     const authStorage = AuthStorage.create(join(workspacePaths.config, 'pi-auth.json'));
     const modelRegistry = new ModelRegistry(authStorage);
@@ -175,6 +189,27 @@ export class PiSessionService {
       ? modelRegistry.find(provider, configuredModel)
       : undefined;
 
+    const resourceLoader = new DefaultResourceLoader({
+      cwd: process.cwd(),
+      appendSystemPromptOverride: (base) => [
+        ...base,
+        windowManager.getSystemPromptContext(registry.getManifests()),
+      ],
+    });
+    await resourceLoader.reload();
+
+    const customTools = [
+      createWindowControlTool({
+        windowManager,
+        getMiniApps: () => registry.getManifests(),
+        activateMiniApp: (miniAppId) => {
+          registry.activate(miniAppId);
+        },
+        invokeAction,
+        sendAiCommand,
+      }),
+    ];
+
     const { session } = await createAgentSession({
       cwd: process.cwd(),
       authStorage,
@@ -182,6 +217,8 @@ export class PiSessionService {
       model: initialModel,
       sessionManager,
       tools: [],
+      customTools,
+      resourceLoader,
     });
 
     return new PiSessionService({
@@ -191,6 +228,7 @@ export class PiSessionService {
       sessionManager,
       metadataFilePath: join(workspacePaths.data, 'storage', 'ai-message-metadata.json'),
       getPreference,
+      resourceLoader,
     });
   }
 
@@ -199,6 +237,8 @@ export class PiSessionService {
   }
 
   private async syncPreferences(): Promise<void> {
+    await this.resourceLoader.reload();
+
     const configuredProvider = ((await this.getPreference('ai.provider')) as string) ?? 'openai';
     const configuredModel = ((await this.getPreference('ai.model')) as string) ?? '';
     const configuredApiKey = ((await this.getPreference('ai.apiKey')) as string) ?? '';

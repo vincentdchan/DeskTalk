@@ -4,7 +4,7 @@ import fastifyStatic from '@fastify/static';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
-import { addClient, handleCommand } from '../services/messaging.js';
+import { addClient, broadcastRaw, handleCommand } from '../services/messaging.js';
 import { registry } from '../services/miniapp-registry.js';
 import { PiSessionService } from '../services/ai/pi-session-service.js';
 import { getStoredPreference } from '../services/preferences.js';
@@ -13,6 +13,10 @@ import { VoiceSession } from '../services/voice/voice-session.js';
 import { AzureOpenAIWhisperAdapter } from '../services/voice/azure-openai-whisper-adapter.js';
 import { OpenAIWhisperAdapter } from '../services/voice/openai-whisper-adapter.js';
 import type { SttAdapter } from '../services/voice/stt-adapter.js';
+import {
+  WindowManagerService,
+  type SerializableActionDefinition,
+} from '../services/window-manager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -24,8 +28,87 @@ export interface ServerOptions {
 
 export async function createServer(options: ServerOptions) {
   const app = Fastify({ logger: false });
-  const piSessionService = await PiSessionService.create(getWorkspacePaths(), async (key) =>
-    getStoredPreference(key),
+  const workspacePaths = getWorkspacePaths();
+  const windowManager = new WindowManagerService(
+    join(workspacePaths.data, 'storage', 'window-state.json'),
+  );
+  windowManager.activatePersistedMiniApps((miniAppId) => {
+    registry.activate(miniAppId);
+  });
+
+  // ─── Pending requests for action invocations brokered to the frontend ───
+  const pendingWindowActionRequests = new Map<
+    string,
+    {
+      resolve: (value: unknown) => void;
+      reject: (reason?: unknown) => void;
+      timeout: ReturnType<typeof setTimeout>;
+    }
+  >();
+
+  async function invokeWindowAction(
+    windowId: string,
+    actionName: string,
+    actionParams?: Record<string, unknown>,
+  ): Promise<unknown> {
+    const requestId = `window-action-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        pendingWindowActionRequests.delete(requestId);
+        reject(new Error(`Timed out waiting for action result: ${actionName}`));
+      }, 10000);
+
+      pendingWindowActionRequests.set(requestId, { resolve, reject, timeout });
+      broadcastRaw({
+        type: 'window:invoke_action',
+        requestId,
+        windowId,
+        actionName,
+        params: actionParams ?? null,
+      });
+    });
+  }
+
+  // ─── Pending requests for AI window commands sent to the frontend ───
+  const pendingAiCommandRequests = new Map<
+    string,
+    {
+      resolve: (value: { ok: boolean; windowId?: string; error?: string }) => void;
+      reject: (reason?: unknown) => void;
+      timeout: ReturnType<typeof setTimeout>;
+    }
+  >();
+
+  async function sendAiCommand(command: {
+    action: string;
+    windowId?: string;
+    miniAppId?: string;
+    title?: string;
+  }): Promise<{ ok: boolean; windowId?: string; error?: string }> {
+    const requestId = `ai-cmd-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        pendingAiCommandRequests.delete(requestId);
+        reject(new Error(`Timed out waiting for AI command result: ${command.action}`));
+      }, 10000);
+
+      pendingAiCommandRequests.set(requestId, { resolve, reject, timeout });
+      broadcastRaw({
+        type: 'window:ai_command',
+        requestId,
+        ...command,
+      });
+    });
+  }
+
+  const piSessionService = await PiSessionService.create(
+    workspacePaths,
+    async (key) => getStoredPreference(key),
+    windowManager,
+    invokeWindowAction,
+    sendAiCommand,
   );
 
   // Register WebSocket support
@@ -53,11 +136,23 @@ export async function createServer(options: ServerOptions) {
       );
     }
 
+    // Send AI history on connect
     sendAiEvent({
       type: 'history_sync',
       sessionId: piSessionService.getSessionId(),
       messages: piSessionService.getHistory(),
     });
+
+    // Send persisted window state so the frontend can restore on connect/refresh
+    const persisted = windowManager.getPersistedState();
+    socket.send(
+      JSON.stringify({
+        type: 'window:state',
+        windows: persisted.windows,
+        nextZIndex: persisted.nextZIndex,
+        windowIdCounter: persisted.windowIdCounter,
+      }),
+    );
 
     socket.on('message', async (raw: Buffer | ArrayBuffer | Buffer[]) => {
       try {
@@ -82,6 +177,48 @@ export async function createServer(options: ServerOptions) {
                 error: (err as Error).message,
               }),
             );
+          }
+        } else if (msg.type === 'window:sync') {
+          // Frontend syncs its full state — persist it
+          if (Array.isArray(msg.windows)) {
+            windowManager.syncState({
+              windows: msg.windows,
+              nextZIndex: typeof msg.nextZIndex === 'number' ? msg.nextZIndex : 1,
+              windowIdCounter: typeof msg.windowIdCounter === 'number' ? msg.windowIdCounter : 0,
+            });
+          }
+        } else if (msg.type === 'window:actions_changed') {
+          if (typeof msg.windowId === 'string' && Array.isArray(msg.actions)) {
+            windowManager.setWindowActions(
+              msg.windowId,
+              msg.actions as SerializableActionDefinition[],
+            );
+          }
+        } else if (msg.type === 'window:action_result') {
+          if (typeof msg.requestId === 'string') {
+            const pending = pendingWindowActionRequests.get(msg.requestId);
+            if (pending) {
+              clearTimeout(pending.timeout);
+              pendingWindowActionRequests.delete(msg.requestId);
+              if (typeof msg.error === 'string' && msg.error.length > 0) {
+                pending.reject(new Error(msg.error));
+              } else {
+                pending.resolve(msg.result);
+              }
+            }
+          }
+        } else if (msg.type === 'window:ai_command_result') {
+          if (typeof msg.requestId === 'string') {
+            const pending = pendingAiCommandRequests.get(msg.requestId);
+            if (pending) {
+              clearTimeout(pending.timeout);
+              pendingAiCommandRequests.delete(msg.requestId);
+              pending.resolve({
+                ok: msg.ok === true,
+                windowId: typeof msg.windowId === 'string' ? msg.windowId : undefined,
+                error: typeof msg.error === 'string' ? msg.error : undefined,
+              });
+            }
           }
         } else if (msg.type === 'ai:prompt') {
           const requestId = typeof msg.requestId === 'string' ? msg.requestId : `ai-${Date.now()}`;

@@ -19,7 +19,7 @@ export type {
   Disposable,
   Logger,
 } from './types/context.js';
-export type { ActionDefinition, ActionHandler } from './types/actions.js';
+export type { ActionDefinition, ActionHandler, ActionParam } from './types/actions.js';
 export type { WindowState, WindowPosition, WindowSize } from './types/window.js';
 
 // ─── React Hooks ─────────────────────────────────────────────────────────────

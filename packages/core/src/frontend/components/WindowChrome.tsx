@@ -12,34 +12,37 @@ interface WindowChromeProps {
 }
 
 export function WindowChrome({ window: win, children }: WindowChromeProps) {
-  const focusWindow = useWindowManager((s) => s.focusWindow);
-  const closeWindow = useWindowManager((s) => s.closeWindow);
-  const minimizeWindow = useWindowManager((s) => s.minimizeWindow);
-  const maximizeWindow = useWindowManager((s) => s.maximizeWindow);
-  const moveWindow = useWindowManager((s) => s.moveWindow);
-  const resizeWindow = useWindowManager((s) => s.resizeWindow);
   const windowRef = useRef<HTMLDivElement | null>(null);
 
-  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(
-    null,
-  );
+  const dragRef = useRef<{
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    lastX: number;
+    lastY: number;
+  } | null>(null);
   const resizeRef = useRef<{
     startX: number;
     startY: number;
     origWidth: number;
     origHeight: number;
+    lastWidth: number;
+    lastHeight: number;
   } | null>(null);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (win.maximized) return;
       e.preventDefault();
-      focusWindow(win.id);
+      useWindowManager.getState().focusWindow(win.id);
       dragRef.current = {
         startX: e.clientX,
         startY: e.clientY,
         origX: win.position.x,
         origY: win.position.y,
+        lastX: win.position.x,
+        lastY: win.position.y,
       };
 
       const handleMouseMove = (me: MouseEvent) => {
@@ -52,23 +55,43 @@ export function WindowChrome({ window: win, children }: WindowChromeProps) {
         const nextY = dragRef.current.origY + dy;
 
         if (!parent) {
-          moveWindow(win.id, {
-            x: nextX,
-            y: nextY,
-          });
+          const nextPosition = { x: nextX, y: nextY };
+          dragRef.current.lastX = nextPosition.x;
+          dragRef.current.lastY = nextPosition.y;
+          // Optimistic move during drag — don't sync to backend yet
+          useWindowManager.setState((state) => ({
+            windows: state.windows.map((w) =>
+              w.id === win.id ? { ...w, position: nextPosition } : w,
+            ),
+          }));
           return;
         }
 
         const maxX = Math.max(parent.clientWidth - win.size.width, 0);
         const maxY = Math.max(parent.clientHeight - win.size.height, 0);
 
-        moveWindow(win.id, {
+        const nextPosition = {
           x: Math.min(Math.max(nextX, 0), maxX),
           y: Math.min(Math.max(nextY, 0), maxY),
-        });
+        };
+        dragRef.current.lastX = nextPosition.x;
+        dragRef.current.lastY = nextPosition.y;
+        // Optimistic move during drag — don't sync to backend yet
+        useWindowManager.setState((state) => ({
+          windows: state.windows.map((w) =>
+            w.id === win.id ? { ...w, position: nextPosition } : w,
+          ),
+        }));
       };
 
       const handleMouseUp = () => {
+        if (dragRef.current) {
+          // Final move — this syncs to backend
+          useWindowManager.getState().moveWindow(win.id, {
+            x: dragRef.current.lastX,
+            y: dragRef.current.lastY,
+          });
+        }
         dragRef.current = null;
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
@@ -77,7 +100,7 @@ export function WindowChrome({ window: win, children }: WindowChromeProps) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     },
-    [win.id, win.maximized, win.position, focusWindow, moveWindow],
+    [win.id, win.maximized, win.position],
   );
 
   const handleResizeMouseDown = useCallback(
@@ -86,13 +109,15 @@ export function WindowChrome({ window: win, children }: WindowChromeProps) {
 
       e.preventDefault();
       e.stopPropagation();
-      focusWindow(win.id);
+      useWindowManager.getState().focusWindow(win.id);
 
       resizeRef.current = {
         startX: e.clientX,
         startY: e.clientY,
         origWidth: win.size.width,
         origHeight: win.size.height,
+        lastWidth: win.size.width,
+        lastHeight: win.size.height,
       };
 
       const handleMouseMove = (me: MouseEvent) => {
@@ -112,13 +137,33 @@ export function WindowChrome({ window: win, children }: WindowChromeProps) {
           nextHeight = Math.min(nextHeight, maxHeight);
         }
 
-        resizeWindow(win.id, {
-          width: nextWidth,
-          height: nextHeight,
-        });
+        const nextSize = { width: nextWidth, height: nextHeight };
+        resizeRef.current.lastWidth = nextSize.width;
+        resizeRef.current.lastHeight = nextSize.height;
+        // Optimistic resize during drag — don't sync to backend yet
+        useWindowManager.setState((state) => ({
+          windows: state.windows.map((w) =>
+            w.id === win.id
+              ? {
+                  ...w,
+                  size: {
+                    width: Math.max(nextSize.width, MIN_WINDOW_WIDTH),
+                    height: Math.max(nextSize.height, MIN_WINDOW_HEIGHT),
+                  },
+                }
+              : w,
+          ),
+        }));
       };
 
       const handleMouseUp = () => {
+        if (resizeRef.current) {
+          // Final resize — this syncs to backend
+          useWindowManager.getState().resizeWindow(win.id, {
+            width: resizeRef.current.lastWidth,
+            height: resizeRef.current.lastHeight,
+          });
+        }
         resizeRef.current = null;
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
@@ -127,16 +172,7 @@ export function WindowChrome({ window: win, children }: WindowChromeProps) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     },
-    [
-      focusWindow,
-      resizeWindow,
-      win.id,
-      win.maximized,
-      win.position.x,
-      win.position.y,
-      win.size.height,
-      win.size.width,
-    ],
+    [win.id, win.maximized, win.position.x, win.position.y, win.size.height, win.size.width],
   );
 
   if (win.minimized) return null;
@@ -165,7 +201,7 @@ export function WindowChrome({ window: win, children }: WindowChromeProps) {
       className={windowClasses}
       style={windowStyle}
       onMouseDown={() => {
-        if (!win.focused) focusWindow(win.id);
+        if (!win.focused) useWindowManager.getState().focusWindow(win.id);
       }}
     >
       <div className={styles.chrome} onMouseDown={handleMouseDown}>
@@ -174,21 +210,21 @@ export function WindowChrome({ window: win, children }: WindowChromeProps) {
             className={styles.trafficLightClose}
             onClick={(e) => {
               e.stopPropagation();
-              closeWindow(win.id);
+              useWindowManager.getState().closeWindow(win.id);
             }}
           />
           <button
             className={styles.trafficLightMinimize}
             onClick={(e) => {
               e.stopPropagation();
-              minimizeWindow(win.id);
+              useWindowManager.getState().minimizeWindow(win.id);
             }}
           />
           <button
             className={styles.trafficLightMaximize}
             onClick={(e) => {
               e.stopPropagation();
-              maximizeWindow(win.id);
+              useWindowManager.getState().maximizeWindow(win.id);
             }}
           />
         </div>

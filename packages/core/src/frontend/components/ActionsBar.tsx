@@ -5,10 +5,6 @@ import styles from '../styles/ActionsBar.module.css';
 export function ActionsBar() {
   const focusedWindow = useWindowManager((s) => s.windows.find((w) => w.focused));
   const focusedWindowActions = useWindowManager((s) => s.focusedWindowActions);
-  const closeWindow = useWindowManager((s) => s.closeWindow);
-  const minimizeWindow = useWindowManager((s) => s.minimizeWindow);
-  const maximizeWindow = useWindowManager((s) => s.maximizeWindow);
-
   return (
     <div className={styles.actionsBar}>
       <span className={styles.appName}>DeskTalk</span>
@@ -17,13 +13,22 @@ export function ActionsBar() {
         <>
           <div className={styles.separator} />
 
-          <button className={styles.builtinAction} onClick={() => maximizeWindow(focusedWindow.id)}>
+          <button
+            className={styles.builtinAction}
+            onClick={() => useWindowManager.getState().maximizeWindow(focusedWindow.id)}
+          >
             {focusedWindow.maximized ? 'Restore' : 'Maximize'}
           </button>
-          <button className={styles.builtinAction} onClick={() => minimizeWindow(focusedWindow.id)}>
+          <button
+            className={styles.builtinAction}
+            onClick={() => useWindowManager.getState().minimizeWindow(focusedWindow.id)}
+          >
             Minimize
           </button>
-          <button className={styles.builtinAction} onClick={() => closeWindow(focusedWindow.id)}>
+          <button
+            className={styles.builtinAction}
+            onClick={() => useWindowManager.getState().closeWindow(focusedWindow.id)}
+          >
             Close
           </button>
 
