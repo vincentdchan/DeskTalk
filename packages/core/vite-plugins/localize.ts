@@ -8,6 +8,7 @@
  */
 
 import type { Plugin } from 'vite';
+import MagicString from 'magic-string';
 import {
   copyFileSync,
   existsSync,
@@ -139,17 +140,24 @@ function transformLocalizedSource(source: string, scope: string) {
 
   if (replacements.length === 0) return null;
 
-  let code = source;
+  const magicString = new MagicString(source);
   for (let i = replacements.length - 1; i >= 0; i -= 1) {
     const r = replacements[i];
-    code = `${code.slice(0, r.start)}${r.code}${code.slice(r.end)}`;
+    magicString.update(r.start, r.end, r.code);
   }
+
+  let code = magicString.toString();
 
   if (!code.includes("import { __dtLocalize } from '@desktalk/sdk';")) {
-    code = `import { __dtLocalize } from '@desktalk/sdk';\n${code}`;
+    magicString.prepend("import { __dtLocalize } from '@desktalk/sdk';\n");
+    code = magicString.toString();
   }
 
-  return { code, messages };
+  return {
+    code,
+    map: magicString.generateMap({ hires: true }),
+    messages,
+  };
 }
 
 // ─── Localize transform plugin ─────────────────────────────────────────────
@@ -166,7 +174,7 @@ export function localizePlugin(options: { packageScope: string; srcRoot: string 
       const transformed = transformLocalizedSource(code, options.packageScope);
       if (!transformed) return null;
 
-      return { code: transformed.code, map: null };
+      return { code: transformed.code, map: transformed.map };
     },
   };
 }

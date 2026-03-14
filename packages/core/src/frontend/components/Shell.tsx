@@ -14,7 +14,7 @@ import { WindowChrome } from './WindowChrome.js';
 import { InfoPanel } from './InfoPanel.js';
 import { loadMiniAppModule } from '../miniapp-runtime.js';
 import type { MiniAppFrontendModule } from '../miniapp-runtime.js';
-import styles from '../styles/Shell.module.css';
+import styles from '../styles/Shell.module.scss';
 
 /**
  * Fallback UI when a MiniApp cannot be loaded.

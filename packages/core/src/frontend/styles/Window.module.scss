@@ -1,15 +1,15 @@
 .window {
   position: absolute;
   display: flex;
-  flex-direction: column;
-  border-radius: var(--border-radius);
-  overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--color-border);
   min-width: 300px;
   min-height: 200px;
   max-width: 100%;
   max-height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 .windowFocused {
@@ -19,10 +19,7 @@
 
 .windowMaximized {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   width: 100% !important;
   height: 100% !important;
   border-radius: 0;
@@ -30,17 +27,17 @@
 
 .chrome {
   display: flex;
-  align-items: center;
   height: var(--window-chrome-height);
-  background: var(--color-window-chrome);
+  flex-shrink: 0;
+  align-items: center;
   padding: 0 12px;
+  background: var(--color-window-chrome);
   cursor: grab;
   user-select: none;
-  flex-shrink: 0;
-}
 
-.chrome:active {
-  cursor: grabbing;
+  &:active {
+    cursor: grabbing;
+  }
 }
 
 .trafficLights {
@@ -52,10 +49,14 @@
 .trafficLight {
   width: 12px;
   height: 12px;
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
   padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+
+  &:hover {
+    filter: brightness(1.2);
+  }
 }
 
 .trafficLightClose {
@@ -73,32 +74,27 @@
   background: var(--color-success);
 }
 
-.trafficLight:hover {
-  filter: brightness(1.2);
-}
-
 .title {
   flex: 1;
-  text-align: center;
-  font-size: 12px;
-  color: var(--color-text-muted);
   overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .body {
   flex: 1;
-  background: var(--color-window-body);
-  overflow: auto;
   min-height: 0;
+  overflow: auto;
+  background: var(--color-window-body);
 }
 
-/* Resize handle */
 .resizeHandle {
   position: absolute;
-  bottom: 0;
   right: 0;
+  bottom: 0;
   width: 16px;
   height: 16px;
   cursor: nwse-resize;
