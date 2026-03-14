@@ -5,9 +5,9 @@ import type { ActionDefinition, ActionHandler } from '@desktalk/sdk';
 import {
   reportWindowActionResult,
   reportWindowActions,
-  requestOpen,
   setWindowManagerSocket,
   useWindowManager,
+  type WindowSyncPayload,
 } from '../stores/window-manager.js';
 import { ActionsBar } from './ActionsBar.js';
 import { Dock, type DockMiniApp } from './Dock.js';
@@ -126,7 +126,6 @@ export function Shell() {
   const { ready: wsReady, socket } = useWebSocket();
 
   const windows = useWindowManager((s) => s.windows);
-  const replaceState = useWindowManager((s) => s.replaceState);
   const setFocusedWindowActions = useWindowManager((s) => s.setFocusedWindowActions);
 
   const [manifests, setManifests] = useState<MiniAppManifest[]>([]);
@@ -156,6 +155,7 @@ export function Shell() {
     [],
   );
 
+  // Fetch MiniApp manifests on mount
   useEffect(() => {
     let cancelled = false;
 
@@ -180,10 +180,12 @@ export function Shell() {
     };
   }, []);
 
+  // Update dock apps when manifests or windows change
   useEffect(() => {
     setDockApps(toDockMiniApps(manifests, windows));
   }, [manifests, windows]);
 
+  // Wire up the window manager socket
   useEffect(() => {
     setWindowManagerSocket(socket);
     return () => {
@@ -191,6 +193,7 @@ export function Shell() {
     };
   }, [socket]);
 
+  // Listen to server messages for window state restore, AI commands, and action invocations
   useEffect(() => {
     if (!socket) {
       return;
@@ -198,32 +201,43 @@ export function Shell() {
 
     const handleWindowMessage = (event: MessageEvent) => {
       try {
-        const message = JSON.parse(event.data as string) as {
-          type?: string;
-          windows?: WindowState[];
-          focusedWindowActions?: Array<Pick<ActionDefinition, 'name' | 'description' | 'params'>>;
-          requestId?: string;
-          windowId?: string;
-          actionName?: string;
-          params?: Record<string, unknown>;
-        };
+        const message = JSON.parse(event.data as string) as Record<string, unknown>;
 
+        // Initial state restore from backend on connect
         if (message.type === 'window:state') {
-          const focusedWindowId = message.windows?.find((window) => window.focused)?.id;
-          replaceState({
-            windows: message.windows ?? [],
-            focusedWindowActions:
-              focusedWindowId && message.focusedWindowActions
-                ? buildClientActions(focusedWindowId, message.focusedWindowActions)
-                : [],
+          const payload = message as unknown as {
+            type: string;
+            windows: WindowState[];
+            nextZIndex: number;
+            windowIdCounter: number;
+          };
+          useWindowManager.getState().restoreFromBackend({
+            windows: payload.windows ?? [],
+            nextZIndex: typeof payload.nextZIndex === 'number' ? payload.nextZIndex : 1,
+            windowIdCounter:
+              typeof payload.windowIdCounter === 'number' ? payload.windowIdCounter : 0,
           });
           return;
         }
 
+        // AI tool invocation — backend asks frontend to execute a window operation
+        if (message.type === 'window:ai_command') {
+          const { action, windowId, miniAppId, title, requestId } = message as {
+            action: string;
+            windowId?: string;
+            miniAppId?: string;
+            title?: string;
+            requestId: string;
+          };
+          handleAiCommand(action, windowId, miniAppId, title, requestId);
+          return;
+        }
+
+        // Backend is brokering an action invocation to a MiniApp
         if (message.type === 'window:invoke_action') {
-          const requestId = message.requestId;
-          const windowId = message.windowId;
-          const actionName = message.actionName;
+          const requestId = message.requestId as string | undefined;
+          const windowId = message.windowId as string | undefined;
+          const actionName = message.actionName as string | undefined;
           if (!requestId || !windowId || !actionName) {
             return;
           }
@@ -238,7 +252,7 @@ export function Shell() {
             return;
           }
 
-          void handler(message.params)
+          void handler(message.params as Record<string, unknown> | undefined)
             .then((result) => {
               reportWindowActionResult(requestId, result);
             })
@@ -255,8 +269,82 @@ export function Shell() {
     return () => {
       socket.removeEventListener('message', handleWindowMessage);
     };
-  }, [buildClientActions, replaceState, socket]);
+  }, [socket]);
 
+  /**
+   * Execute a window operation locally in response to an AI tool call.
+   * The store mutations will automatically sync state back to the backend.
+   */
+  function handleAiCommand(
+    action: string,
+    windowId?: string,
+    miniAppId?: string,
+    title?: string,
+    requestId?: string,
+  ): void {
+    const store = useWindowManager.getState();
+    let resultWindowId: string | undefined;
+
+    try {
+      switch (action) {
+        case 'open': {
+          if (!miniAppId || !title) break;
+          // Activate the miniapp on the server
+          void fetch(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {
+            method: 'POST',
+          });
+          resultWindowId = store.openWindow(miniAppId, title);
+          break;
+        }
+        case 'close':
+          if (windowId) store.closeWindow(windowId);
+          break;
+        case 'focus':
+          if (windowId) store.focusWindow(windowId);
+          break;
+        case 'minimize':
+          if (windowId) store.minimizeWindow(windowId);
+          break;
+        case 'maximize':
+          if (windowId) store.maximizeWindow(windowId);
+          break;
+        default:
+          console.warn(`[shell] Unknown AI window command: ${action}`);
+      }
+
+      // Send result back to the backend so the AI tool can respond
+      if (requestId) {
+        const ws = socket;
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({
+              type: 'window:ai_command_result',
+              requestId,
+              ok: true,
+              action,
+              windowId: resultWindowId ?? windowId,
+            }),
+          );
+        }
+      }
+    } catch (err) {
+      if (requestId) {
+        const ws = socket;
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({
+              type: 'window:ai_command_result',
+              requestId,
+              ok: false,
+              error: (err as Error).message,
+            }),
+          );
+        }
+      }
+    }
+  }
+
+  // Listen for MiniApp action registrations from within windows
   useEffect(() => {
     const handleActionsChanged = (event: Event) => {
       const customEvent = event as CustomEvent<{
@@ -291,13 +379,24 @@ export function Shell() {
     };
   }, [buildClientActions, setFocusedWindowActions]);
 
-  const handleLaunch = useCallback(async (miniAppId: string) => {
-    try {
-      requestOpen(miniAppId);
-    } catch (err) {
-      console.error('[shell] Could not launch MiniApp:', err);
-    }
-  }, []);
+  const handleLaunch = useCallback(
+    async (miniAppId: string) => {
+      try {
+        // Activate on server
+        await fetch(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {
+          method: 'POST',
+        });
+        // Find the manifest to get the title
+        const manifest = manifests.find((m) => m.id === miniAppId);
+        const title = manifest?.name ?? miniAppId;
+        // Open locally (syncs to backend automatically)
+        useWindowManager.getState().openWindow(miniAppId, title);
+      } catch (err) {
+        console.error('[shell] Could not launch MiniApp:', err);
+      }
+    },
+    [manifests],
+  );
 
   return (
     <div className={styles.shell}>

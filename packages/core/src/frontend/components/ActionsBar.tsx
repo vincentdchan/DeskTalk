@@ -1,10 +1,5 @@
 import React from 'react';
-import {
-  requestClose,
-  requestMaximize,
-  requestMinimize,
-  useWindowManager,
-} from '../stores/window-manager.js';
+import { useWindowManager } from '../stores/window-manager.js';
 import styles from '../styles/ActionsBar.module.css';
 
 export function ActionsBar() {
@@ -20,17 +15,20 @@ export function ActionsBar() {
 
           <button
             className={styles.builtinAction}
-            onClick={() => requestMaximize(focusedWindow.id)}
+            onClick={() => useWindowManager.getState().maximizeWindow(focusedWindow.id)}
           >
             {focusedWindow.maximized ? 'Restore' : 'Maximize'}
           </button>
           <button
             className={styles.builtinAction}
-            onClick={() => requestMinimize(focusedWindow.id)}
+            onClick={() => useWindowManager.getState().minimizeWindow(focusedWindow.id)}
           >
             Minimize
           </button>
-          <button className={styles.builtinAction} onClick={() => requestClose(focusedWindow.id)}>
+          <button
+            className={styles.builtinAction}
+            onClick={() => useWindowManager.getState().closeWindow(focusedWindow.id)}
+          >
             Close
           </button>
 

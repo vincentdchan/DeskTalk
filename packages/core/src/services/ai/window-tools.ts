@@ -24,6 +24,17 @@ type WindowControlParams = {
   actionParams?: Record<string, unknown>;
 };
 
+/**
+ * Sends a command to the frontend and waits for a result.
+ * The frontend executes the operation locally and syncs state back.
+ */
+export type SendAiCommand = (command: {
+  action: string;
+  windowId?: string;
+  miniAppId?: string;
+  title?: string;
+}) => Promise<{ ok: boolean; windowId?: string; error?: string }>;
+
 interface WindowToolOptions {
   windowManager: WindowManagerService;
   getMiniApps: () => MiniAppManifest[];
@@ -33,6 +44,7 @@ interface WindowToolOptions {
     actionName: string,
     actionParams?: Record<string, unknown>,
   ) => Promise<unknown>;
+  sendAiCommand: SendAiCommand;
 }
 
 function stringify(data: unknown): string {
@@ -46,16 +58,8 @@ function requireValue<T>(value: T | undefined, message: string): T {
   return value;
 }
 
-function requireWindow(windowManager: WindowManagerService, windowId: string) {
-  const targetWindow = windowManager.getSnapshot().windows.find((window) => window.id === windowId);
-  if (!targetWindow) {
-    throw new Error(`Unknown window: ${windowId}`);
-  }
-  return targetWindow;
-}
-
 export function createWindowControlTool(options: WindowToolOptions): ToolDefinition {
-  const { windowManager, getMiniApps, activateMiniApp, invokeAction } = options;
+  const { windowManager, getMiniApps, activateMiniApp, invokeAction, sendAiCommand } = options;
 
   return {
     name: 'window_control',
@@ -74,10 +78,15 @@ export function createWindowControlTool(options: WindowToolOptions): ToolDefinit
 
       switch (input.action) {
         case 'list': {
-          const snapshot = windowManager.getSnapshot();
+          // List reads from the backend's last-synced state
+          const windows = windowManager.getWindows();
+          const focusedWindow = windowManager.getFocusedWindow();
+          const focusedWindowActions = focusedWindow
+            ? windowManager.getWindowActions(focusedWindow.id)
+            : [];
           const payload = {
-            windows: snapshot.windows,
-            focusedWindowActions: snapshot.focusedWindowActions,
+            windows,
+            focusedWindowActions,
             availableMiniApps: getMiniApps().map((miniApp) => ({
               id: miniApp.id,
               name: miniApp.name,
@@ -98,11 +107,19 @@ export function createWindowControlTool(options: WindowToolOptions): ToolDefinit
             throw new Error(`Unknown MiniApp: ${miniAppId}`);
           }
           activateMiniApp(miniAppId);
-          const windowId = windowManager.openWindow(miniAppId, manifest.name);
+          // Send command to frontend — it will create the window locally and sync back
+          const commandResult = await sendAiCommand({
+            action: 'open',
+            miniAppId,
+            title: manifest.name,
+          });
+          if (!commandResult.ok) {
+            throw new Error(commandResult.error ?? 'Failed to open window');
+          }
           const result = {
             ok: true,
             action: input.action,
-            windowId,
+            windowId: commandResult.windowId,
             miniAppId,
             title: manifest.name,
           };
@@ -113,8 +130,10 @@ export function createWindowControlTool(options: WindowToolOptions): ToolDefinit
         }
         case 'focus': {
           const windowId = requireValue(input.windowId, 'windowId is required for action="focus"');
-          requireWindow(windowManager, windowId);
-          windowManager.focusWindow(windowId);
+          const commandResult = await sendAiCommand({ action: 'focus', windowId });
+          if (!commandResult.ok) {
+            throw new Error(commandResult.error ?? 'Failed to focus window');
+          }
           const result = { ok: true, action: input.action, windowId };
           return {
             content: [{ type: 'text', text: stringify(result) }],
@@ -126,8 +145,10 @@ export function createWindowControlTool(options: WindowToolOptions): ToolDefinit
             input.windowId,
             'windowId is required for action="minimize"',
           );
-          requireWindow(windowManager, windowId);
-          windowManager.minimizeWindow(windowId);
+          const commandResult = await sendAiCommand({ action: 'minimize', windowId });
+          if (!commandResult.ok) {
+            throw new Error(commandResult.error ?? 'Failed to minimize window');
+          }
           const result = { ok: true, action: input.action, windowId };
           return {
             content: [{ type: 'text', text: stringify(result) }],
@@ -139,8 +160,10 @@ export function createWindowControlTool(options: WindowToolOptions): ToolDefinit
             input.windowId,
             'windowId is required for action="maximize"',
           );
-          requireWindow(windowManager, windowId);
-          windowManager.maximizeWindow(windowId);
+          const commandResult = await sendAiCommand({ action: 'maximize', windowId });
+          if (!commandResult.ok) {
+            throw new Error(commandResult.error ?? 'Failed to maximize window');
+          }
           const result = { ok: true, action: input.action, windowId };
           return {
             content: [{ type: 'text', text: stringify(result) }],
@@ -149,8 +172,10 @@ export function createWindowControlTool(options: WindowToolOptions): ToolDefinit
         }
         case 'close': {
           const windowId = requireValue(input.windowId, 'windowId is required for action="close"');
-          requireWindow(windowManager, windowId);
-          windowManager.closeWindow(windowId);
+          const commandResult = await sendAiCommand({ action: 'close', windowId });
+          if (!commandResult.ok) {
+            throw new Error(commandResult.error ?? 'Failed to close window');
+          }
           const result = { ok: true, action: input.action, windowId };
           return {
             content: [{ type: 'text', text: stringify(result) }],
@@ -166,14 +191,14 @@ export function createWindowControlTool(options: WindowToolOptions): ToolDefinit
             input.actionName,
             'actionName is required for action="invoke_action"',
           );
-          requireWindow(windowManager, windowId);
-          const result = await invokeAction(windowId, actionName, input.actionParams);
+          // Action invocations still go through the existing broker
+          const actionResult = await invokeAction(windowId, actionName, input.actionParams);
           const payload = {
             ok: true,
             action: input.action,
             windowId,
             actionName,
-            result,
+            result: actionResult,
           };
           return {
             content: [{ type: 'text', text: stringify(payload) }],

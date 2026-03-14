@@ -1,9 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { WindowPosition, WindowSize, WindowState } from '@desktalk/sdk';
-
-const MIN_WINDOW_WIDTH = 300;
-const MIN_WINDOW_HEIGHT = 200;
+import type { WindowState } from '@desktalk/sdk';
 
 export interface SerializableActionDefinition {
   name: string;
@@ -18,22 +15,10 @@ export interface SerializableActionDefinition {
   >;
 }
 
-export interface WindowManagerSnapshot {
-  windows: WindowState[];
-  focusedWindowActions: SerializableActionDefinition[];
-}
-
-interface PersistedWindowState {
+export interface PersistedWindowState {
   windows: WindowState[];
   nextZIndex: number;
   windowIdCounter: number;
-}
-
-function normalizeSize(size: WindowSize): WindowSize {
-  return {
-    width: Math.max(size.width, MIN_WINDOW_WIDTH),
-    height: Math.max(size.height, MIN_WINDOW_HEIGHT),
-  };
 }
 
 function readPersistedState(filePath: string): PersistedWindowState | null {
@@ -53,30 +38,26 @@ function writePersistedState(filePath: string, state: PersistedWindowState): voi
   writeFileSync(filePath, JSON.stringify(state, null, 2), 'utf-8');
 }
 
+/**
+ * Backend window manager service — persistence-only.
+ *
+ * The frontend Zustand store is the live source of truth.
+ * This service:
+ *  - Loads persisted state on startup for the initial `window:state` message
+ *  - Receives synced state from the frontend and persists it
+ *  - Keeps window actions metadata for the AI system prompt
+ *  - Provides `getSystemPromptContext()` for dynamic AI prompt injection
+ */
 export class WindowManagerService {
-  private windows: WindowState[] = [];
-  private nextZIndex = 1;
-  private windowIdCounter = 0;
+  private state: PersistedWindowState = {
+    windows: [],
+    nextZIndex: 1,
+    windowIdCounter: 0,
+  };
   private readonly windowActions: Record<string, SerializableActionDefinition[]> = {};
 
-  constructor(
-    private readonly filePath: string,
-    private readonly onChange?: (snapshot: WindowManagerSnapshot) => void,
-  ) {
+  constructor(private readonly filePath: string) {
     this.load();
-  }
-
-  private emitChange(): void {
-    this.persist();
-    this.onChange?.(this.getSnapshot());
-  }
-
-  private persist(): void {
-    writePersistedState(this.filePath, {
-      windows: this.windows,
-      nextZIndex: this.nextZIndex,
-      windowIdCounter: this.windowIdCounter,
-    });
   }
 
   private load(): void {
@@ -85,217 +66,87 @@ export class WindowManagerService {
       return;
     }
 
-    this.windows = Array.isArray(persisted.windows)
-      ? persisted.windows.map((window) => ({
-          ...window,
-          size: normalizeSize(window.size),
-        }))
-      : [];
-    this.nextZIndex = typeof persisted.nextZIndex === 'number' ? persisted.nextZIndex : 1;
-    this.windowIdCounter =
-      typeof persisted.windowIdCounter === 'number'
-        ? persisted.windowIdCounter
-        : this.windows.length;
+    this.state = {
+      windows: Array.isArray(persisted.windows) ? persisted.windows : [],
+      nextZIndex: typeof persisted.nextZIndex === 'number' ? persisted.nextZIndex : 1,
+      windowIdCounter:
+        typeof persisted.windowIdCounter === 'number'
+          ? persisted.windowIdCounter
+          : (persisted.windows?.length ?? 0),
+    };
 
-    if (this.windows.length > 0 && !this.windows.some((window) => window.focused)) {
-      const topWindow = this.windows.reduce((top, window) =>
-        window.zIndex > top.zIndex ? window : top,
-      );
-      this.windows = this.windows.map((window) => ({
-        ...window,
-        focused: window.id === topWindow.id && !window.minimized,
+    // Ensure at least one window is focused on load
+    if (this.state.windows.length > 0 && !this.state.windows.some((w) => w.focused)) {
+      const topWindow = this.state.windows.reduce((top, w) => (w.zIndex > top.zIndex ? w : top));
+      this.state.windows = this.state.windows.map((w) => ({
+        ...w,
+        focused: w.id === topWindow.id && !w.minimized,
       }));
     }
   }
 
-  private getTopVisibleWindow(): WindowState | undefined {
-    const visibleWindows = this.windows.filter((window) => !window.minimized);
-    if (visibleWindows.length === 0) {
-      return undefined;
-    }
-    return visibleWindows.reduce((top, window) => (window.zIndex > top.zIndex ? window : top));
+  /**
+   * Get the persisted state to send to the frontend on initial connect.
+   */
+  getPersistedState(): PersistedWindowState {
+    return this.state;
   }
 
-  private getFocusedWindowActions(): SerializableActionDefinition[] {
-    const focusedWindow = this.windows.find((window) => window.focused);
-    return focusedWindow ? (this.windowActions[focusedWindow.id] ?? []) : [];
-  }
-
-  getSnapshot(): WindowManagerSnapshot {
-    return {
-      windows: this.windows,
-      focusedWindowActions: this.getFocusedWindowActions(),
+  /**
+   * Receive the full state from the frontend and persist it.
+   * Called when the frontend sends `window:sync`.
+   */
+  syncState(payload: PersistedWindowState): void {
+    this.state = {
+      windows: Array.isArray(payload.windows) ? payload.windows : [],
+      nextZIndex: typeof payload.nextZIndex === 'number' ? payload.nextZIndex : 1,
+      windowIdCounter: typeof payload.windowIdCounter === 'number' ? payload.windowIdCounter : 0,
     };
+    writePersistedState(this.filePath, this.state);
+  }
+
+  /**
+   * Get the current windows (from last synced state).
+   */
+  getWindows(): WindowState[] {
+    return this.state.windows;
   }
 
   getFocusedWindow(): WindowState | undefined {
-    return this.windows.find((window) => window.focused);
+    return this.state.windows.find((w) => w.focused);
   }
 
   getWindowActions(windowId: string): SerializableActionDefinition[] {
     return this.windowActions[windowId] ?? [];
   }
 
-  openWindow(miniAppId: string, title: string): string {
-    const offset = (this.windows.length % 10) * 30;
-    const windowId = `win-${++this.windowIdCounter}`;
-
-    const newWindow: WindowState = {
-      id: windowId,
-      miniAppId,
-      title,
-      position: { x: 100 + offset, y: 80 + offset },
-      size: { width: 800, height: 600 },
-      minimized: false,
-      maximized: false,
-      focused: true,
-      zIndex: this.nextZIndex,
-    };
-
-    this.windows = [...this.windows.map((window) => ({ ...window, focused: false })), newWindow];
-    this.nextZIndex += 1;
-    this.emitChange();
-    return windowId;
-  }
-
-  closeWindow(windowId: string): void {
-    const targetWindow = this.windows.find((window) => window.id === windowId);
-    if (!targetWindow) {
-      return;
-    }
-
-    this.windows = this.windows.filter((window) => window.id !== windowId);
-    delete this.windowActions[windowId];
-
-    const topWindow = this.getTopVisibleWindow();
-    if (topWindow) {
-      this.windows = this.windows.map((window) => ({
-        ...window,
-        focused: window.id === topWindow.id,
-      }));
-    }
-
-    this.emitChange();
-  }
-
-  focusWindow(windowId: string): void {
-    const targetWindow = this.windows.find((window) => window.id === windowId);
-    if (!targetWindow) {
-      return;
-    }
-
-    this.windows = this.windows.map((window) => ({
-      ...window,
-      focused: window.id === windowId,
-      minimized: window.id === windowId ? false : window.minimized,
-      zIndex: window.id === windowId ? this.nextZIndex : window.zIndex,
-    }));
-    this.nextZIndex += 1;
-    this.emitChange();
-  }
-
-  minimizeWindow(windowId: string): void {
-    let changed = false;
-    this.windows = this.windows.map((window) => {
-      if (window.id !== windowId) {
-        return window;
-      }
-      changed = true;
-      return { ...window, minimized: true, focused: false };
-    });
-
-    if (!changed) {
-      return;
-    }
-
-    const topWindow = this.getTopVisibleWindow();
-    if (topWindow) {
-      this.windows = this.windows.map((window) => ({
-        ...window,
-        focused: window.id === topWindow.id,
-      }));
-    }
-
-    this.emitChange();
-  }
-
-  maximizeWindow(windowId: string): void {
-    let changed = false;
-    this.windows = this.windows.map((window) => {
-      if (window.id !== windowId) {
-        return window;
-      }
-      changed = true;
-      return { ...window, maximized: !window.maximized };
-    });
-
-    if (!changed) {
-      return;
-    }
-
-    this.emitChange();
-  }
-
-  moveWindow(windowId: string, position: WindowPosition): void {
-    let changed = false;
-    this.windows = this.windows.map((window) => {
-      if (window.id !== windowId) {
-        return window;
-      }
-      changed = true;
-      return { ...window, position };
-    });
-
-    if (!changed) {
-      return;
-    }
-
-    this.emitChange();
-  }
-
-  resizeWindow(windowId: string, size: WindowSize): void {
-    let changed = false;
-    const normalized = normalizeSize(size);
-    this.windows = this.windows.map((window) => {
-      if (window.id !== windowId) {
-        return window;
-      }
-      changed = true;
-      return { ...window, size: normalized };
-    });
-
-    if (!changed) {
-      return;
-    }
-
-    this.emitChange();
-  }
-
   setWindowActions(windowId: string, actions: SerializableActionDefinition[]): void {
     this.windowActions[windowId] = actions;
-    this.onChange?.(this.getSnapshot());
   }
 
+  /**
+   * Activate persisted MiniApps on startup.
+   */
   activatePersistedMiniApps(activate: (miniAppId: string) => void): void {
-    const activeMiniAppIds = new Set(this.windows.map((window) => window.miniAppId));
+    const activeMiniAppIds = new Set(this.state.windows.map((w) => w.miniAppId));
     for (const miniAppId of activeMiniAppIds) {
       activate(miniAppId);
     }
   }
 
+  /**
+   * Build context for the AI system prompt describing the current desktop state.
+   */
   getSystemPromptContext(availableMiniApps: Array<{ id: string; name: string }>): string {
     const focusedWindow = this.getFocusedWindow();
-    const windowLines = this.windows.length
-      ? [...this.windows]
+    const windowLines = this.state.windows.length
+      ? [...this.state.windows]
           .sort((a, b) => a.zIndex - b.zIndex)
-          .map((window) => {
-            const states = [
-              window.focused ? 'focused' : null,
-              window.minimized ? 'minimized' : null,
-            ]
+          .map((w) => {
+            const states = [w.focused ? 'focused' : null, w.minimized ? 'minimized' : null]
               .filter(Boolean)
               .join(', ');
-            return `- ${window.id}: "${window.title}" (miniapp: ${window.miniAppId}${states ? `, ${states}` : ''}, position: ${window.position.x},${window.position.y}, size: ${window.size.width}x${window.size.height})`;
+            return `- ${w.id}: "${w.title}" (miniapp: ${w.miniAppId}${states ? `, ${states}` : ''}, position: ${w.position.x},${w.position.y}, size: ${w.size.width}x${w.size.height})`;
           })
       : ['- No open windows'];
 

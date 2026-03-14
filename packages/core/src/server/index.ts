@@ -31,18 +31,12 @@ export async function createServer(options: ServerOptions) {
   const workspacePaths = getWorkspacePaths();
   const windowManager = new WindowManagerService(
     join(workspacePaths.data, 'storage', 'window-state.json'),
-    (snapshot) => {
-      broadcastRaw({
-        type: 'window:state',
-        windows: snapshot.windows,
-        focusedWindowActions: snapshot.focusedWindowActions,
-      });
-    },
   );
   windowManager.activatePersistedMiniApps((miniAppId) => {
     registry.activate(miniAppId);
   });
 
+  // ─── Pending requests for action invocations brokered to the frontend ───
   const pendingWindowActionRequests = new Map<
     string,
     {
@@ -76,11 +70,45 @@ export async function createServer(options: ServerOptions) {
     });
   }
 
+  // ─── Pending requests for AI window commands sent to the frontend ───
+  const pendingAiCommandRequests = new Map<
+    string,
+    {
+      resolve: (value: { ok: boolean; windowId?: string; error?: string }) => void;
+      reject: (reason?: unknown) => void;
+      timeout: ReturnType<typeof setTimeout>;
+    }
+  >();
+
+  async function sendAiCommand(command: {
+    action: string;
+    windowId?: string;
+    miniAppId?: string;
+    title?: string;
+  }): Promise<{ ok: boolean; windowId?: string; error?: string }> {
+    const requestId = `ai-cmd-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        pendingAiCommandRequests.delete(requestId);
+        reject(new Error(`Timed out waiting for AI command result: ${command.action}`));
+      }, 10000);
+
+      pendingAiCommandRequests.set(requestId, { resolve, reject, timeout });
+      broadcastRaw({
+        type: 'window:ai_command',
+        requestId,
+        ...command,
+      });
+    });
+  }
+
   const piSessionService = await PiSessionService.create(
     workspacePaths,
     async (key) => getStoredPreference(key),
     windowManager,
     invokeWindowAction,
+    sendAiCommand,
   );
 
   // Register WebSocket support
@@ -108,16 +136,21 @@ export async function createServer(options: ServerOptions) {
       );
     }
 
+    // Send AI history on connect
     sendAiEvent({
       type: 'history_sync',
       sessionId: piSessionService.getSessionId(),
       messages: piSessionService.getHistory(),
     });
+
+    // Send persisted window state so the frontend can restore on connect/refresh
+    const persisted = windowManager.getPersistedState();
     socket.send(
       JSON.stringify({
         type: 'window:state',
-        windows: windowManager.getSnapshot().windows,
-        focusedWindowActions: windowManager.getSnapshot().focusedWindowActions,
+        windows: persisted.windows,
+        nextZIndex: persisted.nextZIndex,
+        windowIdCounter: persisted.windowIdCounter,
       }),
     );
 
@@ -145,45 +178,14 @@ export async function createServer(options: ServerOptions) {
               }),
             );
           }
-        } else if (msg.type === 'window:open') {
-          const miniAppId = typeof msg.miniAppId === 'string' ? msg.miniAppId : '';
-          const manifest = registry.getEntry(miniAppId)?.manifest;
-          if (!manifest) {
-            return;
-          }
-          registry.activate(miniAppId);
-          windowManager.openWindow(miniAppId, manifest.name);
-        } else if (msg.type === 'window:close') {
-          if (typeof msg.windowId === 'string') {
-            windowManager.closeWindow(msg.windowId);
-          }
-        } else if (msg.type === 'window:focus') {
-          if (typeof msg.windowId === 'string') {
-            windowManager.focusWindow(msg.windowId);
-          }
-        } else if (msg.type === 'window:minimize') {
-          if (typeof msg.windowId === 'string') {
-            windowManager.minimizeWindow(msg.windowId);
-          }
-        } else if (msg.type === 'window:maximize') {
-          if (typeof msg.windowId === 'string') {
-            windowManager.maximizeWindow(msg.windowId);
-          }
-        } else if (msg.type === 'window:move') {
-          if (
-            typeof msg.windowId === 'string' &&
-            typeof msg.position?.x === 'number' &&
-            typeof msg.position?.y === 'number'
-          ) {
-            windowManager.moveWindow(msg.windowId, msg.position);
-          }
-        } else if (msg.type === 'window:resize') {
-          if (
-            typeof msg.windowId === 'string' &&
-            typeof msg.size?.width === 'number' &&
-            typeof msg.size?.height === 'number'
-          ) {
-            windowManager.resizeWindow(msg.windowId, msg.size);
+        } else if (msg.type === 'window:sync') {
+          // Frontend syncs its full state — persist it
+          if (Array.isArray(msg.windows)) {
+            windowManager.syncState({
+              windows: msg.windows,
+              nextZIndex: typeof msg.nextZIndex === 'number' ? msg.nextZIndex : 1,
+              windowIdCounter: typeof msg.windowIdCounter === 'number' ? msg.windowIdCounter : 0,
+            });
           }
         } else if (msg.type === 'window:actions_changed') {
           if (typeof msg.windowId === 'string' && Array.isArray(msg.actions)) {
@@ -203,6 +205,19 @@ export async function createServer(options: ServerOptions) {
               } else {
                 pending.resolve(msg.result);
               }
+            }
+          }
+        } else if (msg.type === 'window:ai_command_result') {
+          if (typeof msg.requestId === 'string') {
+            const pending = pendingAiCommandRequests.get(msg.requestId);
+            if (pending) {
+              clearTimeout(pending.timeout);
+              pendingAiCommandRequests.delete(msg.requestId);
+              pending.resolve({
+                ok: msg.ok === true,
+                windowId: typeof msg.windowId === 'string' ? msg.windowId : undefined,
+                error: typeof msg.error === 'string' ? msg.error : undefined,
+              });
             }
           }
         } else if (msg.type === 'ai:prompt') {

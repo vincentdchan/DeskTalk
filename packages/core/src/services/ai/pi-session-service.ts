@@ -9,7 +9,7 @@ import {
   type AgentSession,
   type AgentSessionEvent,
 } from '@mariozechner/pi-coding-agent';
-import { createWindowControlTool } from './window-tools.js';
+import { createWindowControlTool, type SendAiCommand } from './window-tools.js';
 import type { WindowManagerService } from '../window-manager.js';
 import { registry } from '../miniapp-registry.js';
 import type { WorkspacePaths } from '../workspace.js';
@@ -159,6 +159,7 @@ export class PiSessionService {
       actionName: string,
       actionParams?: Record<string, unknown>,
     ) => Promise<unknown>,
+    sendAiCommand: SendAiCommand,
   ): Promise<PiSessionService> {
     const authStorage = AuthStorage.create(join(workspacePaths.config, 'pi-auth.json'));
     const modelRegistry = new ModelRegistry(authStorage);
@@ -205,6 +206,7 @@ export class PiSessionService {
           registry.activate(miniAppId);
         },
         invokeAction,
+        sendAiCommand,
       }),
     ];
 
