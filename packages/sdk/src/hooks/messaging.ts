@@ -73,6 +73,18 @@ export function initMessaging(ws: WebSocket): void {
           }
         }
       } else if (msg.type === 'event') {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('desktalk:event', {
+              detail: {
+                miniAppId: typeof msg.miniAppId === 'string' ? msg.miniAppId : null,
+                event: typeof msg.event === 'string' ? msg.event : null,
+                data: msg.data,
+              },
+            }),
+          );
+        }
+
         const listeners = eventListeners.get(msg.event);
         if (listeners) {
           for (const listener of listeners) {
