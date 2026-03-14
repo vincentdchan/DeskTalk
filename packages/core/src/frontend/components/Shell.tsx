@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { MiniAppManifest, WindowState } from '@desktalk/sdk';
-import { initMessaging, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
+import { initMessaging } from '@desktalk/sdk';
 import type { ActionDefinition } from '@desktalk/sdk';
 import { useWindowManager } from '../stores/window-manager.js';
 import { ActionsBar } from './ActionsBar.js';
 import { Dock, type DockMiniApp } from './Dock.js';
 import { WindowChrome } from './WindowChrome.js';
 import { InfoPanel } from './InfoPanel.js';
-import { loadMiniAppComponent } from '../miniapp-runtime.js';
+import { loadMiniAppModule } from '../miniapp-runtime.js';
+import type { MiniAppFrontendModule } from '../miniapp-runtime.js';
 import styles from '../styles/Shell.module.css';
 
 /**
@@ -24,19 +25,25 @@ function MiniAppLoadError({ miniAppId, message }: { miniAppId: string; message: 
 
 /**
  * Window content that loads the MiniApp bundle on demand.
- * Wrapped in MiniAppIdProvider so useCommand/useEvent can resolve the miniAppId.
+ * Provides a root DOM element and calls activate/deactivate on the MiniApp module.
  */
 function MiniAppWindow({ miniAppId, windowId }: { miniAppId: string; windowId: string }) {
-  const [Component, setComponent] = useState<React.ComponentType | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const modRef = useRef<MiniAppFrontendModule | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    void loadMiniAppComponent(miniAppId)
-      .then((LoadedComponent) => {
-        if (!cancelled) {
-          setComponent(() => LoadedComponent);
+    void loadMiniAppModule(miniAppId)
+      .then((loadedMod) => {
+        if (!cancelled && containerRef.current) {
+          modRef.current = loadedMod;
+          loadedMod.activate({
+            root: containerRef.current,
+            miniAppId,
+            windowId,
+          });
           setError(null);
         }
       })
@@ -48,24 +55,18 @@ function MiniAppWindow({ miniAppId, windowId }: { miniAppId: string; windowId: s
 
     return () => {
       cancelled = true;
+      if (modRef.current) {
+        modRef.current.deactivate();
+        modRef.current = null;
+      }
     };
-  }, [miniAppId]);
+  }, [miniAppId, windowId]);
 
   if (error) {
     return <MiniAppLoadError miniAppId={miniAppId} message={error} />;
   }
 
-  if (!Component) {
-    return <MiniAppLoadError miniAppId={miniAppId} message="Loading MiniApp..." />;
-  }
-
-  return (
-    <WindowIdProvider windowId={windowId}>
-      <MiniAppIdProvider miniAppId={miniAppId}>
-        <Component />
-      </MiniAppIdProvider>
-    </WindowIdProvider>
-  );
+  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
 }
 
 function toDockMiniApps(manifests: MiniAppManifest[], windows: WindowState[]): DockMiniApp[] {

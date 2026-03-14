@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useCommand } from '@desktalk/sdk';
+import { createRoot } from 'react-dom/client';
+import type { MiniAppFrontendContext } from '@desktalk/sdk';
+import { useCommand, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
 import type { Note, NoteMeta, TagCount } from './types';
 import { TagFilter } from './components/TagFilter';
 import { NoteList } from './components/NoteList';
@@ -210,4 +212,20 @@ function NoteApp() {
   );
 }
 
-export default NoteApp;
+let root: ReturnType<typeof createRoot> | null = null;
+
+export function activate(ctx: MiniAppFrontendContext): void {
+  root = createRoot(ctx.root);
+  root.render(
+    <WindowIdProvider windowId={ctx.windowId}>
+      <MiniAppIdProvider miniAppId={ctx.miniAppId}>
+        <NoteApp />
+      </MiniAppIdProvider>
+    </WindowIdProvider>,
+  );
+}
+
+export function deactivate(): void {
+  root?.unmount();
+  root = null;
+}

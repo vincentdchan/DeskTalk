@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useCommand, useEvent } from '@desktalk/sdk';
+import { createRoot } from 'react-dom/client';
+import type { MiniAppFrontendContext } from '@desktalk/sdk';
+import { useCommand, useEvent, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
 import { CATEGORIES, getSchemasByCategory, getDefaultConfig } from './schema';
 import type { Config } from './schema';
 import { PreferenceCategoryList } from './components/PreferenceCategoryList';
@@ -110,4 +112,20 @@ function PreferenceApp() {
   );
 }
 
-export default PreferenceApp;
+let root: ReturnType<typeof createRoot> | null = null;
+
+export function activate(ctx: MiniAppFrontendContext): void {
+  root = createRoot(ctx.root);
+  root.render(
+    <WindowIdProvider windowId={ctx.windowId}>
+      <MiniAppIdProvider miniAppId={ctx.miniAppId}>
+        <PreferenceApp />
+      </MiniAppIdProvider>
+    </WindowIdProvider>,
+  );
+}
+
+export function deactivate(): void {
+  root?.unmount();
+  root = null;
+}
