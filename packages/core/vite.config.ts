@@ -4,7 +4,6 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { localizePlugin, i18nAssetPlugin } from './vite-plugins/localize.js';
-import { cssModuleHmrPlugin } from './vite-plugins/css-module-hmr.js';
 import { audioWorkletPlugin } from './vite-plugins/audio-worklet.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -21,7 +20,6 @@ export default defineConfig({
       workletPath: join(__dirname, 'src', 'frontend', 'audio-worklet-processor.js'),
     }),
     react(),
-    cssModuleHmrPlugin(),
     i18nAssetPlugin({
       packageName: '@desktalk/core',
       packageScope: 'core',
@@ -55,6 +53,7 @@ export default defineConfig({
   },
 
   css: {
+    devSourcemap: true,
     modules: {
       localsConvention: 'camelCaseOnly',
     },
