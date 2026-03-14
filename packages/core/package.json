@@ -18,7 +18,7 @@
     "build:server": "tsc -p tsconfig.build.json",
     "build:frontend": "vite build",
     "start": "node dist/cli/index.js start",
-    "dev": "tsc -p tsconfig.build.json --watch",
+    "dev": "pnpm run build:server && pnpm run --parallel \"/dev:/\"",
     "dev:backend": "node dist/cli/index.js start --dev",
     "dev:frontend": "vite",
     "clean": "rm -rf dist",
