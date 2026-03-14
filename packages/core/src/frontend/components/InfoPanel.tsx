@@ -151,9 +151,21 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
             return next;
           });
         } else if (aiEvent.type === 'message_end') {
+          const endedRequestId = activeRequestIdRef.current;
           setIsAiRunning(false);
           setTokenCount(aiEvent.usage?.totalTokens ?? 0);
           activeRequestIdRef.current = null;
+          // Remove empty assistant message bubble by matching its ID
+          if (endedRequestId) {
+            const targetId = `assistant-${endedRequestId}`;
+            setMessages((prev) => {
+              const idx = prev.findIndex((m) => m.id === targetId);
+              if (idx >= 0 && !prev[idx].content) {
+                return [...prev.slice(0, idx), ...prev.slice(idx + 1)];
+              }
+              return prev;
+            });
+          }
         } else if (aiEvent.type === 'error') {
           setIsAiRunning(false);
           setMessages((prev) => {
@@ -253,24 +265,38 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
           </div>
         ) : (
           <>
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={msg.role === 'user' ? styles.messageUser : styles.messageAssistant}
-              >
-                {msg.role === 'user' && msg.source === 'voice' && (
-                  <div className={styles.messageMeta}>
-                    <span className={styles.voiceSourceBadge}>Voice</span>
-                  </div>
-                )}
-                <MarkdownMessage
-                  content={
-                    msg.content || (msg.role === 'assistant' && isAiRunning ? 'Thinking...' : '')
-                  }
-                  isStreaming={msg.role === 'assistant' && isAiRunning}
-                />
-              </div>
-            ))}
+            {messages.map((msg) => {
+              const isEmptyAssistant = msg.role === 'assistant' && !msg.content;
+              const isThinking = isEmptyAssistant && isAiRunning;
+
+              // Don't render empty assistant bubbles when not thinking
+              if (isEmptyAssistant && !isAiRunning) return null;
+
+              return (
+                <div
+                  key={msg.id}
+                  className={msg.role === 'user' ? styles.messageUser : styles.messageAssistant}
+                >
+                  {msg.role === 'user' && msg.source === 'voice' && (
+                    <div className={styles.messageMeta}>
+                      <span className={styles.voiceSourceBadge}>Voice</span>
+                    </div>
+                  )}
+                  {isThinking ? (
+                    <div className={styles.thinkingIndicator}>
+                      <span className={styles.thinkingDot} />
+                      <span className={styles.thinkingDot} />
+                      <span className={styles.thinkingDot} />
+                    </div>
+                  ) : (
+                    <MarkdownMessage
+                      content={msg.content}
+                      isStreaming={msg.role === 'assistant' && isAiRunning}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </>
         )}
 
