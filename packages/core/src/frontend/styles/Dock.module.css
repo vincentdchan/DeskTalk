@@ -42,21 +42,6 @@
   transform: translateY(-4px) scale(1.1);
 }
 
-.dockIcon {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.1));
-  border-radius: 12px;
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.2),
-    0 1px 2px rgba(255, 255, 255, 0.3) inset;
-  transition: box-shadow 0.2s;
-}
-
 .dockItem:hover .dockIcon {
   box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.3),
@@ -102,8 +87,8 @@
 }
 
 .dockIcon {
-  width: 32px;
-  height: 32px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;

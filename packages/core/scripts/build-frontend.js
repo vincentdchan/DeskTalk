@@ -337,9 +337,28 @@ await esbuild.build({
   plugins: [createLocalizeTransformPlugin(packageScope, sourceRoot)],
 });
 
-const indexHtmlSrc = join(root, 'src', 'frontend', 'index.html');
+// Generate production index.html (the source index.html points to ./main.tsx
+// for Vite dev, so we produce a production variant referencing the bundled assets).
 const indexHtmlDest = join(outdir, 'index.html');
-copyFileSync(indexHtmlSrc, indexHtmlDest);
+const indexHtml = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DeskTalk</title>
+    <link rel="stylesheet" href="/app.css" />
+    <style>
+      /* Prevent flash of unstyled content */
+      html, body { background: #1e1e2e; margin: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
+`;
+writeFileSync(indexHtmlDest, indexHtml);
 
 const workletSrc = join(root, 'src', 'frontend', 'audio-worklet-processor.js');
 const workletDest = join(outdir, 'pcm-capture-processor.js');
