@@ -4,7 +4,7 @@ import fastifyStatic from '@fastify/static';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
-import { addClient, handleCommand } from '../services/messaging.js';
+import { addClient, broadcastRaw, handleCommand } from '../services/messaging.js';
 import { registry } from '../services/miniapp-registry.js';
 import { PiSessionService } from '../services/ai/pi-session-service.js';
 import { getStoredPreference } from '../services/preferences.js';
@@ -13,6 +13,10 @@ import { VoiceSession } from '../services/voice/voice-session.js';
 import { AzureOpenAIWhisperAdapter } from '../services/voice/azure-openai-whisper-adapter.js';
 import { OpenAIWhisperAdapter } from '../services/voice/openai-whisper-adapter.js';
 import type { SttAdapter } from '../services/voice/stt-adapter.js';
+import {
+  WindowManagerService,
+  type SerializableActionDefinition,
+} from '../services/window-manager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -24,8 +28,59 @@ export interface ServerOptions {
 
 export async function createServer(options: ServerOptions) {
   const app = Fastify({ logger: false });
-  const piSessionService = await PiSessionService.create(getWorkspacePaths(), async (key) =>
-    getStoredPreference(key),
+  const workspacePaths = getWorkspacePaths();
+  const windowManager = new WindowManagerService(
+    join(workspacePaths.data, 'storage', 'window-state.json'),
+    (snapshot) => {
+      broadcastRaw({
+        type: 'window:state',
+        windows: snapshot.windows,
+        focusedWindowActions: snapshot.focusedWindowActions,
+      });
+    },
+  );
+  windowManager.activatePersistedMiniApps((miniAppId) => {
+    registry.activate(miniAppId);
+  });
+
+  const pendingWindowActionRequests = new Map<
+    string,
+    {
+      resolve: (value: unknown) => void;
+      reject: (reason?: unknown) => void;
+      timeout: ReturnType<typeof setTimeout>;
+    }
+  >();
+
+  async function invokeWindowAction(
+    windowId: string,
+    actionName: string,
+    actionParams?: Record<string, unknown>,
+  ): Promise<unknown> {
+    const requestId = `window-action-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        pendingWindowActionRequests.delete(requestId);
+        reject(new Error(`Timed out waiting for action result: ${actionName}`));
+      }, 10000);
+
+      pendingWindowActionRequests.set(requestId, { resolve, reject, timeout });
+      broadcastRaw({
+        type: 'window:invoke_action',
+        requestId,
+        windowId,
+        actionName,
+        params: actionParams ?? null,
+      });
+    });
+  }
+
+  const piSessionService = await PiSessionService.create(
+    workspacePaths,
+    async (key) => getStoredPreference(key),
+    windowManager,
+    invokeWindowAction,
   );
 
   // Register WebSocket support
@@ -58,6 +113,13 @@ export async function createServer(options: ServerOptions) {
       sessionId: piSessionService.getSessionId(),
       messages: piSessionService.getHistory(),
     });
+    socket.send(
+      JSON.stringify({
+        type: 'window:state',
+        windows: windowManager.getSnapshot().windows,
+        focusedWindowActions: windowManager.getSnapshot().focusedWindowActions,
+      }),
+    );
 
     socket.on('message', async (raw: Buffer | ArrayBuffer | Buffer[]) => {
       try {
@@ -82,6 +144,66 @@ export async function createServer(options: ServerOptions) {
                 error: (err as Error).message,
               }),
             );
+          }
+        } else if (msg.type === 'window:open') {
+          const miniAppId = typeof msg.miniAppId === 'string' ? msg.miniAppId : '';
+          const manifest = registry.getEntry(miniAppId)?.manifest;
+          if (!manifest) {
+            return;
+          }
+          registry.activate(miniAppId);
+          windowManager.openWindow(miniAppId, manifest.name);
+        } else if (msg.type === 'window:close') {
+          if (typeof msg.windowId === 'string') {
+            windowManager.closeWindow(msg.windowId);
+          }
+        } else if (msg.type === 'window:focus') {
+          if (typeof msg.windowId === 'string') {
+            windowManager.focusWindow(msg.windowId);
+          }
+        } else if (msg.type === 'window:minimize') {
+          if (typeof msg.windowId === 'string') {
+            windowManager.minimizeWindow(msg.windowId);
+          }
+        } else if (msg.type === 'window:maximize') {
+          if (typeof msg.windowId === 'string') {
+            windowManager.maximizeWindow(msg.windowId);
+          }
+        } else if (msg.type === 'window:move') {
+          if (
+            typeof msg.windowId === 'string' &&
+            typeof msg.position?.x === 'number' &&
+            typeof msg.position?.y === 'number'
+          ) {
+            windowManager.moveWindow(msg.windowId, msg.position);
+          }
+        } else if (msg.type === 'window:resize') {
+          if (
+            typeof msg.windowId === 'string' &&
+            typeof msg.size?.width === 'number' &&
+            typeof msg.size?.height === 'number'
+          ) {
+            windowManager.resizeWindow(msg.windowId, msg.size);
+          }
+        } else if (msg.type === 'window:actions_changed') {
+          if (typeof msg.windowId === 'string' && Array.isArray(msg.actions)) {
+            windowManager.setWindowActions(
+              msg.windowId,
+              msg.actions as SerializableActionDefinition[],
+            );
+          }
+        } else if (msg.type === 'window:action_result') {
+          if (typeof msg.requestId === 'string') {
+            const pending = pendingWindowActionRequests.get(msg.requestId);
+            if (pending) {
+              clearTimeout(pending.timeout);
+              pendingWindowActionRequests.delete(msg.requestId);
+              if (typeof msg.error === 'string' && msg.error.length > 0) {
+                pending.reject(new Error(msg.error));
+              } else {
+                pending.resolve(msg.result);
+              }
+            }
           }
         } else if (msg.type === 'ai:prompt') {
           const requestId = typeof msg.requestId === 'string' ? msg.requestId : `ai-${Date.now()}`;

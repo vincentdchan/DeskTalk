@@ -1,8 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { MiniAppManifest, WindowState } from '@desktalk/sdk';
 import { initMessaging, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
-import type { ActionDefinition } from '@desktalk/sdk';
-import { useWindowManager } from '../stores/window-manager.js';
+import type { ActionDefinition, ActionHandler } from '@desktalk/sdk';
+import {
+  reportWindowActionResult,
+  reportWindowActions,
+  requestOpen,
+  setWindowManagerSocket,
+  useWindowManager,
+} from '../stores/window-manager.js';
 import { ActionsBar } from './ActionsBar.js';
 import { Dock, type DockMiniApp } from './Dock.js';
 import { WindowChrome } from './WindowChrome.js';
@@ -120,11 +126,35 @@ export function Shell() {
   const { ready: wsReady, socket } = useWebSocket();
 
   const windows = useWindowManager((s) => s.windows);
-  const openWindow = useWindowManager((s) => s.openWindow);
-  const setWindowActions = useWindowManager((s) => s.setWindowActions);
+  const replaceState = useWindowManager((s) => s.replaceState);
+  const setFocusedWindowActions = useWindowManager((s) => s.setFocusedWindowActions);
 
   const [manifests, setManifests] = useState<MiniAppManifest[]>([]);
   const [dockApps, setDockApps] = useState<DockMiniApp[]>([]);
+  const actionHandlersRef = useRef<Map<string, Map<string, ActionHandler>>>(new Map());
+
+  const buildClientActions = useCallback(
+    (
+      windowId: string,
+      actions: Array<Pick<ActionDefinition, 'name' | 'description' | 'params'>>,
+    ): ActionDefinition[] => {
+      const handlerMap =
+        actionHandlersRef.current.get(windowId) ?? new Map<string, ActionHandler>();
+      return actions
+        .map((action) => {
+          const handler = handlerMap.get(action.name);
+          if (!handler) {
+            return null;
+          }
+          return {
+            ...action,
+            handler,
+          } satisfies ActionDefinition;
+        })
+        .filter((action): action is ActionDefinition => action !== null);
+    },
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -155,41 +185,119 @@ export function Shell() {
   }, [manifests, windows]);
 
   useEffect(() => {
+    setWindowManagerSocket(socket);
+    return () => {
+      setWindowManagerSocket(null);
+    };
+  }, [socket]);
+
+  useEffect(() => {
+    if (!socket) {
+      return;
+    }
+
+    const handleWindowMessage = (event: MessageEvent) => {
+      try {
+        const message = JSON.parse(event.data as string) as {
+          type?: string;
+          windows?: WindowState[];
+          focusedWindowActions?: Array<Pick<ActionDefinition, 'name' | 'description' | 'params'>>;
+          requestId?: string;
+          windowId?: string;
+          actionName?: string;
+          params?: Record<string, unknown>;
+        };
+
+        if (message.type === 'window:state') {
+          const focusedWindowId = message.windows?.find((window) => window.focused)?.id;
+          replaceState({
+            windows: message.windows ?? [],
+            focusedWindowActions:
+              focusedWindowId && message.focusedWindowActions
+                ? buildClientActions(focusedWindowId, message.focusedWindowActions)
+                : [],
+          });
+          return;
+        }
+
+        if (message.type === 'window:invoke_action') {
+          const requestId = message.requestId;
+          const windowId = message.windowId;
+          const actionName = message.actionName;
+          if (!requestId || !windowId || !actionName) {
+            return;
+          }
+
+          const handler = actionHandlersRef.current.get(windowId)?.get(actionName);
+          if (!handler) {
+            reportWindowActionResult(
+              requestId,
+              undefined,
+              `Action not available on window ${windowId}: ${actionName}`,
+            );
+            return;
+          }
+
+          void handler(message.params)
+            .then((result) => {
+              reportWindowActionResult(requestId, result);
+            })
+            .catch((error) => {
+              reportWindowActionResult(requestId, undefined, (error as Error).message);
+            });
+        }
+      } catch {
+        // Ignore malformed messages.
+      }
+    };
+
+    socket.addEventListener('message', handleWindowMessage);
+    return () => {
+      socket.removeEventListener('message', handleWindowMessage);
+    };
+  }, [buildClientActions, replaceState, socket]);
+
+  useEffect(() => {
     const handleActionsChanged = (event: Event) => {
       const customEvent = event as CustomEvent<{
         windowId: string;
         actions: ActionDefinition[];
       }>;
       if (!customEvent.detail?.windowId) return;
-      setWindowActions(customEvent.detail.windowId, customEvent.detail.actions ?? []);
+
+      const actions = customEvent.detail.actions ?? [];
+      actionHandlersRef.current.set(
+        customEvent.detail.windowId,
+        new Map(actions.map((action) => [action.name, action.handler])),
+      );
+      reportWindowActions(
+        customEvent.detail.windowId,
+        actions.map((action) => ({
+          name: action.name,
+          description: action.description,
+          params: action.params,
+        })),
+      );
+
+      const focusedWindow = useWindowManager.getState().getFocusedWindow();
+      if (focusedWindow?.id === customEvent.detail.windowId) {
+        setFocusedWindowActions(buildClientActions(customEvent.detail.windowId, actions));
+      }
     };
 
     window.addEventListener('desktalk:actions-changed', handleActionsChanged);
     return () => {
       window.removeEventListener('desktalk:actions-changed', handleActionsChanged);
     };
-  }, [setWindowActions]);
+  }, [buildClientActions, setFocusedWindowActions]);
 
-  const handleLaunch = useCallback(
-    async (miniAppId: string) => {
-      try {
-        const app = manifests.find((entry) => entry.id === miniAppId);
-        const title = app?.name ?? miniAppId;
-
-        const response = await fetch(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {
-          method: 'POST',
-        });
-        if (!response.ok) {
-          throw new Error(`Failed to activate MiniApp "${miniAppId}"`);
-        }
-
-        openWindow(miniAppId, title);
-      } catch (err) {
-        console.error('[shell] Could not launch MiniApp:', err);
-      }
-    },
-    [manifests, openWindow],
-  );
+  const handleLaunch = useCallback(async (miniAppId: string) => {
+    try {
+      requestOpen(miniAppId);
+    } catch (err) {
+      console.error('[shell] Could not launch MiniApp:', err);
+    }
+  }, []);
 
   return (
     <div className={styles.shell}>

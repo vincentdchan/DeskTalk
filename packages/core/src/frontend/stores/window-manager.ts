@@ -1,187 +1,133 @@
 import { create } from 'zustand';
-import type { WindowState, WindowPosition, WindowSize } from '@desktalk/sdk';
-import type { ActionDefinition } from '@desktalk/sdk';
+import type { ActionDefinition, WindowPosition, WindowSize, WindowState } from '@desktalk/sdk';
 
 const MIN_WINDOW_WIDTH = 300;
 const MIN_WINDOW_HEIGHT = 200;
 
+export interface WindowManagerSnapshot {
+  windows: WindowState[];
+  focusedWindowActions: ActionDefinition[];
+}
+
+let windowManagerSocket: WebSocket | null = null;
+
+function sendWindowMessage(message: Record<string, unknown>): void {
+  if (!windowManagerSocket || windowManagerSocket.readyState !== WebSocket.OPEN) {
+    return;
+  }
+  windowManagerSocket.send(JSON.stringify(message));
+}
+
+export function setWindowManagerSocket(socket: WebSocket | null): void {
+  windowManagerSocket = socket;
+}
+
+export function requestOpen(miniAppId: string): void {
+  sendWindowMessage({ type: 'window:open', miniAppId });
+}
+
+export function requestClose(windowId: string): void {
+  sendWindowMessage({ type: 'window:close', windowId });
+}
+
+export function requestFocus(windowId: string): void {
+  sendWindowMessage({ type: 'window:focus', windowId });
+}
+
+export function requestMinimize(windowId: string): void {
+  sendWindowMessage({ type: 'window:minimize', windowId });
+}
+
+export function requestMaximize(windowId: string): void {
+  sendWindowMessage({ type: 'window:maximize', windowId });
+}
+
+export function requestMove(windowId: string, position: WindowPosition): void {
+  sendWindowMessage({ type: 'window:move', windowId, position });
+}
+
+export function requestResize(windowId: string, size: WindowSize): void {
+  sendWindowMessage({ type: 'window:resize', windowId, size });
+}
+
+export function optimisticMove(windowId: string, position: WindowPosition): void {
+  useWindowManager.getState().optimisticMove(windowId, position);
+}
+
+export function optimisticResize(windowId: string, size: WindowSize): void {
+  useWindowManager.getState().optimisticResize(windowId, size);
+}
+
+export function reportWindowActions(
+  windowId: string,
+  actions: Array<Pick<ActionDefinition, 'name' | 'description' | 'params'>>,
+): void {
+  sendWindowMessage({ type: 'window:actions_changed', windowId, actions });
+}
+
+export function reportWindowActionResult(
+  requestId: string,
+  result?: unknown,
+  error?: string,
+): void {
+  sendWindowMessage({ type: 'window:action_result', requestId, result, error });
+}
+
 interface WindowManagerState {
   windows: WindowState[];
-  nextZIndex: number;
-  /** Actions registered by the focused window's MiniApp */
   focusedWindowActions: ActionDefinition[];
-  windowActions: Record<string, ActionDefinition[]>;
-
-  // Actions
-  openWindow: (miniAppId: string, title: string) => string;
-  closeWindow: (windowId: string) => void;
-  focusWindow: (windowId: string) => void;
-  minimizeWindow: (windowId: string) => void;
-  maximizeWindow: (windowId: string) => void;
-  moveWindow: (windowId: string, position: WindowPosition) => void;
-  resizeWindow: (windowId: string, size: WindowSize) => void;
+  replaceState: (snapshot: WindowManagerSnapshot) => void;
   setFocusedWindowActions: (actions: ActionDefinition[]) => void;
-  setWindowActions: (windowId: string, actions: ActionDefinition[]) => void;
+  optimisticMove: (windowId: string, position: WindowPosition) => void;
+  optimisticResize: (windowId: string, size: WindowSize) => void;
   getFocusedWindow: () => WindowState | undefined;
   getWindowsByMiniApp: (miniAppId: string) => WindowState[];
 }
 
-let windowIdCounter = 0;
-
 export const useWindowManager = create<WindowManagerState>((set, get) => ({
   windows: [],
-  nextZIndex: 1,
   focusedWindowActions: [],
-  windowActions: {},
 
-  openWindow(miniAppId: string, title: string): string {
-    const id = `win-${++windowIdCounter}`;
-    const state = get();
-
-    // Cascade new windows slightly offset
-    const offset = (state.windows.length % 10) * 30;
-
-    const newWindow: WindowState = {
-      id,
-      miniAppId,
-      title,
-      position: { x: 100 + offset, y: 80 + offset },
-      size: { width: 800, height: 600 },
-      minimized: false,
-      maximized: false,
-      focused: true,
-      zIndex: state.nextZIndex,
-    };
-
-    // Unfocus all existing windows
-    const updatedWindows = state.windows.map((w) => ({ ...w, focused: false }));
-
+  replaceState(snapshot: WindowManagerSnapshot) {
     set({
-      windows: [...updatedWindows, newWindow],
-      nextZIndex: state.nextZIndex + 1,
-      focusedWindowActions: [],
+      windows: snapshot.windows,
+      focusedWindowActions: snapshot.focusedWindowActions,
     });
-
-    return id;
-  },
-
-  closeWindow(windowId: string) {
-    const state = get();
-    const remaining = state.windows.filter((w) => w.id !== windowId);
-
-    // Focus the topmost remaining window
-    if (remaining.length > 0) {
-      const topWindow = remaining.reduce((top, w) => (w.zIndex > top.zIndex ? w : top));
-      const updated = remaining.map((w) => ({
-        ...w,
-        focused: w.id === topWindow.id,
-      }));
-      const { [windowId]: _, ...remainingActions } = state.windowActions;
-      set({
-        windows: updated,
-        windowActions: remainingActions,
-        focusedWindowActions: remainingActions[topWindow.id] ?? [],
-      });
-    } else {
-      set({ windows: [], focusedWindowActions: [], windowActions: {} });
-    }
-  },
-
-  focusWindow(windowId: string) {
-    const state = get();
-    const updated = state.windows.map((w) => ({
-      ...w,
-      focused: w.id === windowId,
-      zIndex: w.id === windowId ? state.nextZIndex : w.zIndex,
-      minimized: w.id === windowId ? false : w.minimized,
-    }));
-    set({
-      windows: updated,
-      nextZIndex: state.nextZIndex + 1,
-      focusedWindowActions: state.windowActions[windowId] ?? [],
-    });
-  },
-
-  minimizeWindow(windowId: string) {
-    const state = get();
-    const updated = state.windows.map((w) => {
-      if (w.id !== windowId) return w;
-      return { ...w, minimized: true, focused: false };
-    });
-
-    // Focus the next topmost non-minimized window
-    const visible = updated.filter((w) => !w.minimized);
-    if (visible.length > 0) {
-      const topWindow = visible.reduce((top, w) => (w.zIndex > top.zIndex ? w : top));
-      const final = updated.map((w) => ({
-        ...w,
-        focused: w.id === topWindow.id,
-      }));
-      set({
-        windows: final,
-        focusedWindowActions: state.windowActions[topWindow.id] ?? [],
-      });
-    } else {
-      set({ windows: updated, focusedWindowActions: [] });
-    }
-  },
-
-  maximizeWindow(windowId: string) {
-    set((state) => ({
-      windows: state.windows.map((w) => {
-        if (w.id !== windowId) return w;
-        return { ...w, maximized: !w.maximized };
-      }),
-    }));
-  },
-
-  moveWindow(windowId: string, position: WindowPosition) {
-    set((state) => ({
-      windows: state.windows.map((w) => {
-        if (w.id !== windowId) return w;
-        return { ...w, position };
-      }),
-    }));
-  },
-
-  resizeWindow(windowId: string, size: WindowSize) {
-    set((state) => ({
-      windows: state.windows.map((w) => {
-        if (w.id !== windowId) return w;
-        return {
-          ...w,
-          size: {
-            width: Math.max(size.width, MIN_WINDOW_WIDTH),
-            height: Math.max(size.height, MIN_WINDOW_HEIGHT),
-          },
-        };
-      }),
-    }));
   },
 
   setFocusedWindowActions(actions: ActionDefinition[]) {
     set({ focusedWindowActions: actions });
   },
 
-  setWindowActions(windowId: string, actions: ActionDefinition[]) {
-    set((state) => {
-      const nextWindowActions = {
-        ...state.windowActions,
-        [windowId]: actions,
-      };
-      const focusedWindow = state.windows.find((w) => w.focused);
-      return {
-        windowActions: nextWindowActions,
-        focusedWindowActions: focusedWindow?.id === windowId ? actions : state.focusedWindowActions,
-      };
-    });
+  optimisticMove(windowId: string, position: WindowPosition) {
+    set((state) => ({
+      windows: state.windows.map((window) =>
+        window.id === windowId ? { ...window, position } : window,
+      ),
+    }));
+  },
+
+  optimisticResize(windowId: string, size: WindowSize) {
+    set((state) => ({
+      windows: state.windows.map((window) =>
+        window.id === windowId
+          ? {
+              ...window,
+              size: {
+                width: Math.max(size.width, MIN_WINDOW_WIDTH),
+                height: Math.max(size.height, MIN_WINDOW_HEIGHT),
+              },
+            }
+          : window,
+      ),
+    }));
   },
 
   getFocusedWindow(): WindowState | undefined {
-    return get().windows.find((w) => w.focused);
+    return get().windows.find((window) => window.focused);
   },
 
   getWindowsByMiniApp(miniAppId: string): WindowState[] {
-    return get().windows.filter((w) => w.miniAppId === miniAppId);
+    return get().windows.filter((window) => window.miniAppId === miniAppId);
   },
 }));
