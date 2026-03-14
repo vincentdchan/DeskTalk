@@ -19,7 +19,8 @@
     "build:frontend": "node scripts/build-frontend.js",
     "start": "node dist/cli/index.js start",
     "dev": "tsc -p tsconfig.build.json --watch",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "unit:test": "vitest run"
   },
   "dependencies": {
     "@desktalk/miniapp-file-explorer": "workspace:*",
@@ -46,6 +47,7 @@
     "@types/react-dom": "^19.0.0",
     "@types/ws": "^8.18.1",
     "esbuild": "^0.24.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }
