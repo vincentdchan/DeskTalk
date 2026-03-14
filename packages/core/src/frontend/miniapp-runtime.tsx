@@ -1,10 +1,13 @@
-import React from 'react';
+import type { MiniAppFrontendContext } from '@desktalk/sdk';
 
 /**
  * Frontend MiniApp module — what a MiniApp's frontend entry exports.
+ * MiniApps export activate/deactivate hooks (like the backend) rather than
+ * a React component. The MiniApp itself mounts its UI to the provided root element.
  */
-interface MiniAppFrontendModule {
-  default: React.ComponentType;
+export interface MiniAppFrontendModule {
+  activate(ctx: MiniAppFrontendContext): void;
+  deactivate(): void;
 }
 
 const builtinLoaders: Record<string, () => Promise<MiniAppFrontendModule>> = {
@@ -16,15 +19,14 @@ const builtinLoaders: Record<string, () => Promise<MiniAppFrontendModule>> = {
     import('@desktalk/miniapp-preference/frontend') as Promise<MiniAppFrontendModule>,
 };
 
-const componentCache = new Map<string, React.ComponentType>();
+const moduleCache = new Map<string, MiniAppFrontendModule>();
 
 /**
- * Load a MiniApp's root React component from its frontend entry.
- * The frontend entry exports the component as its default export —
- * no activation context or stub APIs needed.
+ * Load a MiniApp's frontend module.
+ * The frontend entry exports activate() and deactivate() hooks.
  */
-export async function loadMiniAppComponent(miniAppId: string): Promise<React.ComponentType> {
-  const cached = componentCache.get(miniAppId);
+export async function loadMiniAppModule(miniAppId: string): Promise<MiniAppFrontendModule> {
+  const cached = moduleCache.get(miniAppId);
   if (cached) {
     return cached;
   }
@@ -35,6 +37,6 @@ export async function loadMiniAppComponent(miniAppId: string): Promise<React.Com
   }
 
   const mod = await load();
-  componentCache.set(miniAppId, mod.default);
-  return mod.default;
+  moduleCache.set(miniAppId, mod);
+  return mod;
 }

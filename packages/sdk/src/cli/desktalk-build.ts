@@ -5,7 +5,9 @@
  *
  * Produces two ESM bundles from a MiniApp package root:
  *   dist/backend.js  — Node target, all deps external
- *   dist/frontend.js — Browser target, deps bundled (except react & @desktalk/sdk)
+ *   dist/frontend.js — Browser target, deps bundled (except @desktalk/sdk)
+ *
+ * React/ReactDOM are resolved to window globals provided by the core shell.
  *
  * Also generates TypeScript declaration files via tsc.
  */
@@ -40,6 +42,101 @@ function createCssInjectionBanner(css: string, packageName: string): string {
   style.textContent = ${JSON.stringify(css)};
   document.head.appendChild(style);
 })();`;
+}
+
+// ─── Window globals plugin ──────────────────────────────────────────────────
+// Resolves React/ReactDOM imports to window globals provided by the core shell.
+// This ensures MiniApps share the single React instance exposed by the core
+// rather than bundling their own copies.
+
+interface GlobalModuleConfig {
+  globalVar: string;
+  namedExports: string[];
+}
+
+function createWindowGlobalsPlugin(): esbuild.Plugin {
+  const globals: Record<string, GlobalModuleConfig> = {
+    react: {
+      globalVar: 'React',
+      namedExports: [
+        'Children',
+        'Component',
+        'Fragment',
+        'Profiler',
+        'PureComponent',
+        'StrictMode',
+        'Suspense',
+        'cloneElement',
+        'createContext',
+        'createElement',
+        'createRef',
+        'forwardRef',
+        'isValidElement',
+        'lazy',
+        'memo',
+        'startTransition',
+        'useCallback',
+        'useContext',
+        'useDebugValue',
+        'useDeferredValue',
+        'useEffect',
+        'useId',
+        'useImperativeHandle',
+        'useInsertionEffect',
+        'useLayoutEffect',
+        'useMemo',
+        'useReducer',
+        'useRef',
+        'useState',
+        'useSyncExternalStore',
+        'useTransition',
+        'version',
+      ],
+    },
+    'react-dom': {
+      globalVar: 'ReactDOM',
+      namedExports: ['createPortal', 'flushSync', 'createRoot', 'hydrateRoot', 'version'],
+    },
+    'react-dom/client': {
+      globalVar: 'ReactDOM',
+      namedExports: ['createRoot', 'hydrateRoot'],
+    },
+    'react/jsx-runtime': {
+      globalVar: '__desktalk_jsx_runtime',
+      namedExports: ['jsx', 'jsxs', 'jsxDEV', 'Fragment'],
+    },
+  };
+
+  return {
+    name: 'desktalk-window-globals',
+    setup(build) {
+      for (const modName of Object.keys(globals)) {
+        const escaped = modName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        build.onResolve({ filter: new RegExp(`^${escaped}$`) }, () => ({
+          path: modName,
+          namespace: 'desktalk-global',
+        }));
+      }
+
+      build.onLoad({ filter: /.*/, namespace: 'desktalk-global' }, (args) => {
+        const config = globals[args.path];
+        if (!config) return null;
+
+        const lines = [
+          `var _mod = window.${config.globalVar};`,
+          `export default _mod;`,
+        ];
+        for (const name of config.namedExports) {
+          lines.push(`export var ${name} = _mod.${name};`);
+        }
+
+        return {
+          contents: lines.join('\n'),
+          loader: 'js',
+        };
+      });
+    },
+  };
 }
 
 // ─── Resolve entry points ────────────────────────────────────────────────────
@@ -117,7 +214,8 @@ try {
       '.ttf': 'empty',
       '.eot': 'empty',
     },
-    external: ['react', 'react/jsx-runtime', 'react-dom', '@desktalk/sdk'],
+    plugins: [createWindowGlobalsPlugin()],
+    external: ['@desktalk/sdk'],
   });
 
   const packageJsonPath = join(cwd, 'package.json');
@@ -147,7 +245,8 @@ try {
       '.eot': 'empty',
     },
     banner: injectedCssBanner ? { js: injectedCssBanner } : undefined,
-    external: ['react', 'react/jsx-runtime', 'react-dom', '@desktalk/sdk'],
+    plugins: [createWindowGlobalsPlugin()],
+    external: ['@desktalk/sdk'],
   });
 
   for (const extraFile of ['frontend.css', 'frontend.css.map']) {

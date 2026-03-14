@@ -5,6 +5,7 @@
 export type {
   MiniAppManifest,
   MiniAppBackendActivation,
+  MiniAppFrontendContext,
   MiniAppActivation,
 } from './types/manifest.js';
 export type {

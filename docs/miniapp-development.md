@@ -6,13 +6,13 @@ For the overall system architecture, workspace directories, and installation mec
 
 ## Package Structure
 
-Every MiniApp is an npm package with **two separate entry files** — one for the backend (Node.js) and one for the frontend (React). The core loads each independently: the backend entry runs on the server, and the frontend entry is bundled for the browser.
+Every MiniApp is an npm package with **two separate entry files** — one for the backend (Node.js) and one for the frontend (browser). The core loads each independently: the backend entry runs on the server, and the frontend entry is bundled for the browser.
 
 ```
 miniapp-note/
   src/
     backend.ts          # Backend entry — exports manifest, activate(), deactivate()
-    frontend.tsx        # Frontend entry — exports the root React component
+    frontend.tsx        # Frontend entry — exports activate(), deactivate() hooks
     components/         # React components (imported by frontend.tsx)
     ...
   package.json
@@ -41,7 +41,8 @@ miniapp-note/
   },
   "dependencies": {
     "@desktalk/sdk": "workspace:*",
-    "react": "^19.0.0"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }
 ```
@@ -53,7 +54,7 @@ The two sub-path exports (`./backend` and `./frontend`) allow the core to import
 import { manifest, activate, deactivate } from '@desktalk/miniapp-note/backend';
 
 // Frontend bundle — imports only the frontend entry
-import { default as NoteApp } from '@desktalk/miniapp-note/frontend';
+import { activate, deactivate } from '@desktalk/miniapp-note/frontend';
 ```
 
 ## Backend Entry (`backend.ts`)
@@ -107,11 +108,15 @@ export function deactivate(): void {
 
 ## Frontend Entry (`frontend.tsx`)
 
-The frontend entry runs in the browser. It exports a default React component that the core renders inside a window. It communicates with the backend exclusively through SDK hooks (`useCommand`, `useEvent`).
+The frontend entry runs in the browser. It exports `activate()` and `deactivate()` hooks — the same pattern as the backend entry. The core provides a root DOM element and metadata via a `MiniAppFrontendContext`, and the MiniApp mounts its own UI into that element.
+
+React is the recommended framework, but MiniApps can use any framework. The core exposes `React` and `ReactDOM` on `window`, so MiniApps share the core's single React instance rather than bundling their own copies. The build tool (`desktalk-build`) automatically resolves React imports to these window globals.
 
 ```tsx
 import React, { useEffect, useState } from 'react';
-import { useCommand, ActionsProvider, Action } from '@desktalk/sdk';
+import { createRoot } from 'react-dom/client';
+import type { MiniAppFrontendContext } from '@desktalk/sdk';
+import { useCommand, ActionsProvider, Action, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
 
 interface Note {
   id: string;
@@ -150,7 +155,23 @@ function NoteApp() {
   );
 }
 
-export default NoteApp;
+let root: ReturnType<typeof createRoot> | null = null;
+
+export function activate(ctx: MiniAppFrontendContext): void {
+  root = createRoot(ctx.root);
+  root.render(
+    <WindowIdProvider windowId={ctx.windowId}>
+      <MiniAppIdProvider miniAppId={ctx.miniAppId}>
+        <NoteApp />
+      </MiniAppIdProvider>
+    </WindowIdProvider>,
+  );
+}
+
+export function deactivate(): void {
+  root?.unmount();
+  root = null;
+}
 ```
 
 ## Exported Interfaces
@@ -183,19 +204,30 @@ export interface MiniAppBackendActivation {
 }
 ```
 
-### MiniAppFrontendComponent
+### MiniAppFrontendContext
 
-The frontend entry's default export must be a `React.ComponentType` — the root component rendered inside the DeskTalk window.
+The context object passed to the frontend `activate()` function. Contains the root DOM element where the MiniApp should mount its UI, plus metadata about the MiniApp and window.
+
+```ts
+export interface MiniAppFrontendContext {
+  /** Root DOM element where the MiniApp should mount its UI */
+  root: HTMLElement;
+  /** The MiniApp's unique identifier */
+  miniAppId: string;
+  /** The window's unique identifier */
+  windowId: string;
+}
+```
 
 ## Lifecycle
 
-| Phase            | Trigger                                    | What happens                                                                                                                            |
-| ---------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **Discovery**    | `desktalk start`                           | Core scans installed packages and reads each `manifest` export from the backend entry. Icons appear in the Dock.                        |
-| **Activation**   | User opens the MiniApp (or AI triggers it) | Core calls the backend entry's `activate(ctx)` to set up command handlers, then loads the frontend entry's component into a new window. |
-| **Running**      | User/AI interacts                          | Frontend uses SDK hooks (`useCommand`, `useEvent`) to communicate with backend handlers.                                                |
-| **Deactivation** | All windows of the MiniApp are closed      | Core calls the backend entry's `deactivate()`. Resources are released.                                                                  |
-| **Uninstall**    | `desktalk uninstall <name>`                | Core calls `deactivate()` if active, then removes the package.                                                                          |
+| Phase            | Trigger                                    | What happens                                                                                                                                                                                                            |
+| ---------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Discovery**    | `desktalk start`                           | Core scans installed packages and reads each `manifest` export from the backend entry. Icons appear in the Dock.                                                                                                        |
+| **Activation**   | User opens the MiniApp (or AI triggers it) | Core calls the backend entry's `activate(ctx)` to set up command handlers, then loads the frontend entry and calls its `activate(ctx)` with a root DOM element to mount into.                                           |
+| **Running**      | User/AI interacts                          | Frontend uses SDK hooks (`useCommand`, `useEvent`) to communicate with backend handlers.                                                                                                                                |
+| **Deactivation** | All windows of the MiniApp are closed      | Core calls the frontend entry's `deactivate()` to unmount the UI, then calls the backend entry's `deactivate()`. Resources are released.                                                                               |
+| **Uninstall**    | `desktalk uninstall <name>`                | Core calls `deactivate()` if active, then removes the package.                                                                                                                                                          |
 
 ## Communication Hooks (MiniAppContext)
 
@@ -342,10 +374,10 @@ Or in `package.json`:
 
 `desktalk-build` performs two builds from the MiniApp's package root:
 
-| Output             | Source             | Target           | Format | Notes                                                                                                                                                                                                             |
-| ------------------ | ------------------ | ---------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/backend.js`  | `src/backend.ts`   | Node.js (es2022) | ESM    | No bundling of `node_modules` -- external dependencies are resolved at runtime.                                                                                                                                   |
-| `dist/frontend.js` | `src/frontend.tsx` | Browser (es2022) | ESM    | Bundled with all non-`@desktalk/sdk` and non-`react` imports inlined. Imported CSS is compiled and injected automatically from the JS bundle. React and the SDK are marked external (provided by the core shell). |
+| Output             | Source             | Target           | Format | Notes                                                                                                                                                                                                                                            |
+| ------------------ | ------------------ | ---------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dist/backend.js`  | `src/backend.ts`   | Node.js (es2022) | ESM    | No bundling of `node_modules` -- external dependencies are resolved at runtime.                                                                                                                                                                  |
+| `dist/frontend.js` | `src/frontend.tsx` | Browser (es2022) | ESM    | Bundled with all non-`@desktalk/sdk` imports inlined. React/ReactDOM imports are resolved to window globals provided by the core shell. Imported CSS is compiled and injected automatically from the JS bundle. `@desktalk/sdk` remains external. |
 
 Both outputs include TypeScript declaration files (`*.d.ts`) and source maps.
 
