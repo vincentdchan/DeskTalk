@@ -8,6 +8,7 @@ import { addClient, broadcastRaw, handleCommand } from '../services/messaging.js
 import { registry } from '../services/miniapp-registry.js';
 import { PiSessionService } from '../services/ai/pi-session-service.js';
 import { getStoredPreference } from '../services/preferences.js';
+import { loadMergedLocaleMessages } from '../services/i18n.js';
 import { getWorkspacePaths } from '../services/workspace.js';
 import { VoiceSession } from '../services/voice/voice-session.js';
 import { AzureOpenAIWhisperAdapter } from '../services/voice/azure-openai-whisper-adapter.js';
@@ -20,6 +21,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const corePackageRoot = join(__dirname, '..', '..');
 
 export interface ServerOptions {
   host: string;
@@ -347,7 +349,7 @@ export async function createServer(options: ServerOptions) {
     };
   }
 
-  app.get('/ws/voice', { websocket: true }, (socket, req) => {
+  app.get('/ws/voice', { websocket: true }, (socket, _req) => {
     let session: VoiceSession | null = null;
 
     socket.on('message', async (raw: Buffer | ArrayBuffer | Buffer[]) => {
@@ -455,6 +457,29 @@ export async function createServer(options: ServerOptions) {
   // REST API: Get all registered MiniApp manifests (for initial Dock load)
   app.get('/api/miniapps', async () => {
     return registry.getManifests();
+  });
+
+  app.get<{ Querystring: { locale?: string } }>('/api/i18n/catalog', async (req) => {
+    const locale = String(req.query.locale ?? getStoredPreference('general.language') ?? 'en');
+    const packages = [
+      { packageRoot: corePackageRoot, packageScope: 'core' },
+      ...registry.getIds().flatMap((id) => {
+        const entry = registry.getEntry(id);
+        return entry
+          ? [
+              {
+                packageRoot: entry.packageRoot,
+                packageScope: entry.manifest.id,
+              },
+            ]
+          : [];
+      }),
+    ];
+
+    return {
+      locale,
+      messages: loadMergedLocaleMessages(packages, locale),
+    };
   });
 
   // REST API: Activate a MiniApp

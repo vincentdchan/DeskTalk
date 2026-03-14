@@ -210,7 +210,7 @@ This returns values for non-sensitive keys only (e.g., theme, language, window d
 
 ### MiniApp Development
 
-For the full MiniApp development guide — package structure, exported interfaces, entry files, lifecycle, communication hooks, and the standard build toolchain — see [miniapp-development.md](./miniapp-development.md).
+For the full MiniApp development guide — package structure, exported interfaces, entry files, lifecycle, communication hooks, and the standard build toolchain — see [miniapp-development.md](./miniapp-development.md). For the app-wide localization design spanning core and MiniApps, see [i18n-proposal.md](./i18n-proposal.md).
 
 **Key design points:**
 

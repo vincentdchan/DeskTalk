@@ -5,9 +5,10 @@ import styles from '../styles/ActionsBar.module.css';
 export function ActionsBar() {
   const focusedWindow = useWindowManager((s) => s.windows.find((w) => w.focused));
   const focusedWindowActions = useWindowManager((s) => s.focusedWindowActions);
+
   return (
     <div className={styles.actionsBar}>
-      <span className={styles.appName}>DeskTalk</span>
+      <span className={styles.appName}>{$localize`appName:DeskTalk`}</span>
 
       {focusedWindow && (
         <>
@@ -17,19 +18,21 @@ export function ActionsBar() {
             className={styles.builtinAction}
             onClick={() => useWindowManager.getState().maximizeWindow(focusedWindow.id)}
           >
-            {focusedWindow.maximized ? 'Restore' : 'Maximize'}
+            {focusedWindow.maximized
+              ? $localize`window.restore:Restore`
+              : $localize`window.maximize:Maximize`}
           </button>
           <button
             className={styles.builtinAction}
             onClick={() => useWindowManager.getState().minimizeWindow(focusedWindow.id)}
           >
-            Minimize
+            {$localize`window.minimize:Minimize`}
           </button>
           <button
             className={styles.builtinAction}
             onClick={() => useWindowManager.getState().closeWindow(focusedWindow.id)}
           >
-            Close
+            {$localize`close:Close`}
           </button>
 
           {focusedWindowActions.length > 0 && (

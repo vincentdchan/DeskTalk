@@ -15,7 +15,16 @@ export interface MiniAppContext {
   subscriptions: Disposable[];
   /** Logger scoped to this MiniApp */
   logger: Logger;
+  /** Localizer scoped to this MiniApp */
+  i18n: Localizer;
 }
+
+export interface Localizer {
+  t(key: string, defaultText: string, params?: Record<string, LocalizeParam>): string;
+  locale(): string;
+}
+
+export type LocalizeParam = string | number | boolean | null | undefined;
 
 /**
  * Platform-resolved paths for a MiniApp, provided by the core.
@@ -77,10 +86,7 @@ export interface FileStat {
  */
 export interface MessagingHook {
   /** Register a handler for a named command from the frontend */
-  onCommand<TReq, TRes>(
-    command: string,
-    handler: (data: TReq) => Promise<TRes>,
-  ): Disposable;
+  onCommand<TReq, TRes>(command: string, handler: (data: TReq) => Promise<TRes>): Disposable;
   /** Push an event to the frontend */
   emit(event: string, data: unknown): void;
 }

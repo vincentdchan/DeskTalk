@@ -1,13 +1,13 @@
-import type {
-  MiniAppManifest,
-  MiniAppBackendActivation,
-  MiniAppContext,
-} from '@desktalk/sdk';
+import type { MiniAppManifest, MiniAppBackendActivation, MiniAppContext } from '@desktalk/sdk';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { resolveMiniAppPaths } from './workspace.js';
 import { createStorageHook } from './storage.js';
 import { createFileSystemHook } from './filesystem.js';
 import { createMessagingHook } from './messaging.js';
 import { createLogger } from './logger.js';
+import { getStoredPreference } from './preferences.js';
+import { createPackageLocalizer } from './i18n.js';
 
 /**
  * MiniApp backend module — what a MiniApp's backend entry exports.
@@ -24,6 +24,7 @@ export interface MiniAppBackendModule {
 export interface MiniAppEntry {
   manifest: MiniAppManifest;
   module: MiniAppBackendModule;
+  packageRoot: string;
   activation: MiniAppBackendActivation | null;
   context: MiniAppContext | null;
 }
@@ -37,7 +38,7 @@ class MiniAppRegistry {
   /**
    * Register a MiniApp module (built-in or third-party).
    */
-  register(mod: MiniAppBackendModule): void {
+  register(mod: MiniAppBackendModule, packageRoot: string): void {
     const { manifest } = mod;
     if (this.entries.has(manifest.id)) {
       throw new Error(`MiniApp already registered: ${manifest.id}`);
@@ -45,6 +46,7 @@ class MiniAppRegistry {
     this.entries.set(manifest.id, {
       manifest,
       module: mod,
+      packageRoot,
       activation: null,
       context: null,
     });
@@ -63,6 +65,7 @@ class MiniAppRegistry {
     }
 
     const paths = resolveMiniAppPaths(id);
+    const locale = String(getStoredPreference('general.language') ?? 'en');
     const context: MiniAppContext = {
       paths,
       storage: createStorageHook(paths.storage),
@@ -70,6 +73,11 @@ class MiniAppRegistry {
       messaging: createMessagingHook(id),
       subscriptions: [],
       logger: createLogger(paths.log, id),
+      i18n: createPackageLocalizer({
+        packageRoot: entry.packageRoot,
+        defaultScope: id,
+        locale,
+      }),
     };
 
     entry.context = context;
@@ -151,7 +159,9 @@ export async function registerBuiltinMiniApps(): Promise<void> {
   for (const backendPath of builtins) {
     try {
       const mod = (await import(backendPath)) as MiniAppBackendModule;
-      registry.register(mod);
+      const backendFile = fileURLToPath(import.meta.resolve(backendPath));
+      const packageRoot = join(dirname(backendFile), '..');
+      registry.register(mod, packageRoot);
     } catch (err) {
       // Built-in MiniApp not available yet — skip during early development
       console.warn(

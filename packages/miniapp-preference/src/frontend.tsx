@@ -44,14 +44,16 @@ function PreferenceApp() {
       setConfig((prev) => ({ ...prev, [change.key]: change.value }));
 
       if (change.requiresRestart) {
-        showNotification('This change requires a restart to take effect.');
+        showNotification(
+          $localize`notifications.restartRequired:This change requires a restart to take effect.`,
+        );
       }
     },
   );
 
   useEvent<Record<string, never>>('preferences:resetAll', () => {
     fetchConfig();
-    showNotification('All settings have been reset to defaults.');
+    showNotification($localize`notifications.resetAll:All settings have been reset to defaults.`);
   });
 
   // ─── Notification helper ─────────────────────────────────────────────────

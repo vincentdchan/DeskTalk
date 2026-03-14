@@ -9,8 +9,7 @@
     "lint": "eslint packages/",
     "format": "prettier --write \"packages/**/*.{ts,tsx,css,json}\"",
     "format:check": "prettier --check \"packages/**/*.{ts,tsx,css,json}\"",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "unit:test": "pnpm -r --if-present run unit:test",
     "clean": "pnpm -r run clean"
   },
   "devDependencies": {
@@ -21,8 +20,7 @@
     "eslint-plugin-unused-imports": "^4.4.1",
     "prettier": "^3.4.0",
     "typescript": "^5.7.0",
-    "typescript-eslint": "^8.0.0",
-    "vitest": "^3.0.0"
+    "typescript-eslint": "^8.0.0"
   },
   "engines": {
     "node": ">=20.0.0",
