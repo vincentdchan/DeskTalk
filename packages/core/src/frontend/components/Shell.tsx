@@ -382,6 +382,24 @@ export function Shell() {
   const handleLaunch = useCallback(
     async (miniAppId: string) => {
       try {
+        const store = useWindowManager.getState();
+        const existingWindow = store
+          .getWindowsByMiniApp(miniAppId)
+          .reduce<WindowState | undefined>((selected, window) => {
+            if (!selected) {
+              return window;
+            }
+            if (window.focused) {
+              return window;
+            }
+            return window.zIndex > selected.zIndex ? window : selected;
+          }, undefined);
+
+        if (existingWindow) {
+          store.focusWindow(existingWindow.id);
+          return;
+        }
+
         // Activate on server
         await fetch(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {
           method: 'POST',
