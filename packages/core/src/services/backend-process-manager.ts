@@ -12,6 +12,7 @@
 import { fork, type ChildProcess } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
 import type { MiniAppPaths } from '@desktalk/sdk';
 import type {
   MainToChildMessage,
@@ -155,7 +156,7 @@ class BackendProcessManager {
       await managed.readyPromise;
     }
 
-    const requestId = `cmd-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const requestId = `cmd-${randomUUID()}`;
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
