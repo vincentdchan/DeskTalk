@@ -127,10 +127,10 @@ export class WindowManagerService {
   /**
    * Activate persisted MiniApps on startup.
    */
-  activatePersistedMiniApps(activate: (miniAppId: string) => void): void {
+  async activatePersistedMiniApps(activate: (miniAppId: string) => Promise<void>): Promise<void> {
     const activeMiniAppIds = new Set(this.state.windows.map((w) => w.miniAppId));
     for (const miniAppId of activeMiniAppIds) {
-      activate(miniAppId);
+      await activate(miniAppId);
     }
   }
 

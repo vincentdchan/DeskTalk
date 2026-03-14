@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { initWorkspace } from '../services/workspace.js';
 import { registerBuiltinMiniApps } from '../services/miniapp-registry.js';
 import { createServer } from '../server/index.js';
+import { processManager } from '../services/backend-process-manager.js';
 
 const program = new Command();
 
@@ -34,6 +35,16 @@ program
     console.log(`\nStarting DeskTalk on http://${host}:${port}`);
     await createServer({ host, port });
     console.log(`DeskTalk is running at http://${host}:${port}`);
+
+    // Graceful shutdown — kill all backend child processes
+    async function shutdown() {
+      console.log('\nShutting down backend processes...');
+      await processManager.killAll();
+      process.exit(0);
+    }
+
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
   });
 
 program
