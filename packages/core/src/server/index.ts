@@ -4,6 +4,7 @@ import fastifyStatic from '@fastify/static';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
+import type pino from 'pino';
 import { addClient, broadcastRaw } from '../services/messaging.js';
 import { registry } from '../services/miniapp-registry.js';
 import { processManager } from '../services/backend-process-manager.js';
@@ -27,10 +28,12 @@ const corePackageRoot = join(__dirname, '..', '..');
 export interface ServerOptions {
   host: string;
   port: number;
+  logger: pino.Logger;
 }
 
 export async function createServer(options: ServerOptions) {
-  const app = Fastify({ logger: false });
+  const app = Fastify({ loggerInstance: options.logger.child({ scope: 'http' }) });
+  const log = options.logger;
   const workspacePaths = getWorkspacePaths();
   const windowManager = new WindowManagerService(
     join(workspacePaths.data, 'storage', 'window-state.json'),
@@ -350,6 +353,8 @@ export async function createServer(options: ServerOptions) {
     };
   }
 
+  const voiceLog = log.child({ scope: 'voice' });
+
   app.get('/ws/voice', { websocket: true }, (socket, _req) => {
     let session: VoiceSession | null = null;
 
@@ -412,17 +417,21 @@ export async function createServer(options: ServerOptions) {
 
         const vadConfig = await getVadConfigFromPreferences();
 
-        session = new VoiceSession(sessionId, socket, adapter, {
-          sampleRate,
-          channels,
-          format,
-          vad: vadConfig,
-        });
+        session = new VoiceSession(
+          sessionId,
+          socket,
+          adapter,
+          {
+            sampleRate,
+            channels,
+            format,
+            vad: vadConfig,
+          },
+          voiceLog.child({ sessionId }),
+        );
         voiceSessions.set(sessionId, session);
 
-        console.log(
-          `[voice] Session ${sessionId} started (${format}, ${sampleRate}Hz, ${channels}ch)`,
-        );
+        voiceLog.info({ sessionId, format, sampleRate, channels }, 'voice session started');
 
         socket.send(
           JSON.stringify({
@@ -437,13 +446,13 @@ export async function createServer(options: ServerOptions) {
           voiceSessions.delete(session.sessionId);
           session = null;
         }
-        console.log(`[voice] Session ${sessionId} ended by client`);
+        voiceLog.info({ sessionId }, 'voice session ended by client');
       }
     }
 
     socket.on('close', () => {
       if (session) {
-        console.log(`[voice] Session ${session.sessionId} closed (connection lost)`);
+        voiceLog.info({ sessionId: session.sessionId }, 'voice session closed (connection lost)');
         voiceSessions.delete(session.sessionId);
         session.close();
         session = null;
@@ -451,7 +460,7 @@ export async function createServer(options: ServerOptions) {
     });
 
     socket.on('error', (err) => {
-      console.error('[voice] WebSocket error:', err.message);
+      voiceLog.error({ err: err.message }, 'voice WebSocket error');
     });
   });
 

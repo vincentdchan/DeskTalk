@@ -5,6 +5,7 @@ import { initWorkspace } from '../services/workspace.js';
 import { registerBuiltinMiniApps } from '../services/miniapp-registry.js';
 import { createServer } from '../server/index.js';
 import { processManager } from '../services/backend-process-manager.js';
+import { createRootLogger, getLoggerConfig } from '../services/logger.js';
 
 const program = new Command();
 
@@ -18,27 +19,36 @@ program
   .description('Start the DeskTalk server')
   .option('-H, --host <host>', 'Host to bind to', 'localhost')
   .option('-p, --port <port>', 'Port to listen on', '3000')
-  .action(async (opts: { host: string; port: string }) => {
+  .option('-d, --dev', 'Enable development mode (pretty stdout logging)', false)
+  .action(async (opts: { host: string; port: string; dev: boolean }) => {
     const host = opts.host;
     const port = parseInt(opts.port, 10);
+    const dev = opts.dev || process.env.NODE_ENV !== 'production';
 
-    console.log('Initializing workspace...');
     const paths = initWorkspace();
-    console.log(`  Config: ${paths.config}`);
-    console.log(`  Data:   ${paths.data}`);
-    console.log(`  Logs:   ${paths.log}`);
-    console.log(`  Cache:  ${paths.cache}`);
 
-    console.log('\nRegistering built-in MiniApps...');
-    await registerBuiltinMiniApps();
+    const rootLogger = createRootLogger({ dev, logDir: paths.log });
+    const log = rootLogger.child({ scope: 'core' });
 
-    console.log(`\nStarting DeskTalk on http://${host}:${port}`);
-    await createServer({ host, port });
-    console.log(`DeskTalk is running at http://${host}:${port}`);
+    log.info(
+      { config: paths.config, data: paths.data, logs: paths.log, cache: paths.cache },
+      'workspace initialized',
+    );
+
+    // Initialize the process manager with logger config so child processes can recreate it
+    const loggerConfig = getLoggerConfig({ dev, level: rootLogger.level, logDir: paths.log });
+    processManager.init(rootLogger.child({ scope: 'process-mgr' }), loggerConfig);
+
+    log.info('registering built-in MiniApps');
+    await registerBuiltinMiniApps(rootLogger.child({ scope: 'registry' }));
+
+    log.info({ host, port }, 'starting DeskTalk server');
+    await createServer({ host, port, logger: rootLogger });
+    log.info({ url: `http://${host}:${port}` }, 'DeskTalk is running');
 
     // Graceful shutdown — kill all backend child processes
     async function shutdown() {
-      console.log('\nShutting down backend processes...');
+      log.info('shutting down backend processes');
       await processManager.killAll();
       process.exit(0);
     }
@@ -64,7 +74,9 @@ program
 
     console.log('Installed MiniApps:');
     for (const m of manifests) {
-      console.log(`  ${m.id} (${m.name}) v${m.version}${m.description ? ' — ' + m.description : ''}`);
+      console.log(
+        `  ${m.id} (${m.name}) v${m.version}${m.description ? ' — ' + m.description : ''}`,
+      );
     }
   });
 

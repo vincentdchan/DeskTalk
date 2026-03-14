@@ -1,4 +1,5 @@
 import type { MiniAppPaths } from '@desktalk/sdk';
+import type { LoggerConfig } from './logger.js';
 
 // ─── Main → Child Messages ──────────────────────────────────────────────────
 
@@ -14,6 +15,8 @@ export interface ActivateMessage {
   paths: MiniAppPaths;
   /** Locale string (e.g. "en", "zh-CN"). */
   locale: string;
+  /** Logger configuration so the child can recreate an equivalent pino instance. */
+  loggerConfig: LoggerConfig;
 }
 
 /** Forward a command:invoke from the renderer to the child. */

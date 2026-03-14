@@ -1,6 +1,7 @@
 import type { MiniAppManifest, MiniAppBackendActivation } from '@desktalk/sdk';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import type pino from 'pino';
 import { resolveMiniAppPaths } from './workspace.js';
 import { getStoredPreference } from './preferences.js';
 import { processManager } from './backend-process-manager.js';
@@ -63,13 +64,7 @@ class MiniAppRegistry {
     const paths = resolveMiniAppPaths(id);
     const locale = String(getStoredPreference('general.language') ?? 'en');
 
-    await processManager.spawn(
-      id,
-      entry.backendPath,
-      entry.packageRoot,
-      paths,
-      locale,
-    );
+    await processManager.spawn(id, entry.backendPath, entry.packageRoot, paths, locale);
   }
 
   /**
@@ -116,7 +111,7 @@ export const registry = new MiniAppRegistry();
 /**
  * Register built-in MiniApps from their backend entries.
  */
-export async function registerBuiltinMiniApps(): Promise<void> {
+export async function registerBuiltinMiniApps(logger?: pino.Logger): Promise<void> {
   // Built-in MiniApps are imported dynamically from their backend sub-path.
   // During development, these resolve via pnpm workspace links.
   const builtins = [
@@ -134,10 +129,7 @@ export async function registerBuiltinMiniApps(): Promise<void> {
       registry.register(mod.manifest, packageRoot, specifier);
     } catch (err) {
       // Built-in MiniApp not available yet — skip during early development
-      console.warn(
-        `[registry] Could not load built-in MiniApp "${specifier}":`,
-        (err as Error).message,
-      );
+      logger?.warn({ specifier, err: (err as Error).message }, 'could not load built-in MiniApp');
     }
   }
 }

@@ -14,10 +14,9 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import type { MiniAppPaths } from '@desktalk/sdk';
-import type {
-  MainToChildMessage,
-  ChildToMainMessage,
-} from './backend-ipc.js';
+import type pino from 'pino';
+import type { MainToChildMessage, ChildToMainMessage } from './backend-ipc.js';
+import type { LoggerConfig } from './logger.js';
 import { broadcastEvent } from './messaging.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,9 +48,20 @@ class BackendProcessManager {
   private pendingRequests = new Map<string, PendingRequest>();
   /** Absolute path to the compiled backend-host entry file. */
   private readonly hostPath: string;
+  private logger: pino.Logger | null = null;
+  private loggerConfig: LoggerConfig | null = null;
 
   constructor() {
     this.hostPath = join(__dirname, 'backend-host.js');
+  }
+
+  /**
+   * Inject the logger and its serializable config.
+   * Must be called once before any spawn().
+   */
+  init(logger: pino.Logger, loggerConfig: LoggerConfig): void {
+    this.logger = logger;
+    this.loggerConfig = loggerConfig;
   }
 
   // ─── Lifecycle ──────────────────────────────────────────────────────────
@@ -101,14 +111,12 @@ class BackendProcessManager {
     });
 
     child.on('exit', (code, signal) => {
-      console.log(
-        `[process-manager] ${miniAppId} exited (code=${code}, signal=${signal})`,
-      );
+      this.logger?.info({ miniAppId, code, signal }, 'child process exited');
       this.processes.delete(miniAppId);
     });
 
     child.on('error', (err) => {
-      console.error(`[process-manager] ${miniAppId} error:`, err.message);
+      this.logger?.error({ miniAppId, err: err.message }, 'child process error');
       rejectReady(err);
     });
 
@@ -128,6 +136,7 @@ class BackendProcessManager {
       packageRoot,
       paths,
       locale,
+      loggerConfig: this.loggerConfig!,
     };
     child.send(activateMsg);
 
@@ -140,16 +149,10 @@ class BackendProcessManager {
    * Send a command to the child process that owns `miniAppId` and
    * return the result (or throw on error / timeout).
    */
-  async sendCommand(
-    miniAppId: string,
-    command: string,
-    data: unknown,
-  ): Promise<unknown> {
+  async sendCommand(miniAppId: string, command: string, data: unknown): Promise<unknown> {
     const managed = this.processes.get(miniAppId);
     if (!managed) {
-      throw new Error(
-        `No running process for miniApp: ${miniAppId}`,
-      );
+      throw new Error(`No running process for miniApp: ${miniAppId}`);
     }
 
     if (!managed.ready) {
@@ -161,9 +164,7 @@ class BackendProcessManager {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(requestId);
-        reject(
-          new Error(`Command timed out: ${command} (miniApp: ${miniAppId})`),
-        );
+        reject(new Error(`Command timed out: ${command} (miniApp: ${miniAppId})`));
       }, COMMAND_TIMEOUT_MS);
 
       this.pendingRequests.set(requestId, { resolve, reject, timeout });
@@ -219,10 +220,7 @@ class BackendProcessManager {
 
   // ─── Internal ───────────────────────────────────────────────────────────
 
-  private handleChildMessage(
-    miniAppId: string,
-    msg: ChildToMainMessage,
-  ): void {
+  private handleChildMessage(miniAppId: string, msg: ChildToMainMessage): void {
     switch (msg.type) {
       case 'command:response': {
         const pending = this.pendingRequests.get(msg.requestId);
@@ -241,10 +239,7 @@ class BackendProcessManager {
         broadcastEvent(msg.miniAppId, msg.event, msg.data);
         break;
       case 'error':
-        console.error(
-          `[process-manager] ${miniAppId} reported error:`,
-          msg.message,
-        );
+        this.logger?.error({ miniAppId, err: msg.message }, 'child process reported error');
         break;
       case 'ready':
         // Handled inline in spawn()

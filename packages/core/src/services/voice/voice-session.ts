@@ -8,6 +8,7 @@
  */
 
 import type { WebSocket } from 'ws';
+import type pino from 'pino';
 import { VadSegmenter, type VadConfig } from './vad-segmenter.js';
 import type { SttAdapter } from './stt-adapter.js';
 
@@ -55,12 +56,14 @@ export class VoiceSession {
   private chunkCount = 0;
   private createdAt: number;
   private currentUtteranceId: string | null = null;
+  private logger: pino.Logger;
 
   constructor(
     sessionId: string,
     ws: WebSocket,
     sttAdapter: SttAdapter,
     config: VoiceSessionConfig,
+    logger: pino.Logger,
   ) {
     this.sessionId = sessionId;
     this.ws = ws;
@@ -68,6 +71,7 @@ export class VoiceSession {
     this.config = config;
     this.segmenter = new VadSegmenter(config.vad);
     this.createdAt = Date.now();
+    this.logger = logger;
   }
 
   /**
@@ -162,8 +166,13 @@ export class VoiceSession {
   close(): void {
     this.state = 'CLOSED';
     this.segmenter.reset();
-    console.log(
-      `[voice] Session ${this.sessionId} closed. Chunks: ${this.chunkCount}, Transcripts: ${this.transcripts.length}, Duration: ${Date.now() - this.createdAt}ms`,
+    this.logger.info(
+      {
+        chunks: this.chunkCount,
+        transcripts: this.transcripts.length,
+        durationMs: Date.now() - this.createdAt,
+      },
+      'voice session closed',
     );
   }
 
