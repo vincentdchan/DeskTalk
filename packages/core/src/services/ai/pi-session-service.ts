@@ -10,6 +10,7 @@ import {
   type AgentSessionEvent,
 } from '@mariozechner/pi-coding-agent';
 import { createWindowControlTool, type SendAiCommand } from './window-tools.js';
+import { createAppControlTool } from './app-tools.js';
 import type { WindowManagerService } from '../window-manager.js';
 import { registry } from '../miniapp-registry.js';
 import type { WorkspacePaths } from '../workspace.js';
@@ -206,6 +207,18 @@ export class PiSessionService {
           registry.activate(miniAppId);
         },
         invokeAction,
+        sendAiCommand,
+      }),
+      createAppControlTool({
+        windowManager,
+        getMiniApps: () => registry.getManifests(),
+        activateMiniApp: (miniAppId) => {
+          registry.activate(miniAppId);
+        },
+        deactivateMiniApp: (miniAppId) => {
+          registry.deactivate(miniAppId);
+        },
+        isActivated: (miniAppId) => registry.isActivated(miniAppId),
         sendAiCommand,
       }),
     ];

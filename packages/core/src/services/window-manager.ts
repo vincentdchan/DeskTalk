@@ -161,7 +161,9 @@ export class WindowManagerService {
       : ['- No MiniApps registered'];
 
     return [
-      'You are running inside DeskTalk and can control desktop windows with the window_control tool.',
+      'You are running inside DeskTalk and can control the desktop with two tools:',
+      '- window_control: manage windows (focus, minimize, maximize, close, open, invoke actions)',
+      '- app_control: manage MiniApp lifecycle (list apps with status, launch, quit)',
       '',
       'Current desktop state:',
       focusedWindow
@@ -176,6 +178,7 @@ export class WindowManagerService {
       ...(focusedActionLines.length > 0 ? focusedActionLines : ['- No actions registered']),
       '',
       'Use window_control action="list" when you need the latest windows or actions before operating on them.',
+      'Use app_control action="list" to see which apps are running and their activation status.',
     ].join('\n');
   }
 }
