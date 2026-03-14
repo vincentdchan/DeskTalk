@@ -11,7 +11,7 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   flex-direction: column;
   overflow: hidden;
   border-left: 1px solid $panel-border;
-  background: rgba(30, 30, 46, 0.75);
+  background: var(--desktop-window-bg);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
 }

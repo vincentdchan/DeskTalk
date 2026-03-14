@@ -1,11 +1,11 @@
 .actionsBar {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   height: 100%;
   padding: 0 12px;
   overflow-x: auto;
-  background: var(--color-top-bar-bg);
+  background: var(--desktop-window-bg);
   color: var(--color-top-bar-text);
   font-size: 13px;
 }
@@ -27,8 +27,8 @@
 
 .action {
   padding: 4px 10px;
-  border: 0;
-  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
   background: transparent;
   color: var(--color-top-bar-text);
   cursor: pointer;
