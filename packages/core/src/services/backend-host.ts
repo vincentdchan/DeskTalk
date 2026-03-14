@@ -8,14 +8,10 @@
  */
 
 import type { MiniAppContext, MessagingHook, Disposable } from '@desktalk/sdk';
-import type {
-  MainToChildMessage,
-  ChildToMainMessage,
-  ActivateMessage,
-} from './backend-ipc.js';
+import type { MainToChildMessage, ChildToMainMessage, ActivateMessage } from './backend-ipc.js';
 import { createStorageHook } from './storage.js';
 import { createFileSystemHook } from './filesystem.js';
-import { createLogger } from './logger.js';
+import { createChildLogger } from './logger.js';
 import { createPackageLocalizer } from './i18n.js';
 
 // ─── Per-process state ──────────────────────────────────────────────────────
@@ -39,10 +35,7 @@ function sendToMain(msg: ChildToMainMessage): void {
  */
 function createChildMessagingHook(miniAppId: string): MessagingHook {
   return {
-    onCommand<TReq, TRes>(
-      command: string,
-      handler: (data: TReq) => Promise<TRes>,
-    ): Disposable {
+    onCommand<TReq, TRes>(command: string, handler: (data: TReq) => Promise<TRes>): Disposable {
       commandHandlers.set(command, handler as (data: unknown) => Promise<unknown>);
       return {
         dispose() {
@@ -68,7 +61,7 @@ async function handleActivate(msg: ActivateMessage): Promise<void> {
     fs: createFileSystemHook(msg.paths.data),
     messaging: createChildMessagingHook(msg.miniAppId),
     subscriptions: [],
-    logger: createLogger(msg.paths.log, msg.miniAppId),
+    logger: createChildLogger(msg.loggerConfig, msg.miniAppId),
     i18n: createPackageLocalizer({
       packageRoot: msg.packageRoot,
       defaultScope: msg.miniAppId,
