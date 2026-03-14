@@ -349,7 +349,7 @@ export async function createServer(options: ServerOptions) {
     };
   }
 
-  app.get('/ws/voice', { websocket: true }, (socket, req) => {
+  app.get('/ws/voice', { websocket: true }, (socket, _req) => {
     let session: VoiceSession | null = null;
 
     socket.on('message', async (raw: Buffer | ArrayBuffer | Buffer[]) => {

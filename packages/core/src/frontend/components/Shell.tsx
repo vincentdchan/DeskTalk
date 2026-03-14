@@ -7,7 +7,6 @@ import {
   reportWindowActions,
   setWindowManagerSocket,
   useWindowManager,
-  type WindowSyncPayload,
 } from '../stores/window-manager.js';
 import { ActionsBar } from './ActionsBar.js';
 import { Dock, type DockMiniApp } from './Dock.js';
