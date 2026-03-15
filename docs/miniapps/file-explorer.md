@@ -2,7 +2,7 @@
 
 ## Overview
 
-The File Explorer MiniApp is a simple filesystem browser that lets users navigate directories, view files, and perform basic file operations. It operates on the server's filesystem.
+The File Explorer MiniApp is a simple filesystem browser that lets users navigate directories, view files, and perform basic file operations. It operates exclusively within the MiniApp's scoped data directory (`ctx.paths.data`) — it cannot access the host OS filesystem or any path outside this sandbox.
 
 ## Features
 
@@ -24,7 +24,7 @@ The File Explorer MiniApp is a simple filesystem browser that lets users navigat
 
 ```
 |-------------------------------------|
-| < > | /home/user/documents          |
+| < > | ~ / documents                 |
 |-------------------------------------|
 |  Name          | Size   | Modified  |
 |  docs/         |   --   | Mar 13    |
@@ -33,12 +33,14 @@ The File Explorer MiniApp is a simple filesystem browser that lets users navigat
 |-------------------------------------|
 ```
 
+The breadcrumb root `~` represents the MiniApp's scoped data directory (`ctx.paths.data`). Users never see or interact with absolute OS paths.
+
 Note: The Actions Bar is a global element managed by the core shell (see `docs/spec.md`). MiniApps register their actions via `<ActionsProvider>`, but the bar itself is not part of the MiniApp window.
 
-| Element       | Description |
-|---------------|-------------|
-| Navigation    | Back/forward buttons and a breadcrumb path bar. |
-| File List     | Table of directory contents with name, size, and last-modified columns. Sortable by clicking column headers. |
+| Element    | Description                                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------------------------------ |
+| Navigation | Back/forward buttons and a breadcrumb path bar. The root `~` represents the scoped data directory.           |
+| File List  | Table of directory contents with name, size, and last-modified columns. Sortable by clicking column headers. |
 
 ### Interactions
 
@@ -49,22 +51,22 @@ Note: The Actions Bar is a global element managed by the core shell (see `docs/s
 
 ## Frontend Components
 
-| Component          | Responsibility |
-|--------------------|---------------|
-| `FileBreadcrumb`   | Displays the current path as clickable breadcrumb segments. |
-| `FileList`         | Table of files and directories with sorting. |
-| `FilePreview`      | Displays file content or metadata. |
-| `FileActions`      | Provides actions via `<ActionsProvider>`. |
+| Component        | Responsibility                                                                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `FileBreadcrumb` | Displays the current path as clickable breadcrumb segments. The root segment shows `~` to represent the scoped data directory. |
+| `FileList`       | Table of files and directories with sorting.                                                                                   |
+| `FilePreview`    | Displays file content or metadata.                                                                                             |
+| `FileActions`    | Provides actions via `<ActionsProvider>`.                                                                                      |
 
 ## Actions (AI-invokable)
 
-| Action            | Description | Parameters |
-|-------------------|-------------|------------|
-| `Navigate`        | Navigate to a directory. | `path: string` |
-| `Create File`     | Create a new file. | `name: string`, `content?: string` |
-| `Create Directory`| Create a new directory. | `name: string` |
-| `Delete`          | Delete a file or directory. | `path: string` |
-| `Rename`          | Rename a file or directory. | `path: string`, `newName: string` |
+| Action             | Description                 | Parameters                         |
+| ------------------ | --------------------------- | ---------------------------------- |
+| `Navigate`         | Navigate to a directory.    | `path: string`                     |
+| `Create File`      | Create a new file.          | `name: string`, `content?: string` |
+| `Create Directory` | Create a new directory.     | `name: string`                     |
+| `Delete`           | Delete a file or directory. | `path: string`                     |
+| `Rename`           | Rename a file or directory. | `path: string`, `newName: string`  |
 
 ## Backend
 
@@ -72,30 +74,30 @@ The File Explorer MiniApp does not implement its own HTTP server. All backend lo
 
 ### Root Directory
 
-The file explorer operates within its scoped data directory (`ctx.paths.data`) via `ctx.fs`. All paths are resolved relative to this root by the core's `FileSystemHook`, which enforces scoping and prevents directory traversal. The path is provided by the core at activation.
+The file explorer operates exclusively within its scoped data directory (`ctx.paths.data`) via `ctx.fs`. All paths in commands and UI are relative to this root — `"."` means the data directory itself, `"docs"` means `<data>/data/file-explorer/docs`, etc. The core's `FileSystemHook` enforces this scoping and prevents directory traversal. The MiniApp never sees or exposes absolute OS paths.
 
 ### Commands (via MessagingHook)
 
-| Command              | Request | Response | Description |
-|----------------------|---------|----------|-------------|
-| `files.list`         | `{ path: string }` | `FileEntry[]` | List directory contents. |
-| `files.read`         | `{ path: string }` | `{ content: string, mimeType: string }` | Read a file's content. |
-| `files.create`       | `{ path: string, type: 'file' \| 'directory', content?: string }` | `FileEntry` | Create a file or directory. |
-| `files.rename`       | `{ path: string, newName: string }` | `FileEntry` | Rename a file or directory. |
-| `files.delete`       | `{ path: string }` | `void` | Delete a file or directory. |
-| `files.move`         | `{ source: string, destination: string }` | `FileEntry` | Move a file or directory. |
-| `files.copy`         | `{ source: string, destination: string }` | `FileEntry` | Copy a file or directory. |
+| Command        | Request                                                           | Response                                | Description                 |
+| -------------- | ----------------------------------------------------------------- | --------------------------------------- | --------------------------- |
+| `files.list`   | `{ path: string }`                                                | `FileEntry[]`                           | List directory contents.    |
+| `files.read`   | `{ path: string }`                                                | `{ content: string, mimeType: string }` | Read a file's content.      |
+| `files.create` | `{ path: string, type: 'file' \| 'directory', content?: string }` | `FileEntry`                             | Create a file or directory. |
+| `files.rename` | `{ path: string, newName: string }`                               | `FileEntry`                             | Rename a file or directory. |
+| `files.delete` | `{ path: string }`                                                | `void`                                  | Delete a file or directory. |
+| `files.move`   | `{ source: string, destination: string }`                         | `FileEntry`                             | Move a file or directory.   |
+| `files.copy`   | `{ source: string, destination: string }`                         | `FileEntry`                             | Copy a file or directory.   |
 
 ### Data Model
 
 ```ts
 interface FileEntry {
   name: string;
-  path: string;          // Relative to root
+  path: string; // Relative to root
   type: 'file' | 'directory';
-  size: number | null;   // Bytes, null for directories
+  size: number | null; // Bytes, null for directories
   mimeType: string | null;
-  modifiedAt: string;    // ISO 8601
+  modifiedAt: string; // ISO 8601
 }
 ```
 
