@@ -79,6 +79,7 @@ function toDockMiniApps(manifests: MiniAppManifest[], windows: WindowState[]): D
     id: app.id,
     name: app.name,
     icon: app.icon,
+    iconPng: app.iconPng,
     hasOpenWindows: windows.some((w) => w.miniAppId === app.id && !w.minimized),
   }));
 }

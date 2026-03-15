@@ -2,6 +2,7 @@
   "name": "@desktalk/miniapp-preference",
   "version": "0.1.0",
   "type": "module",
+  "icon": "./icons/miniapp-preference-icon.png",
   "exports": {
     "./backend": {
       "types": "./dist/backend.d.ts",

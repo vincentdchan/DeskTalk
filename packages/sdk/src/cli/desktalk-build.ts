@@ -41,6 +41,10 @@ interface PackageI18nManifest {
   messages: Array<Pick<ExtractedMessage, 'key' | 'defaultText' | 'placeholders'>>;
 }
 
+interface MiniAppBuildMetadata {
+  iconPng?: string;
+}
+
 function sanitizeForDomId(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
 }
@@ -499,11 +503,28 @@ function emitI18nAssets(options: {
   }
 }
 
+function toDataUrl(filePath: string): string {
+  const extension = basename(filePath).split('.').pop()?.toLowerCase();
+  const mimeType = extension === 'png' ? 'image/png' : 'application/octet-stream';
+  return `data:${mimeType};base64,${readFileSync(filePath).toString('base64')}`;
+}
+
+function emitMiniAppMetadata(packageRoot: string, metadata: MiniAppBuildMetadata): void {
+  const outDir = join(packageRoot, 'dist');
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(join(outDir, 'meta.json'), JSON.stringify(metadata, null, 2));
+}
+
 const packageJsonPath = join(cwd, 'package.json');
-const packageName = existsSync(packageJsonPath)
-  ? ((JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { name?: string }).name ?? 'miniapp')
-  : 'miniapp';
+const packageJson = existsSync(packageJsonPath)
+  ? (JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { name?: string; icon?: string })
+  : {};
+const packageName = packageJson.name ?? 'miniapp';
 const packageScope = inferPackageScope(packageName);
+const packageIconPath =
+  typeof packageJson.icon === 'string' && packageJson.icon.endsWith('.png')
+    ? join(cwd, packageJson.icon)
+    : null;
 
 const backendEntry = findEntry('src', ['backend.ts', 'backend.js', 'backend.mjs']);
 const frontendEntry = findEntry('src', [
@@ -624,6 +645,10 @@ emitI18nAssets({
   packageRoot: cwd,
   manifest: i18nAssets.manifest,
   localeFiles: i18nAssets.localeFiles,
+});
+
+emitMiniAppMetadata(cwd, {
+  iconPng: packageIconPath && existsSync(packageIconPath) ? toDataUrl(packageIconPath) : undefined,
 });
 
 console.log('[desktalk-build] Generating type declarations...');

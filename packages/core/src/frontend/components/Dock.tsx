@@ -4,7 +4,8 @@ import styles from './Dock.module.scss';
 export interface DockMiniApp {
   id: string;
   name: string;
-  icon: string | React.ComponentType;
+  icon: string;
+  iconPng?: string;
   hasOpenWindows: boolean;
 }
 
@@ -25,10 +26,10 @@ export function Dock({ miniApps, onLaunch }: DockProps) {
             title={app.name}
           >
             <div className={styles.dockIcon}>
-              {typeof app.icon === 'string' ? (
-                <span>{app.icon}</span>
+              {app.iconPng ? (
+                <img className={styles.dockIconImage} src={app.iconPng} alt="" aria-hidden="true" />
               ) : (
-                React.createElement(app.icon)
+                <span>{app.icon}</span>
               )}
             </div>
             <span className={styles.dockLabel}>{app.name}</span>

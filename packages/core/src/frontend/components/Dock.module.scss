@@ -74,6 +74,14 @@
     border-color 0.2s ease;
 }
 
+.dockIconImage {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+  display: block;
+}
+
 .dockLabel {
   position: absolute;
   bottom: -18px;
