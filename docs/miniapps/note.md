@@ -10,8 +10,9 @@ The Note MiniApp is a Markdown-based note-taking and management tool. It is mode
 
 - Create, read, update, and delete notes.
 - Each note is stored as a Markdown file with optional YAML front matter.
+- Notes can be organized in subdirectories — the note ID is the relative path without the `.md` extension (e.g., `work/meeting-notes` for `work/meeting-notes.md`).
 - Notes are listed in a sidebar sorted by last-modified date (newest first).
-- Full-text search across all notes.
+- Full-text search across all notes (recursive).
 
 ### Markdown & Front Matter
 
@@ -86,15 +87,17 @@ Use [Milkdown](https://milkdown.dev/) as the WYSIWYG Markdown editor.
 
 ## Actions (AI-invokable)
 
-| Action                | Description                                            | Parameters                                              |
-| --------------------- | ------------------------------------------------------ | ------------------------------------------------------- |
-| `Create Note`         | Create a new note with optional title and content.     | `title?: string`, `content?: string`, `tags?: string[]` |
-| `Delete Note`         | Delete the currently selected note.                    | —                                                       |
-| `Search Notes`        | Search notes by keyword.                               | `query: string`                                         |
-| `Add Tag`             | Add a tag to the current note.                         | `tag: string`                                           |
-| `Remove Tag`          | Remove a tag from the current note.                    | `tag: string`                                           |
-| `Get Editing Context` | Return the current editor state for the selected note. | —                                                       |
-| `Edit Note`           | Apply a text replacement to the current note's body.   | `old_text: string`, `new_text: string`                  |
+| Action                | Description                                                                   | Parameters                                                               |
+| --------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `List Notes`          | Return the 20 most recent notes with selection status.                        | —                                                                        |
+| `Select Note`         | Select a note by ID and open it in the editor.                                | `id: string`                                                             |
+| `Create Note`         | Create a new note with optional title, content, and path.                     | `title?: string`, `content?: string`, `tags?: string[]`, `path?: string` |
+| `Delete Note`         | Delete the currently selected note.                                           | —                                                                        |
+| `Search Notes`        | Search notes by keyword.                                                      | `query: string`                                                          |
+| `Get Editing Context` | Return the current editor state for the selected note.                        | —                                                                        |
+| `Edit Note`           | Apply a text replacement to the current note's body (including front matter). | `old_text: string`, `new_text: string`                                   |
+
+**Tags are managed via front matter, not dedicated actions.** To add or remove tags, the AI uses `Edit Note` to modify the YAML front matter block directly (e.g., replace the `tags:` section). This avoids redundant actions and keeps the action surface small.
 
 ### AI Note Editing
 
@@ -106,6 +109,41 @@ The AI can modify the content of the currently open note through a two-step acti
 - **Mirrors `edit` tool semantics.** The `Edit Note` action uses `old_text` / `new_text` parameters — the same mental model as the pi-coding-agent's built-in `edit` tool — so the AI can reason about precise text replacements.
 - **Separate context retrieval.** `Get Editing Context` is a dedicated action so the AI can inspect the note before editing. The desktop context block already tells the AI _which_ note is open and _what actions are available_, but not the full content. This action fills that gap.
 
+#### `List Notes` Action
+
+Returns the 20 most recently modified notes, including which one is currently selected.
+
+**Parameters:** None.
+
+**Returns:**
+
+```ts
+interface ListNotesResult {
+  notes: Array<{
+    id: string; // Note ID (relative path without .md, e.g. "work/meeting-notes")
+    title: string; // Note title
+    updatedAt: string; // ISO 8601
+    selected: boolean; // true if this note is currently open in the editor
+  }>;
+}
+```
+
+The AI can use this to understand what notes exist and which one the user is looking at, then call `Select Note` to switch to a different note before editing.
+
+#### `Select Note` Action
+
+Selects a note by ID and opens it in the editor.
+
+**Parameters:**
+
+| Param | Type     | Required | Description                                        |
+| ----- | -------- | -------- | -------------------------------------------------- |
+| `id`  | `string` | yes      | The note ID (relative path without .md) to select. |
+
+**Returns:** `{ success: true }` or `{ success: false, error: string }` if the note ID is not found.
+
+After selection completes, the AI can call `Get Editing Context` to read the note's content.
+
 #### Flow
 
 ```
@@ -113,7 +151,7 @@ User: "Fix the typos in this note"
   │
   ▼
 AI calls action("Get Editing Context")
-  │  ← returns { id, title, content (body only), cursorLine, selectedText }
+  │  ← returns { id, title, content (raw Markdown with front matter), cursorLine, selectedText }
   ▼
 AI reasons about the content, identifies edits
   │
@@ -134,6 +172,25 @@ AI may call Edit Note again for additional changes
 AI responds to user with summary of changes
 ```
 
+```
+User: "Add a 'meeting' tag to the project plan note"
+  │
+  ▼
+AI calls action("List Notes")
+  │  ← returns list with IDs, titles, selected status
+  ▼
+AI calls action("Select Note", { id: "project-plan" })
+  │
+  ▼
+AI calls action("Get Editing Context")
+  │  ← returns content with front matter
+  ▼
+AI calls action("Edit Note", { old_text: "tags:\n  - work", new_text: "tags:\n  - work\n  - meeting" })
+  │
+  ▼
+AI responds with confirmation
+```
+
 The AI may call `Edit Note` multiple times in sequence for multi-site edits. Each call is atomic — one replacement per invocation.
 
 #### `Get Editing Context` Action
@@ -146,9 +203,9 @@ Returns the current editor state so the AI has full context before making edits.
 
 ```ts
 interface EditingContext {
-  id: string; // Note ID (slug)
+  id: string; // Note ID (relative path without .md)
   title: string; // Note title
-  content: string; // Note body (Markdown, front matter stripped)
+  content: string; // Full raw Markdown including YAML front matter
   cursorLine: number; // 1-indexed line number of the cursor
   selectedText: string; // Currently selected text (empty string if none)
 }
@@ -158,14 +215,14 @@ If no note is selected, the action returns an error string.
 
 #### `Edit Note` Action
 
-Applies a single text replacement to the note body in the editor.
+Applies a single text replacement to the full note content (including YAML front matter) in the editor.
 
 **Parameters:**
 
-| Param      | Type     | Required | Description                                                                   |
-| ---------- | -------- | -------- | ----------------------------------------------------------------------------- |
-| `old_text` | `string` | yes      | Exact text to find in the note body. Must match exactly and appear only once. |
-| `new_text` | `string` | yes      | Replacement text.                                                             |
+| Param      | Type     | Required | Description                                                                                                    |
+| ---------- | -------- | -------- | -------------------------------------------------------------------------------------------------------------- |
+| `old_text` | `string` | yes      | Exact text to find in the full note content (including front matter). Must match exactly and appear only once. |
+| `new_text` | `string` | yes      | Replacement text.                                                                                              |
 
 **Returns:**
 
@@ -196,16 +253,17 @@ This follows the same model as the pi-coding-agent's built-in `edit` tool, which
 
 #### Frontend Implementation Notes
 
-The `Edit Note` action handler lives in `NoteActions.tsx` and operates on the Milkdown editor programmatically:
+The `Edit Note` action handler lives in `NoteActions.tsx` and operates on the full note content (including YAML front matter) programmatically:
 
-1. **Read current content** from the Crepe editor instance via its API (not from the `currentNote` React state, which may be stale due to debounced saves).
-2. **Find `old_text`** using exact string match. Reject if zero or multiple matches.
-3. **Apply replacement** by calling Milkdown's `replaceAll` or `editor.action()` with the updated Markdown. The simplest approach: get the full Markdown string, perform the replacement, then set it as the new editor content via `editor.action(replaceAll(newMarkdown))`.
-4. **Compute diff** using a simple unified-diff utility (e.g., `diff` npm package or a minimal inline implementation).
-5. **Trigger auto-save** — the `markdownUpdated` listener already handles this via debounce.
-6. **Store edit metadata** (old text, new text, line range, timestamp) in component state for future visualization.
+1. **Reconstruct full content** by combining note metadata (title, tags, created date) with the live editor body via `serializeFrontMatter()`. This ensures we get the latest unsaved edits while preserving the front matter.
+2. **Find `old_text`** using exact string match on the full reconstructed content. Reject if zero or multiple matches.
+3. **Apply replacement** to produce new raw content, then parse with `parseFrontMatter()` to split into metadata + body.
+4. **Update the editor** with the body portion via `setMarkdown()` (which calls `editor.action(replaceAll(newBody))`).
+5. **Persist metadata changes** — if title or tags changed in front matter, call `notes.update` to sync.
+6. **Compute diff** using a simple unified-diff utility.
+7. **Trigger auto-save** — the `markdownUpdated` listener handles body saves via debounce.
 
-To support this, `NoteEditor` must expose the Crepe editor instance (or a `getMarkdown` / `setMarkdown` interface) to the parent via a ref or a callback prop. Currently the editor is fully encapsulated — this needs to change.
+To support this, `NoteEditor` exposes a `NoteEditorHandle` interface via `forwardRef` + `useImperativeHandle` with `getMarkdown()`, `setMarkdown()`, `getCursorLine()`, and `getSelectedText()` methods.
 
 #### Visualization (Future)
 
@@ -223,25 +281,25 @@ The Note MiniApp does not implement its own HTTP server. All backend logic runs 
 
 ### Storage
 
-Notes are persisted using `ctx.fs` (rooted at `ctx.paths.data`) for Markdown files and `ctx.storage` (backed by `ctx.paths.storage`) for the note index (id, title, tags, timestamps) used for fast listing and querying. All paths are provided by the core at activation.
+Notes are persisted using `ctx.fs` (rooted at `ctx.paths.data`) as Markdown files organized in directories. The filesystem is the single source of truth — no separate index. Listing and searching scan all `.md` files recursively.
 
 ### Commands (via MessagingHook)
 
-| Command        | Request                                                 | Response                           | Description                                  |
-| -------------- | ------------------------------------------------------- | ---------------------------------- | -------------------------------------------- |
-| `notes.list`   | `{ tag?: string }`                                      | `NoteMeta[]`                       | List all notes, optionally filtered by tag.  |
-| `notes.get`    | `{ id: string }`                                        | `Note`                             | Get a single note's full content.            |
-| `notes.create` | `{ title?: string, content?: string, tags?: string[] }` | `Note`                             | Create a new note.                           |
-| `notes.update` | `{ id: string, content?: string, tags?: string[] }`     | `Note`                             | Update a note's content and/or front matter. |
-| `notes.delete` | `{ id: string }`                                        | `void`                             | Delete a note.                               |
-| `notes.search` | `{ query: string }`                                     | `NoteMeta[]`                       | Full-text search across notes.               |
-| `notes.tags`   | `void`                                                  | `{ tag: string, count: number }[]` | List all unique tags with counts.            |
+| Command        | Request                                                                | Response                           | Description                                                                              |
+| -------------- | ---------------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------- |
+| `notes.list`   | `{ tag?: string }`                                                     | `NoteMeta[]`                       | List all notes, optionally filtered by tag.                                              |
+| `notes.get`    | `{ id: string }`                                                       | `Note`                             | Get a single note's full content.                                                        |
+| `notes.create` | `{ title?: string, content?: string, tags?: string[], path?: string }` | `Note`                             | Create a new note. If `path` is provided, it becomes the note ID (e.g., `work/meeting`). |
+| `notes.update` | `{ id: string, content?: string, tags?: string[] }`                    | `Note`                             | Update a note's content and/or front matter.                                             |
+| `notes.delete` | `{ id: string }`                                                       | `void`                             | Delete a note.                                                                           |
+| `notes.search` | `{ query: string }`                                                    | `NoteMeta[]`                       | Full-text search across notes.                                                           |
+| `notes.tags`   | `void`                                                                 | `{ tag: string, count: number }[]` | List all unique tags with counts.                                                        |
 
 ### Data Model
 
 ```ts
 interface Note {
-  id: string; // Derived from filename (slug)
+  id: string; // Relative path without .md (e.g. "work/meeting-notes")
   title: string;
   tags: string[];
   content: string; // Raw Markdown including front matter

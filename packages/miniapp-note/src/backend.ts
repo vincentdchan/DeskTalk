@@ -19,8 +19,38 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
   ctx.logger.info('Note MiniApp activated');
 
   /**
-   * Read all .md files and build metadata from front matter + stat.
+   * Recursively collect all .md files under the given directory.
+   * Returns relative paths (e.g. "work/meeting.md", "readme.md").
+   */
+  async function walkMarkdown(dir: string): Promise<string[]> {
+    const exists = await ctx.fs.exists(dir);
+    if (!exists) return [];
+
+    const entries = await ctx.fs.readDir(dir);
+    const paths: string[] = [];
+    for (const entry of entries) {
+      if (entry.type === 'directory') {
+        paths.push(...(await walkMarkdown(entry.path)));
+      } else if (entry.type === 'file' && entry.name.endsWith('.md')) {
+        paths.push(entry.path);
+      }
+    }
+    return paths;
+  }
+
+  /**
+   * Derive a note ID from a relative .md path.
+   * The ID is the path with the .md extension stripped.
+   * Example: "work/meeting.md" → "work/meeting"
+   */
+  function pathToId(relPath: string): string {
+    return relPath.replace(/\.md$/, '');
+  }
+
+  /**
+   * Read all .md files recursively and build metadata from front matter + stat.
    * The filesystem is the single source of truth — no separate index.
+   * Note IDs are relative paths without the .md extension (e.g. "work/meeting").
    */
   async function scanNotes(tagFilter?: string): Promise<NoteMeta[]> {
     const dirExists = await ctx.fs.exists('.');
@@ -29,20 +59,19 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
       return [];
     }
 
-    const entries = await ctx.fs.readDir('.');
+    const mdPaths = await walkMarkdown('.');
     const metas: NoteMeta[] = [];
 
-    for (const entry of entries) {
-      if (entry.type !== 'file' || !entry.name.endsWith('.md')) continue;
+    for (const relPath of mdPaths) {
       try {
-        const raw = await ctx.fs.readFile(entry.name);
-        const stat = await ctx.fs.stat(entry.name);
+        const raw = await ctx.fs.readFile(relPath);
+        const stat = await ctx.fs.stat(relPath);
         const fm = parseFrontMatter(raw);
 
         if (tagFilter && !fm.tags.includes(tagFilter)) continue;
 
         metas.push({
-          id: entry.name.replace(/\.md$/, ''),
+          id: pathToId(relPath),
           title: fm.title,
           tags: fm.tags,
           createdAt: fm.created ?? stat.createdAt,
@@ -83,23 +112,26 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
 
   // ─── notes.create ────────────────────────────────────────────────────────
 
-  ctx.messaging.onCommand<{ title?: string; content?: string; tags?: string[] }, Note>(
-    'notes.create',
-    async (req) => {
-      const title = req?.title || 'Untitled';
-      const tags = req?.tags || [];
-      const body = req?.content || '';
-      const now = new Date().toISOString();
-      const id = slugify(title) + '-' + Date.now().toString(36);
+  ctx.messaging.onCommand<
+    { title?: string; content?: string; tags?: string[]; path?: string },
+    Note
+  >('notes.create', async (req) => {
+    const title = req?.title || 'Untitled';
+    const tags = req?.tags || [];
+    const body = req?.content || '';
+    const now = new Date().toISOString();
 
-      const content = serializeFrontMatter(title, tags, now, body);
-      await ctx.fs.writeFile(`${id}.md`, content);
+    // Use explicit path if provided, otherwise fall back to slug + timestamp.
+    const id = req?.path || slugify(title) + '-' + Date.now().toString(36);
+    const filename = `${id}.md`;
 
-      const stat = await ctx.fs.stat(`${id}.md`);
-      ctx.logger.info(`Created note: ${id}`);
-      return { id, title, tags, content, createdAt: now, updatedAt: stat.modifiedAt };
-    },
-  );
+    const content = serializeFrontMatter(title, tags, now, body);
+    await ctx.fs.writeFile(filename, content);
+
+    const stat = await ctx.fs.stat(filename);
+    ctx.logger.info(`Created note: ${id}`);
+    return { id, title, tags, content, createdAt: now, updatedAt: stat.modifiedAt };
+  });
 
   // ─── notes.update ────────────────────────────────────────────────────────
 
@@ -158,22 +190,18 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
     const q = (req.query || '').toLowerCase();
     if (!q) return scanNotes();
 
-    const dirExists = await ctx.fs.exists('.');
-    if (!dirExists) return [];
-
-    const entries = await ctx.fs.readDir('.');
+    const mdPaths = await walkMarkdown('.');
     const results: NoteMeta[] = [];
 
-    for (const entry of entries) {
-      if (entry.type !== 'file' || !entry.name.endsWith('.md')) continue;
+    for (const relPath of mdPaths) {
       try {
-        const raw = await ctx.fs.readFile(entry.name);
+        const raw = await ctx.fs.readFile(relPath);
         if (!raw.toLowerCase().includes(q)) continue;
 
-        const stat = await ctx.fs.stat(entry.name);
+        const stat = await ctx.fs.stat(relPath);
         const fm = parseFrontMatter(raw);
         results.push({
-          id: entry.name.replace(/\.md$/, ''),
+          id: pathToId(relPath),
           title: fm.title,
           tags: fm.tags,
           createdAt: fm.created ?? stat.createdAt,

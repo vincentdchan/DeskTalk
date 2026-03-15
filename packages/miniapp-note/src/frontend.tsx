@@ -156,11 +156,13 @@ function NoteApp() {
     <NoteActions
       selectedNoteId={selectedId}
       selectedNote={currentNote}
+      notes={notes}
       editorRef={editorRef}
       onNoteCreated={handleNoteCreated}
       onNoteDeleted={handleNoteDeleted}
       onSearch={handleSearch}
       onNoteUpdated={handleNoteUpdated}
+      onSelectNote={selectNote}
       onRefresh={refresh}
     >
       <div className={styles.root}>

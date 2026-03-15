@@ -2,6 +2,7 @@ import React, { useCallback, type RefObject } from 'react';
 import { ActionsProvider, Action, useCommand } from '@desktalk/sdk';
 import type { Note, NoteMeta } from '../types';
 import type { NoteEditorHandle } from './NoteEditor';
+import { parseFrontMatter, serializeFrontMatter } from '../lib/frontmatter';
 
 /**
  * Compute a minimal unified-diff string for a single old_text→new_text replacement.
@@ -58,11 +59,13 @@ interface NoteActionsProps {
   children: React.ReactNode;
   selectedNoteId: string | null;
   selectedNote: Note | null;
+  notes: NoteMeta[];
   editorRef: RefObject<NoteEditorHandle | null>;
   onNoteCreated: (note: Note) => void;
   onNoteDeleted: (id: string) => void;
   onSearch: (query: string) => void;
   onNoteUpdated: (note: Note) => void;
+  onSelectNote: (id: string) => Promise<void>;
   onRefresh: () => void;
 }
 
@@ -70,16 +73,19 @@ export function NoteActions({
   children,
   selectedNoteId,
   selectedNote,
+  notes,
   editorRef,
   onNoteCreated,
   onNoteDeleted,
   onSearch,
   onNoteUpdated,
+  onSelectNote,
   onRefresh: _onRefresh,
 }: NoteActionsProps) {
-  const createNote = useCommand<{ title?: string; content?: string; tags?: string[] }, Note>(
-    'notes.create',
-  );
+  const createNote = useCommand<
+    { title?: string; content?: string; tags?: string[]; path?: string },
+    Note
+  >('notes.create');
   const deleteNote = useCommand<{ id: string }, void>('notes.delete');
   const searchNotes = useCommand<{ query: string }, NoteMeta[]>('notes.search');
   const updateNote = useCommand<{ id: string; content?: string; tags?: string[] }, Note>(
@@ -92,6 +98,7 @@ export function NoteActions({
         title: (params?.title as string) || undefined,
         content: (params?.content as string) || undefined,
         tags: (params?.tags as string[]) || undefined,
+        path: (params?.path as string) || undefined,
       });
       onNoteCreated(note);
       return note;
@@ -115,37 +122,53 @@ export function NoteActions({
     [searchNotes, onSearch],
   );
 
-  const handleAddTag = useCallback(
-    async (params?: Record<string, unknown>) => {
-      if (!selectedNoteId || !selectedNote) return;
-      const tag = (params?.tag as string) || '';
-      if (!tag || selectedNote.tags.includes(tag)) return;
-      const note = await updateNote({
-        id: selectedNoteId,
-        tags: [...selectedNote.tags, tag],
-      });
-      onNoteUpdated(note);
-      return note;
-    },
-    [updateNote, selectedNoteId, selectedNote, onNoteUpdated],
-  );
-
-  const handleRemoveTag = useCallback(
-    async (params?: Record<string, unknown>) => {
-      if (!selectedNoteId || !selectedNote) return;
-      const tag = (params?.tag as string) || '';
-      if (!tag) return;
-      const note = await updateNote({
-        id: selectedNoteId,
-        tags: selectedNote.tags.filter((t) => t !== tag),
-      });
-      onNoteUpdated(note);
-      return note;
-    },
-    [updateNote, selectedNoteId, selectedNote, onNoteUpdated],
-  );
-
   // ─── AI Editing Actions ──────────────────────────────────────────────────
+
+  /**
+   * Reconstruct full raw content (front matter + body) from note metadata
+   * and the live editor body. This ensures we get the latest unsaved edits.
+   */
+  const getRawContent = useCallback((): string | null => {
+    if (!selectedNote) return null;
+    const handle = editorRef.current;
+    if (!handle) return null;
+    const body = handle.getMarkdown();
+    if (body === null) return null;
+    return serializeFrontMatter(
+      selectedNote.title,
+      selectedNote.tags,
+      selectedNote.createdAt,
+      body,
+    );
+  }, [selectedNote, editorRef]);
+
+  const handleListNotes = useCallback(async () => {
+    // Cap at 20 most recent, annotate with selection status.
+    const listed = notes.slice(0, 20).map((n) => ({
+      id: n.id,
+      title: n.title,
+      updatedAt: n.updatedAt,
+      selected: n.id === selectedNoteId,
+    }));
+    return { notes: listed };
+  }, [notes, selectedNoteId]);
+
+  const handleSelectNote = useCallback(
+    async (params?: Record<string, unknown>) => {
+      const id = params?.id as string | undefined;
+      if (!id) {
+        return { success: false, error: 'id parameter is required' };
+      }
+      // Verify the note exists in the current list
+      const found = notes.find((n) => n.id === id);
+      if (!found) {
+        return { success: false, error: `Note not found: ${id}` };
+      }
+      await onSelectNote(id);
+      return { success: true };
+    },
+    [notes, onSelectNote],
+  );
 
   const handleGetEditingContext = useCallback(async () => {
     if (!selectedNoteId || !selectedNote) {
@@ -155,7 +178,7 @@ export function NoteActions({
     if (!handle) {
       return { error: 'Editor is not ready' };
     }
-    const content = handle.getMarkdown();
+    const content = getRawContent();
     if (content === null) {
       return { error: 'Editor is not ready' };
     }
@@ -166,7 +189,7 @@ export function NoteActions({
       cursorLine: handle.getCursorLine(),
       selectedText: handle.getSelectedText(),
     };
-  }, [selectedNoteId, selectedNote, editorRef]);
+  }, [selectedNoteId, selectedNote, editorRef, getRawContent]);
 
   const handleEditNote = useCallback(
     async (params?: Record<string, unknown>) => {
@@ -184,71 +207,97 @@ export function NoteActions({
         return { success: false, error: 'Both old_text and new_text are required' };
       }
 
-      const currentContent = handle.getMarkdown();
-      if (currentContent === null) {
+      const currentRaw = getRawContent();
+      if (currentRaw === null) {
         return { success: false, error: 'Editor is not ready' };
       }
 
       // Handle empty old_text as "insert at beginning"
+      let newRaw: string;
+      let matchIndex: number;
       if (oldText === '') {
-        const newContent = newText + currentContent;
-        handle.setMarkdown(newContent);
-        const { diff, firstChangedLine } = computeDiff(currentContent, newContent, '', newText, 0);
-        return { success: true, diff, firstChangedLine };
-      }
-
-      // Find exact match
-      const firstIndex = currentContent.indexOf(oldText);
-      if (firstIndex === -1) {
-        return { success: false, error: 'Text not found in note' };
-      }
-
-      // Check for multiple matches
-      const secondIndex = currentContent.indexOf(oldText, firstIndex + 1);
-      if (secondIndex !== -1) {
-        // Count total occurrences
-        let count = 2;
-        let searchFrom = secondIndex + 1;
-        while (true) {
-          const idx = currentContent.indexOf(oldText, searchFrom);
-          if (idx === -1) break;
-          count++;
-          searchFrom = idx + 1;
+        newRaw = newText + currentRaw;
+        matchIndex = 0;
+      } else {
+        // Find exact match in the full raw content (including front matter)
+        const firstIndex = currentRaw.indexOf(oldText);
+        if (firstIndex === -1) {
+          return { success: false, error: 'Text not found in note' };
         }
-        return {
-          success: false,
-          error: `Text appears ${count} times; provide more surrounding context to make it unique`,
-        };
+
+        // Check for multiple matches
+        const secondIndex = currentRaw.indexOf(oldText, firstIndex + 1);
+        if (secondIndex !== -1) {
+          let count = 2;
+          let searchFrom = secondIndex + 1;
+          while (true) {
+            const idx = currentRaw.indexOf(oldText, searchFrom);
+            if (idx === -1) break;
+            count++;
+            searchFrom = idx + 1;
+          }
+          return {
+            success: false,
+            error: `Text appears ${count} times; provide more surrounding context to make it unique`,
+          };
+        }
+
+        newRaw =
+          currentRaw.substring(0, firstIndex) +
+          newText +
+          currentRaw.substring(firstIndex + oldText.length);
+        matchIndex = firstIndex;
       }
 
-      // Apply replacement
-      const newContent =
-        currentContent.substring(0, firstIndex) +
-        newText +
-        currentContent.substring(firstIndex + oldText.length);
-      handle.setMarkdown(newContent);
+      // Parse the new raw content to split front matter and body
+      const parsed = parseFrontMatter(newRaw);
+
+      // Update the editor with the body portion
+      handle.setMarkdown(parsed.body);
+
+      // If front matter metadata changed, persist via backend update
+      const tagsChanged =
+        parsed.tags.length !== selectedNote.tags.length ||
+        parsed.tags.some((t, i) => t !== selectedNote.tags[i]);
+      const titleChanged = parsed.title !== selectedNote.title;
+
+      if (tagsChanged || titleChanged) {
+        const updated = await updateNote({
+          id: selectedNoteId,
+          tags: parsed.tags,
+          // Send the full content so backend can parse the new title
+          content: parsed.body,
+        });
+        onNoteUpdated(updated);
+      }
 
       const { diff, firstChangedLine } = computeDiff(
-        currentContent,
-        newContent,
+        currentRaw,
+        newRaw,
         oldText,
         newText,
-        firstIndex,
+        matchIndex,
       );
       return { success: true, diff, firstChangedLine };
     },
-    [selectedNoteId, selectedNote, editorRef],
+    [selectedNoteId, selectedNote, editorRef, getRawContent, updateNote, onNoteUpdated],
   );
 
   return (
     <ActionsProvider>
       <Action
         name="Create Note"
-        description="Create a new note with optional title and content"
+        description="Create a new note with optional title, content, and path"
         params={{
           title: { type: 'string', description: 'Note title', required: false },
           content: { type: 'string', description: 'Note content in Markdown', required: false },
           tags: { type: 'string', description: 'Comma-separated tags', required: false },
+          path: {
+            type: 'string',
+            description:
+              'Relative path for the note (e.g. "work/meeting-notes"). Becomes the note ID. Auto-generated if omitted.',
+            required: false,
+          },
         }}
         handler={handleCreate}
       />
@@ -266,20 +315,21 @@ export function NoteActions({
         handler={handleSearch}
       />
       <Action
-        name="Add Tag"
-        description="Add a tag to the current note"
-        params={{
-          tag: { type: 'string', description: 'Tag name to add', required: true },
-        }}
-        handler={handleAddTag}
+        name="List Notes"
+        description="Return the 20 most recent notes with selection status"
+        handler={handleListNotes}
       />
       <Action
-        name="Remove Tag"
-        description="Remove a tag from the current note"
+        name="Select Note"
+        description="Select a note by ID and open it in the editor"
         params={{
-          tag: { type: 'string', description: 'Tag name to remove', required: true },
+          id: {
+            type: 'string',
+            description: 'Note ID (relative path without .md)',
+            required: true,
+          },
         }}
-        handler={handleRemoveTag}
+        handler={handleSelectNote}
       />
       <Action
         name="Get Editing Context"
@@ -288,12 +338,12 @@ export function NoteActions({
       />
       <Action
         name="Edit Note"
-        description="Apply a text replacement to the current note body. Use old_text to find exact text and new_text to replace it. For inserts, include surrounding text in old_text and add the new content in new_text."
+        description="Apply a text replacement to the current note content including front matter. Use old_text to find exact text and new_text to replace it. To edit tags or title, modify the YAML front matter directly."
         params={{
           old_text: {
             type: 'string',
             description:
-              'Exact text to find in the note body (must appear exactly once). Use empty string to insert at beginning.',
+              'Exact text to find in the note content (must appear exactly once). Searches the full content including YAML front matter. Use empty string to insert at beginning.',
             required: true,
           },
           new_text: {
