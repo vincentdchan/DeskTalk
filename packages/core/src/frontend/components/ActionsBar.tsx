@@ -1,10 +1,22 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useWindowManager } from '../stores/window-manager';
 import styles from './ActionsBar.module.scss';
 
 export function ActionsBar() {
   const focusedWindow = useWindowManager((s) => s.windows.find((w) => w.focused));
   const focusedWindowActions = useWindowManager((s) => s.focusedWindowActions);
+  const [glowing, setGlowing] = useState(false);
+  const prevActionsRef = useRef(focusedWindowActions);
+
+  useEffect(() => {
+    if (focusedWindowActions.length > 0 && focusedWindowActions !== prevActionsRef.current) {
+      setGlowing(true);
+      const timer = setTimeout(() => setGlowing(false), 1200);
+      prevActionsRef.current = focusedWindowActions;
+      return () => clearTimeout(timer);
+    }
+    prevActionsRef.current = focusedWindowActions;
+  }, [focusedWindowActions]);
 
   return (
     <div className={styles.actionsBar}>
@@ -41,7 +53,7 @@ export function ActionsBar() {
               {focusedWindowActions.map((action) => (
                 <button
                   key={action.name}
-                  className={styles.action}
+                  className={`${styles.action}${glowing ? ` ${styles.glowing}` : ''}`}
                   title={action.description}
                   onClick={() => action.handler()}
                 >

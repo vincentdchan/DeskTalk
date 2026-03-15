@@ -46,6 +46,20 @@
   }
 }
 
+.glowing {
+  animation: accent-pulse 1.2s ease-out;
+}
+
+@keyframes accent-pulse {
+  0% {
+    border-color: var(--dt-accent);
+  }
+
+  100% {
+    border-color: var(--dt-border);
+  }
+}
+
 .builtinAction {
   composes: action;
   opacity: 0.92;
