@@ -232,6 +232,9 @@ importers:
       react:
         specifier: ^19.0.0
         version: 19.2.4
+      vite:
+        specifier: ^7.3.1
+        version: 7.3.1(@types/node@22.19.15)(lightningcss@1.32.0)(sass@1.98.0)(yaml@2.8.2)
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -8856,7 +8859,7 @@ snapshots:
       debug: 4.4.3
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: 6.4.1(@types/node@22.19.15)(lightningcss@1.32.0)(sass@1.98.0)(yaml@2.8.2)
+      vite: 7.3.1(@types/node@22.19.15)(lightningcss@1.32.0)(sass@1.98.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
