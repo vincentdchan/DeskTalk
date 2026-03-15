@@ -33,6 +33,14 @@ export const PREFERENCE_SCHEMAS: PreferenceSchema[] = [
     category: 'General',
   },
   {
+    key: 'general.accentColor',
+    label: 'Accent Color',
+    description: 'Primary theme color. Accepts hex values or any CSS color string.',
+    type: 'string',
+    default: '#7c6ff7',
+    category: 'General',
+  },
+  {
     key: 'general.language',
     label: 'Language',
     description: 'UI language/locale.',

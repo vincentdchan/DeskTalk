@@ -1,23 +1,96 @@
 :root {
-  --color-bg: #1e1e2e;
-  --color-surface: #282840;
-  --color-surface-hover: #32324a;
-  --color-border: #3a3a5c;
-  --color-text: #e0e0f0;
-  --color-text-muted: #8888aa;
-  --color-accent: #7c6ff7;
-  --color-accent-hover: #6a5ce0;
-  --color-danger: #e05070;
-  --color-success: #50c080;
-  --color-warning: #e0a050;
-  --color-dock-bg: rgba(30, 30, 50, 0.85);
-  --color-actions-bar-bg: #1a1a30;
-  --color-window-chrome: #222240;
-  --color-window-body: #1e1e2e;
+  --dt-accent-h: 286;
+  --dt-accent-c: 0.234;
+  --dt-accent-l: 0.623;
+  --dt-mode-sign: -1;
 
-  --color-top-bar-bg: linear-gradient(180deg, #3b8ad9 0%, #2d6da8 100%);
-  --color-top-bar-text: #fff;
-  --color-top-bar-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --dt-scale-50: oklch(0.98 0.005 286);
+  --dt-scale-100: oklch(0.94 0.01 286);
+  --dt-scale-150: oklch(0.88 0.015 286);
+  --dt-scale-200: oklch(0.8 0.02 286);
+  --dt-scale-300: oklch(0.7 0.025 286);
+  --dt-scale-400: oklch(0.6 0.03 286);
+  --dt-scale-500: oklch(0.5 0.04 286);
+  --dt-scale-600: oklch(0.4 0.03 286);
+  --dt-scale-700: oklch(0.32 0.025 286);
+  --dt-scale-800: oklch(0.24 0.03 286);
+  --dt-scale-850: oklch(0.2 0.035 286);
+  --dt-scale-900: oklch(0.16 0.04 286);
+  --dt-scale-950: oklch(0.12 0.05 286);
+
+  --dt-bg: var(--dt-scale-50);
+  --dt-bg-subtle: var(--dt-scale-100);
+  --dt-surface: var(--dt-scale-100);
+  --dt-surface-hover: var(--dt-scale-150);
+  --dt-surface-active: var(--dt-scale-200);
+  --dt-overlay: oklch(0.98 0.005 286 / 0.85);
+
+  --dt-text: var(--dt-scale-950);
+  --dt-text-secondary: var(--dt-scale-600);
+  --dt-text-muted: var(--dt-scale-500);
+  --dt-text-on-accent: var(--dt-scale-50);
+
+  --dt-border: var(--dt-scale-200);
+  --dt-border-subtle: oklch(0.88 0.015 286 / 0.6);
+  --dt-border-strong: var(--dt-scale-300);
+
+  --dt-accent: oklch(0.623 0.234 286);
+  --dt-accent-hover: oklch(0.573 0.234 286);
+  --dt-accent-active: oklch(0.523 0.234 286);
+  --dt-accent-subtle: oklch(0.623 0.234 286 / 0.15);
+  --dt-accent-ghost: oklch(0.623 0.234 286 / 0.08);
+
+  --dt-danger: oklch(0.45 0.18 25);
+  --dt-danger-subtle: oklch(0.45 0.18 25 / 0.15);
+  --dt-success: oklch(0.45 0.18 155);
+  --dt-success-subtle: oklch(0.45 0.18 155 / 0.15);
+  --dt-warning: oklch(0.45 0.18 80);
+  --dt-warning-subtle: oklch(0.45 0.18 80 / 0.15);
+  --dt-info: oklch(0.45 0.18 250);
+  --dt-info-subtle: oklch(0.45 0.18 250 / 0.15);
+
+  --dt-dock-bg: var(--dt-overlay);
+  --dt-actions-bar-bg: var(--dt-bg-subtle);
+  --dt-window-chrome: var(--dt-surface);
+  --dt-window-body: var(--dt-bg);
+  --dt-info-panel-bg: var(--dt-bg-subtle);
+  --dt-wallpaper: linear-gradient(
+    135deg,
+    oklch(0.85 0.06 286) 0%,
+    oklch(0.8 0.08 286) 50%,
+    oklch(0.75 0.03 316) 100%
+  );
+
+  --dt-glass: oklch(0.94 0.01 286 / 0.7);
+  --dt-glass-border: oklch(0.12 0.05 286 / 0.12);
+  --dt-glass-highlight: oklch(0.98 0.005 286 / 0.45);
+  --dt-shadow-color: oklch(0.12 0.05 286 / 0.15);
+
+  --color-bg: var(--dt-bg);
+  --color-surface: var(--dt-surface);
+  --color-surface-hover: var(--dt-surface-hover);
+  --color-border: var(--dt-border);
+  --color-border-subtle: var(--dt-border-subtle);
+  --color-text: var(--dt-text);
+  --color-text-muted: var(--dt-text-muted);
+  --color-accent: var(--dt-accent);
+  --color-accent-hover: var(--dt-accent-hover);
+  --color-danger: var(--dt-danger);
+  --color-success: var(--dt-success);
+  --color-warning: var(--dt-warning);
+  --color-warning-bg: var(--dt-warning-subtle);
+  --color-info: var(--dt-info);
+  --color-dock-bg: var(--dt-dock-bg);
+  --color-actions-bar-bg: var(--dt-actions-bar-bg);
+  --color-window-chrome: var(--dt-window-chrome);
+  --color-window-body: var(--dt-window-body);
+
+  --color-top-bar-bg: var(--dt-actions-bar-bg);
+  --color-top-bar-text: var(--dt-text);
+  --color-top-bar-text-shadow: none;
+
+  --desktop-wallpaper: var(--dt-wallpaper);
+  --desktop-window-bg: var(--dt-info-panel-bg);
 
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
@@ -27,9 +100,6 @@
   --info-panel-width: 320px;
   --window-chrome-height: 36px;
   --border-radius: 8px;
-
-  --desktop-wallpaper: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e8ba3 100%);
-  --desktop-window-bg: #2E2E2E;
 }
 
 * {
@@ -46,6 +116,14 @@ body,
   overflow: hidden;
   font-family: var(--font-sans);
   font-size: 14px;
-  color: var(--color-text);
-  background: var(--color-bg);
+  color: var(--dt-text);
+  background: var(--dt-bg);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }

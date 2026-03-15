@@ -471,6 +471,13 @@ export async function createServer(options: ServerOptions) {
     return registry.getManifests();
   });
 
+  app.get('/api/preferences/public', async () => {
+    return {
+      theme: getStoredPreference('general.theme') === 'dark' ? 'dark' : 'light',
+      accentColor: String(getStoredPreference('general.accentColor') ?? '#7c6ff7'),
+    };
+  });
+
   app.get<{ Querystring: { locale?: string } }>('/api/i18n/catalog', async (req) => {
     const locale = String(req.query.locale ?? getStoredPreference('general.language') ?? 'en');
     const packages = [

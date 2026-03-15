@@ -21,7 +21,7 @@ import styles from './Shell.module.scss';
  */
 function MiniAppLoadError({ miniAppId, message }: { miniAppId: string; message: string }) {
   return (
-    <div style={{ padding: 24, color: 'var(--color-text-muted)' }}>
+    <div style={{ padding: 24, color: 'var(--dt-text-muted)' }}>
       <h3>{miniAppId}</h3>
       <p>{message}</p>
     </div>
@@ -431,7 +431,7 @@ export function Shell() {
                 </WindowChrome>
               ))
             : windows.length > 0 && (
-                <div style={{ padding: 24, color: 'var(--color-text-muted)' }}>
+                <div style={{ padding: 24, color: 'var(--dt-text-muted)' }}>
                   Connecting to server...
                 </div>
               )}

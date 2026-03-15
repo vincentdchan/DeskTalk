@@ -1,38 +1,34 @@
-/* ─── Layout ──────────────────────────────────────────────────────────────── */
-
 .root {
   display: flex;
   height: 100%;
   overflow: hidden;
-  background: var(--color-window-body, #1e1e2e);
-  color: var(--color-text, #e0e0f0);
-  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
+  background: var(--dt-window-body);
+  color: var(--dt-text);
+  font-family: var(--font-sans);
 }
 
-/* ─── Tag Filter Panel ───────────────────────────────────────────────────── */
-
 .tagPanel {
+  display: flex;
   width: 160px;
   min-width: 160px;
-  border-right: 1px solid var(--color-border, #3a3a5c);
-  display: flex;
   flex-direction: column;
   overflow-y: auto;
+  border-right: 1px solid var(--dt-border);
 }
 
 .tagHeader {
   padding: 12px 14px 8px;
+  color: var(--dt-text-muted);
   font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-text-muted, #8888aa);
+  text-transform: uppercase;
 }
 
 .tagList {
-  list-style: none;
   margin: 0;
   padding: 0;
+  list-style: none;
 }
 
 .tagItem {
@@ -40,93 +36,92 @@
   align-items: center;
   justify-content: space-between;
   padding: 6px 14px;
+  color: var(--dt-text);
   cursor: pointer;
   font-size: 13px;
-  color: var(--color-text, #e0e0f0);
   transition: background 0.1s;
 }
 
 .tagItem:hover {
-  background: var(--color-surface-hover, #32324a);
+  background: var(--dt-surface-hover);
 }
 
 .tagItemActive {
   composes: tagItem;
-  background: var(--color-surface, #282840);
-  color: var(--color-accent, #7c6ff7);
+  background: var(--dt-surface);
+  color: var(--dt-accent);
   font-weight: 500;
 }
 
 .tagCount {
-  font-size: 11px;
-  color: var(--color-text-muted, #8888aa);
   min-width: 20px;
+  color: var(--dt-text-muted);
+  font-size: 11px;
   text-align: right;
 }
 
-/* ─── Note List Panel ────────────────────────────────────────────────────── */
-
 .listPanel {
+  display: flex;
   width: 260px;
   min-width: 200px;
-  border-right: 1px solid var(--color-border, #3a3a5c);
-  display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-right: 1px solid var(--dt-border);
 }
 
 .listHeader {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--color-border, #3a3a5c);
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--dt-border);
 }
 
 .searchInput {
   flex: 1;
-  background: var(--color-surface, #282840);
-  border: 1px solid var(--color-border, #3a3a5c);
-  border-radius: 6px;
   padding: 6px 10px;
-  font-size: 13px;
-  color: var(--color-text, #e0e0f0);
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+  background: var(--dt-surface);
+  color: var(--dt-text);
   font-family: inherit;
+  font-size: 13px;
   outline: none;
   transition: border-color 0.15s;
 }
 
 .searchInput::placeholder {
-  color: var(--color-text-muted, #8888aa);
+  color: var(--dt-text-muted);
 }
 
 .searchInput:focus {
-  border-color: var(--color-accent, #7c6ff7);
+  border-color: var(--dt-accent);
 }
 
 .newNoteBtn {
-  flex-shrink: 0;
+  display: flex;
   width: 30px;
   height: 30px;
-  border: 1px solid var(--color-border, #3a3a5c);
-  border-radius: 6px;
-  background: var(--color-surface, #282840);
-  color: var(--color-text, #e0e0f0);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+  background: var(--dt-surface);
+  color: var(--dt-text);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
   transition:
     background 0.15s,
-    border-color 0.15s;
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .newNoteBtn:hover {
-  background: var(--color-surface-hover, #32324a);
-  border-color: var(--color-accent, #7c6ff7);
-  color: var(--color-accent, #7c6ff7);
+  border-color: var(--dt-accent);
+  background: var(--dt-surface-hover);
+  color: var(--dt-accent);
 }
 
 .noteList {
@@ -136,70 +131,68 @@
 
 .noteItem {
   padding: 10px 14px;
+  border-bottom: 1px solid var(--dt-border);
   cursor: pointer;
-  border-bottom: 1px solid var(--color-border, #3a3a5c);
   transition: background 0.1s;
 }
 
 .noteItem:hover {
-  background: var(--color-surface-hover, #32324a);
+  background: var(--dt-surface-hover);
 }
 
 .noteItemActive {
   composes: noteItem;
-  background: var(--color-surface, #282840);
-  border-left: 3px solid var(--color-accent, #7c6ff7);
   padding-left: 11px;
+  border-left: 3px solid var(--dt-accent);
+  background: var(--dt-surface);
 }
 
 .noteTitle {
+  overflow: hidden;
+  margin-bottom: 4px;
   font-size: 14px;
   font-weight: 500;
-  margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .notePreview {
-  font-size: 12px;
-  color: var(--color-text-muted, #8888aa);
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   margin-bottom: 4px;
+  color: var(--dt-text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .noteDate {
-  font-size: 11px;
-  color: var(--color-text-muted, #8888aa);
+  color: var(--dt-text-muted);
   opacity: 0.7;
+  font-size: 11px;
 }
 
 .emptyState {
   padding: 24px 14px;
-  text-align: center;
-  color: var(--color-text-muted, #8888aa);
+  color: var(--dt-text-muted);
   font-size: 13px;
+  text-align: center;
 }
 
-/* ─── Editor Panel ───────────────────────────────────────────────────────── */
-
 .editorPanel {
-  flex: 1;
   display: flex;
+  min-width: 0;
+  flex: 1;
   flex-direction: column;
   overflow: hidden;
-  min-width: 0;
 }
 
 .editorHeader {
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--color-border, #3a3a5c);
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
-  flex-shrink: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--dt-border);
 }
 
 .editorTitle {
@@ -209,62 +202,62 @@
 
 .editorTags {
   display: flex;
-  gap: 6px;
   flex-wrap: wrap;
+  gap: 6px;
 }
 
 .editorTag {
-  background: var(--color-surface, #282840);
-  border: 1px solid var(--color-border, #3a3a5c);
-  border-radius: 4px;
   padding: 2px 8px;
+  border: 1px solid var(--dt-border);
+  border-radius: 4px;
+  background: var(--dt-surface);
+  color: var(--dt-accent);
   font-size: 11px;
-  color: var(--color-accent, #7c6ff7);
 }
 
 .editorBody {
+  position: relative;
   flex: 1;
   overflow-y: auto;
-  position: relative;
 }
 
 .editorPlaceholder {
   display: flex;
+  height: 100%;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  color: var(--color-text-muted, #8888aa);
+  color: var(--dt-text-muted);
   font-size: 14px;
 }
-
-/* ─── Milkdown overrides (dark theme) ────────────────────────────────────── */
 
 .editorBody :global(.milkdown) {
   height: 100%;
   background: transparent;
-  color: var(--color-text, #e0e0f0);
+  color: var(--dt-text);
 }
 
 .editorBody :global(.milkdown .editor) {
-  padding: 16px 20px;
   min-height: 100%;
+  padding: 16px 20px;
   outline: none;
-  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.65;
 }
 
 .editorBody :global(.milkdown .editor h1) {
-  font-size: 1.6em;
   margin: 0.8em 0 0.4em;
+  font-size: 1.6em;
 }
+
 .editorBody :global(.milkdown .editor h2) {
-  font-size: 1.35em;
   margin: 0.7em 0 0.35em;
+  font-size: 1.35em;
 }
+
 .editorBody :global(.milkdown .editor h3) {
-  font-size: 1.15em;
   margin: 0.6em 0 0.3em;
+  font-size: 1.15em;
 }
 
 .editorBody :global(.milkdown .editor p) {
@@ -272,37 +265,37 @@
 }
 
 .editorBody :global(.milkdown .editor code) {
-  font-family: var(--font-mono, 'SF Mono', monospace);
-  background: var(--color-surface, #282840);
   padding: 2px 5px;
   border-radius: 3px;
+  background: var(--dt-surface);
+  font-family: var(--font-mono);
   font-size: 0.9em;
 }
 
 .editorBody :global(.milkdown .editor pre) {
-  background: var(--color-surface, #282840);
-  border: 1px solid var(--color-border, #3a3a5c);
-  border-radius: 6px;
-  padding: 12px 16px;
   overflow-x: auto;
   margin: 0.8em 0;
+  padding: 12px 16px;
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+  background: var(--dt-surface);
 }
 
 .editorBody :global(.milkdown .editor pre code) {
-  background: transparent;
   padding: 0;
   border-radius: 0;
+  background: transparent;
 }
 
 .editorBody :global(.milkdown .editor blockquote) {
-  border-left: 3px solid var(--color-accent, #7c6ff7);
-  padding-left: 14px;
   margin: 0.8em 0;
-  color: var(--color-text-muted, #8888aa);
+  padding-left: 14px;
+  border-left: 3px solid var(--dt-accent);
+  color: var(--dt-text-muted);
 }
 
 .editorBody :global(.milkdown .editor a) {
-  color: var(--color-accent, #7c6ff7);
+  color: var(--dt-accent);
   text-decoration: none;
 }
 
@@ -311,15 +304,15 @@
 }
 
 .editorBody :global(.milkdown .editor hr) {
-  border: none;
-  border-top: 1px solid var(--color-border, #3a3a5c);
   margin: 1.5em 0;
+  border: none;
+  border-top: 1px solid var(--dt-border);
 }
 
 .editorBody :global(.milkdown .editor ul),
 .editorBody :global(.milkdown .editor ol) {
-  padding-left: 24px;
   margin: 0.5em 0;
+  padding-left: 24px;
 }
 
 .editorBody :global(.milkdown .editor li) {
@@ -331,14 +324,13 @@
   border-radius: 6px;
 }
 
-/* Status indicator */
 .saveStatus {
-  font-size: 11px;
-  color: var(--color-text-muted, #8888aa);
+  color: var(--dt-text-muted);
   opacity: 0.7;
+  font-size: 11px;
 }
 
 .saveStatusSaving {
   composes: saveStatus;
-  color: var(--color-warning, #e0a050);
+  color: var(--dt-warning);
 }

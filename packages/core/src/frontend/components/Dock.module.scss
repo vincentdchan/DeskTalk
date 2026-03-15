@@ -1,8 +1,3 @@
-$dock-glass: rgba(255, 255, 255, 0.2);
-$dock-glass-border: rgba(255, 255, 255, 0.15);
-$dock-text: rgba(255, 255, 255, 0.9);
-$dock-tooltip: rgba(0, 0, 0, 0.7);
-
 .dockContainer {
   grid-area: dock;
   display: flex;
@@ -16,14 +11,14 @@ $dock-tooltip: rgba(0, 0, 0, 0.7);
   justify-content: center;
   gap: 4px;
   padding: 6px 12px;
-  border: 1px solid $dock-glass-border;
+  border: 1px solid var(--dt-glass-border);
   border-radius: 8px 8px 0 0;
-  background: var(--desktop-window-bg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: var(--dt-dock-bg);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
   box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.3),
-    0 1px 2px rgba(255, 255, 255, 0.1) inset;
+    0 8px 28px var(--dt-shadow-color),
+    0 1px 0 var(--dt-glass-highlight) inset;
   pointer-events: auto;
 }
 
@@ -37,7 +32,7 @@ $dock-tooltip: rgba(0, 0, 0, 0.7);
   border: 0;
   border-radius: 12px;
   background: transparent;
-  color: #fff;
+  color: var(--dt-text);
   cursor: pointer;
   font-family: inherit;
   transition:
@@ -45,13 +40,14 @@ $dock-tooltip: rgba(0, 0, 0, 0.7);
     transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 
   &:hover {
-    background: var(--color-surface-hover);
+    background: var(--dt-accent-ghost);
     transform: translateY(-2px);
 
     .dockIcon {
       box-shadow:
-        0 4px 16px rgba(0, 0, 0, 0.3),
-        0 1px 2px rgba(255, 255, 255, 0.4) inset;
+        0 10px 20px var(--dt-shadow-color),
+        0 1px 0 var(--dt-glass-highlight) inset;
+      transform: translateY(-1px);
     }
 
     .dockLabel {
@@ -67,22 +63,28 @@ $dock-tooltip: rgba(0, 0, 0, 0.7);
   height: 48px;
   align-items: center;
   justify-content: center;
+  border: 1px solid var(--dt-border-subtle);
   border-radius: var(--border-radius);
-  background: var(--color-surface);
+  background: color-mix(in oklab, var(--dt-surface) 82%, transparent);
+  box-shadow: 0 4px 12px color-mix(in oklab, var(--dt-shadow-color) 65%, transparent);
   font-size: 20px;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .dockLabel {
   position: absolute;
   bottom: -18px;
   padding: 2px 8px;
-  border-radius: 4px;
-  background: $dock-tooltip;
-  color: $dock-text;
+  border: 1px solid var(--dt-glass-border);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--dt-bg) 88%, transparent);
+  color: var(--dt-text);
   font-size: 10px;
   opacity: 0;
   pointer-events: none;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   transform: translateY(4px);
   transition:
     opacity 0.2s,
@@ -96,6 +98,6 @@ $dock-tooltip: rgba(0, 0, 0, 0.7);
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--color-accent);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  background: var(--dt-accent);
+  box-shadow: 0 0 0 4px var(--dt-accent-ghost);
 }

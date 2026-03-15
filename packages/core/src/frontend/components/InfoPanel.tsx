@@ -339,7 +339,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
           onClick={handleVoiceToggle}
           title={isVoiceActive ? 'Stop voice input' : 'Start voice input'}
         >
-          <MicIcon active={isVoiceActive} />
+          <MicIcon />
         </button>
         <input
           className={styles.input}
@@ -368,14 +368,14 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
 /**
  * SVG microphone icon with active/inactive states.
  */
-function MicIcon({ active }: { active: boolean }) {
+function MicIcon() {
   return (
     <svg
       width="18"
       height="18"
       viewBox="0 0 24 24"
       fill="none"
-      stroke={active ? '#ef4444' : 'currentColor'}
+      stroke="currentColor"
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"

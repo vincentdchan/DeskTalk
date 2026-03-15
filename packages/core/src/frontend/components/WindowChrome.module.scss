@@ -7,14 +7,16 @@
   max-height: 100%;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--dt-border);
   border-radius: var(--border-radius);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 18px 42px var(--dt-shadow-color);
 }
 
 .windowFocused {
-  border-color: var(--color-accent);
-  box-shadow: 0 8px 40px rgba(124, 111, 247, 0.15);
+  border-color: color-mix(in oklab, var(--dt-accent) 55%, var(--dt-border));
+  box-shadow:
+    0 22px 50px var(--dt-shadow-color),
+    0 0 0 1px var(--dt-accent-ghost);
 }
 
 .windowMaximized {
@@ -31,7 +33,7 @@
   flex-shrink: 0;
   align-items: center;
   padding: 0 12px;
-  background: var(--color-window-chrome);
+  background: color-mix(in oklab, var(--dt-window-chrome) 88%, transparent);
   cursor: grab;
   user-select: none;
 
@@ -53,31 +55,32 @@
   border: 0;
   border-radius: 50%;
   cursor: pointer;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--dt-bg) 22%, transparent) inset;
 
   &:hover {
-    filter: brightness(1.2);
+    filter: brightness(1.08);
   }
 }
 
 .trafficLightClose {
   composes: trafficLight;
-  background: var(--color-danger);
+  background: var(--dt-danger);
 }
 
 .trafficLightMinimize {
   composes: trafficLight;
-  background: var(--color-warning);
+  background: var(--dt-warning);
 }
 
 .trafficLightMaximize {
   composes: trafficLight;
-  background: var(--color-success);
+  background: var(--dt-success);
 }
 
 .title {
   flex: 1;
   overflow: hidden;
-  color: var(--color-text-muted);
+  color: var(--dt-text-muted);
   font-size: 12px;
   text-align: center;
   text-overflow: ellipsis;
@@ -88,7 +91,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  background: var(--color-window-body);
+  background: color-mix(in oklab, var(--dt-window-body) 96%, transparent);
 }
 
 .resizeHandle {

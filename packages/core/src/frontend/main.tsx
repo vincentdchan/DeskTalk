@@ -4,6 +4,7 @@ import { createRoot, hydrateRoot } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
 import { I18nProvider, type LocaleMessages } from '@desktalk/sdk';
 import { Shell } from './components/Shell';
+import { applyTheme, DEFAULT_THEME_PREFERENCES, type ThemePreferences } from './theme';
 import './styles/global.scss';
 
 interface I18nCatalogResponse {
@@ -11,9 +12,18 @@ interface I18nCatalogResponse {
   messages: LocaleMessages;
 }
 
+interface PublicPreferencesResponse {
+  theme: ThemePreferences['theme'];
+  accentColor: string;
+}
+
+applyTheme(DEFAULT_THEME_PREFERENCES);
+
 function App() {
   const [locale, setLocale] = useState('en');
   const [messages, setMessages] = useState<LocaleMessages>({});
+  const [themePreferences, setThemePreferences] =
+    useState<ThemePreferences>(DEFAULT_THEME_PREFERENCES);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,8 +42,27 @@ function App() {
       }
     }
 
+    async function loadThemePreferences(): Promise<void> {
+      const response = await fetch('/api/preferences/public');
+      if (!response.ok) {
+        throw new Error(`Failed to load public preferences (${response.status})`);
+      }
+
+      const payload = (await response.json()) as PublicPreferencesResponse;
+      if (!cancelled) {
+        setThemePreferences({
+          theme: payload.theme,
+          accentColor: payload.accentColor,
+        });
+      }
+    }
+
     void loadCatalog().catch((error) => {
       console.error('[i18n] Could not load catalog:', error);
+    });
+
+    void loadThemePreferences().catch((error) => {
+      console.error('[theme] Could not load preferences:', error);
     });
 
     const handleEvent = (event: Event) => {
@@ -44,10 +73,36 @@ function App() {
         }>
       ).detail;
 
-      if (detail?.event === 'preferences:changed' && detail.data?.key === 'general.language') {
+      if (detail?.event === 'preferences:resetAll') {
+        setThemePreferences(DEFAULT_THEME_PREFERENCES);
+        void loadCatalog('en').catch((error) => {
+          console.error('[i18n] Could not refresh catalog:', error);
+        });
+        return;
+      }
+
+      if (detail?.event !== 'preferences:changed') {
+        return;
+      }
+
+      if (detail.data?.key === 'general.language') {
         void loadCatalog(String(detail.data.value ?? 'en')).catch((error) => {
           console.error('[i18n] Could not refresh catalog:', error);
         });
+      }
+
+      if (detail.data?.key === 'general.theme') {
+        setThemePreferences((current) => ({
+          ...current,
+          theme: detail.data?.value === 'dark' ? 'dark' : 'light',
+        }));
+      }
+
+      if (detail.data?.key === 'general.accentColor') {
+        setThemePreferences((current) => ({
+          ...current,
+          accentColor: String(detail.data?.value ?? DEFAULT_THEME_PREFERENCES.accentColor),
+        }));
       }
     };
 
@@ -57,6 +112,10 @@ function App() {
       window.removeEventListener('desktalk:event', handleEvent);
     };
   }, []);
+
+  useEffect(() => {
+    applyTheme(themePreferences);
+  }, [themePreferences]);
 
   return (
     <I18nProvider locale={locale} messages={messages}>

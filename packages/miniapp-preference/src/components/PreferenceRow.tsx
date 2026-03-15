@@ -36,6 +36,9 @@ function Control({
   value: string | number | boolean;
   onChange: (key: string, value: string | number | boolean) => void;
 }) {
+  if (schema.key === 'general.accentColor' && schema.type === 'string') {
+    return <ColorControl schema={schema} value={value as string} onChange={onChange} />;
+  }
   if (schema.type === 'boolean') {
     return <ToggleControl schema={schema} value={value as boolean} onChange={onChange} />;
   }
@@ -49,6 +52,67 @@ function Control({
     return <NumberControl schema={schema} value={value as number} onChange={onChange} />;
   }
   return null;
+}
+
+function isHexColor(value: string): boolean {
+  return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value);
+}
+
+function ColorControl({
+  schema,
+  value,
+  onChange,
+}: {
+  schema: PreferenceSchema;
+  value: string;
+  onChange: (key: string, value: string) => void;
+}) {
+  const [localValue, setLocalValue] = useState(value);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const commit = useCallback(() => {
+    if (localValue !== value) {
+      onChange(schema.key, localValue.trim());
+    }
+  }, [localValue, onChange, schema.key, value]);
+
+  const handlePickerChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setLocalValue(e.target.value);
+      onChange(schema.key, e.target.value);
+    },
+    [onChange, schema.key],
+  );
+
+  const pickerValue = isHexColor(localValue) ? localValue : '#7c6ff7';
+
+  return (
+    <div className={styles.colorControl}>
+      <input
+        type="color"
+        className={styles.colorInput}
+        value={pickerValue}
+        onChange={handlePickerChange}
+        aria-label={`${schema.label} picker`}
+      />
+      <input
+        type="text"
+        className={styles.textInput}
+        value={localValue}
+        onChange={(e) => setLocalValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            commit();
+          }
+        }}
+        placeholder="#7c6ff7"
+      />
+    </div>
+  );
 }
 
 // ─── Toggle ──────────────────────────────────────────────────────────────────

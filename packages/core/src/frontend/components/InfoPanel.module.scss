@@ -1,19 +1,12 @@
-$panel-border: rgba(255, 255, 255, 0.1);
-$panel-text: rgba(255, 255, 255, 0.95);
-$panel-text-muted: rgba(255, 255, 255, 0.5);
-$panel-surface: rgba(0, 0, 0, 0.2);
-$panel-surface-strong: rgba(0, 0, 0, 0.3);
-$voice-danger: rgba(239, 68, 68, 0.8);
-
 .infoPanel {
   display: flex;
   height: 100%;
   flex-direction: column;
   overflow: hidden;
-  border-left: 1px solid $panel-border;
-  background: var(--desktop-window-bg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-left: 1px solid var(--dt-border-subtle);
+  background: color-mix(in oklab, var(--dt-info-panel-bg) 88%, transparent);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
 }
 
 .header {
@@ -21,9 +14,9 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid $panel-border;
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.9);
+  border-bottom: 1px solid var(--dt-border-subtle);
+  background: color-mix(in oklab, var(--dt-surface) 76%, transparent);
+  color: var(--dt-text);
   font-size: 13px;
   font-weight: 600;
 }
@@ -40,8 +33,9 @@ $voice-danger: rgba(239, 68, 68, 0.8);
 .message {
   max-width: 85%;
   padding: 12px 16px;
+  border: 1px solid var(--dt-border-subtle);
   border-radius: 18px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 24px var(--dt-shadow-color);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -49,17 +43,18 @@ $voice-danger: rgba(239, 68, 68, 0.8);
 .messageUser {
   composes: message;
   align-self: flex-end;
+  border-color: color-mix(in oklab, var(--dt-accent) 35%, var(--dt-border));
   border-bottom-right-radius: 6px;
-  background: linear-gradient(135deg, #7c6ff7 0%, #6a5ce0 100%);
-  color: #fff;
+  background: linear-gradient(135deg, var(--dt-accent) 0%, var(--dt-accent-hover) 100%);
+  color: var(--dt-text-on-accent);
 }
 
 .messageAssistant {
   composes: message;
   align-self: flex-start;
   border-bottom-left-radius: 6px;
-  background: rgba(255, 255, 255, 0.15);
-  color: $panel-text;
+  background: color-mix(in oklab, var(--dt-surface) 82%, transparent);
+  color: var(--dt-text);
 }
 
 .messageMeta {
@@ -74,8 +69,8 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   gap: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
-  color: rgba(255, 255, 255, 0.9);
+  background: color-mix(in oklab, var(--dt-text) 16%, transparent);
+  color: inherit;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -120,16 +115,17 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   code {
     padding: 0.15em 0.4em;
     border-radius: 6px;
-    background: rgba(0, 0, 0, 0.22);
-    font-family: 'SFMono-Regular', 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+    background: color-mix(in oklab, var(--dt-bg) 85%, transparent);
+    font-family: var(--font-mono);
     font-size: 0.92em;
   }
 
   pre {
     overflow-x: auto;
     padding: 0.8em 0.95em;
+    border: 1px solid var(--dt-border-subtle);
     border-radius: 12px;
-    background: rgba(0, 0, 0, 0.28);
+    background: color-mix(in oklab, var(--dt-bg) 92%, transparent);
 
     code {
       padding: 0;
@@ -139,12 +135,12 @@ $voice-danger: rgba(239, 68, 68, 0.8);
 
   blockquote {
     padding-left: 0.9em;
-    border-left: 3px solid rgba(255, 255, 255, 0.22);
-    color: rgba(255, 255, 255, 0.72);
+    border-left: 3px solid var(--dt-accent-subtle);
+    color: var(--dt-text-secondary);
   }
 
   a {
-    color: #9dd6ff;
+    color: var(--dt-accent);
     text-decoration: underline;
     text-underline-offset: 0.16em;
   }
@@ -158,14 +154,14 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   th,
   td {
     padding: 0.45em 0.55em;
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    border: 1px solid var(--dt-border-subtle);
     text-align: left;
   }
 
   hr {
     margin: 0.9em 0;
     border: 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    border-top: 1px solid var(--dt-border-subtle);
   }
 }
 
@@ -174,55 +170,62 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   align-items: center;
   gap: 10px;
   padding: 14px 16px;
-  border-top: 1px solid $panel-border;
-  background: $panel-surface;
+  border-top: 1px solid var(--dt-border-subtle);
+  background: color-mix(in oklab, var(--dt-surface) 70%, transparent);
 }
 
 .input {
   flex: 1;
   padding: 10px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--dt-border);
   border-radius: 20px;
   outline: none;
-  background: $panel-surface-strong;
-  color: $panel-text;
+  background: color-mix(in oklab, var(--dt-bg) 90%, transparent);
+  color: var(--dt-text);
   font-family: inherit;
   font-size: 13px;
   transition:
     border-color 0.2s,
-    background 0.2s;
+    background 0.2s,
+    box-shadow 0.2s;
 
   &::placeholder {
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--dt-text-muted);
   }
 
   &:focus {
-    border-color: rgba(124, 111, 247, 0.8);
-    background: rgba(0, 0, 0, 0.4);
+    border-color: var(--dt-accent);
+    background: color-mix(in oklab, var(--dt-surface) 86%, transparent);
+    box-shadow: 0 0 0 3px var(--dt-accent-ghost);
   }
 }
 
 .sendButton {
   padding: 10px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid var(--dt-accent);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.15);
-  color: $panel-text;
+  background: var(--dt-accent);
+  color: var(--dt-text-on-accent);
   cursor: pointer;
-  backdrop-filter: blur(10px);
   font-family: inherit;
   font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  font-weight: 600;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 
   &:hover {
-    border-color: rgba(255, 255, 255, 0.4);
-    background: rgba(255, 255, 255, 0.25);
+    border-color: var(--dt-accent-hover);
+    background: var(--dt-accent-hover);
+    box-shadow: 0 10px 20px color-mix(in oklab, var(--dt-accent) 24%, transparent);
     transform: translateY(-1px);
   }
 
   &:active {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--dt-accent-active);
+    border-color: var(--dt-accent-active);
     transform: translateY(0);
   }
 }
@@ -232,9 +235,9 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  border-top: 1px solid $panel-border;
-  background: $panel-surface;
-  color: $panel-text-muted;
+  border-top: 1px solid var(--dt-border-subtle);
+  background: color-mix(in oklab, var(--dt-surface) 70%, transparent);
+  color: var(--dt-text-muted);
   font-size: 11px;
 }
 
@@ -244,7 +247,7 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   align-items: center;
   justify-content: center;
   padding: 20px;
-  color: $panel-text-muted;
+  color: var(--dt-text-muted);
   font-size: 13px;
   text-align: center;
 }
@@ -256,38 +259,45 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--dt-border);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.8);
+  background: color-mix(in oklab, var(--dt-surface) 78%, transparent);
+  color: var(--dt-text-secondary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
 
   &:hover {
-    border-color: rgba(255, 255, 255, 0.35);
-    background: rgba(255, 255, 255, 0.2);
+    border-color: var(--dt-accent);
+    background: var(--dt-accent-ghost);
+    color: var(--dt-accent);
   }
 }
 
 .voiceButtonActive {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: rgba(239, 68, 68, 0.5);
+  background: var(--dt-danger-subtle);
+  border-color: color-mix(in oklab, var(--dt-danger) 70%, var(--dt-border));
+  color: var(--dt-danger);
   animation: voicePulse 2s ease-in-out infinite;
 
   &:hover {
-    background: rgba(239, 68, 68, 0.3);
-    border-color: rgba(239, 68, 68, 0.6);
+    background: color-mix(in oklab, var(--dt-danger) 22%, transparent);
+    border-color: var(--dt-danger);
+    color: var(--dt-danger);
   }
 }
 
 @keyframes voicePulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--dt-danger) 22%, transparent);
   }
 
   50% {
-    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--dt-danger) 0%, transparent);
   }
 }
 
@@ -305,31 +315,31 @@ $voice-danger: rgba(239, 68, 68, 0.8);
 }
 
 .statusIdle {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--dt-text-muted);
 }
 
 .statusConnecting {
-  background: #f59e0b;
+  background: var(--dt-warning);
   animation: statusBlink 1s ease-in-out infinite;
 }
 
 .statusListening {
-  background: #22c55e;
+  background: var(--dt-success);
   animation: statusBlink 2s ease-in-out infinite;
 }
 
 .statusSpeaking {
-  background: #ef4444;
+  background: var(--dt-danger);
   animation: statusBlink 0.5s ease-in-out infinite;
 }
 
 .statusProcessing {
-  background: #3b82f6;
+  background: var(--dt-info);
   animation: statusBlink 1s ease-in-out infinite;
 }
 
 .statusError {
-  background: #ef4444;
+  background: var(--dt-danger);
 }
 
 @keyframes statusBlink {
@@ -339,63 +349,8 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   }
 
   50% {
-    opacity: 0.3;
+    opacity: 0.35;
   }
-}
-
-.transcriptSection {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.transcriptHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  color: $panel-text-muted;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-.clearButton {
-  padding: 2px 8px;
-  border: 0;
-  border-radius: 10px;
-  background: none;
-  color: rgba(255, 255, 255, 0.4);
-  cursor: pointer;
-  font-size: 11px;
-  transition: all 0.2s;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.7);
-  }
-}
-
-.transcriptEntry {
-  padding: 10px 14px;
-  border-left: 3px solid rgba(124, 111, 247, 0.5);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.transcriptText {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.transcriptMeta {
-  margin-top: 4px;
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 10px;
 }
 
 .partialTranscript {
@@ -403,10 +358,10 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border: 1px solid rgba(124, 111, 247, 0.2);
+  border: 1px solid color-mix(in oklab, var(--dt-accent) 35%, var(--dt-border));
   border-radius: 12px;
-  background: rgba(124, 111, 247, 0.1);
-  color: rgba(255, 255, 255, 0.7);
+  background: var(--dt-accent-ghost);
+  color: var(--dt-text-secondary);
   font-size: 13px;
   font-style: italic;
 }
@@ -417,17 +372,22 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   height: 8px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: #7c6ff7;
+  background: var(--dt-accent);
   animation: statusBlink 0.6s ease-in-out infinite;
 }
 
-.voiceListening {
+.voiceListening,
+.voiceSpeaking,
+.voiceProcessing {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
-  color: rgba(255, 255, 255, 0.4);
   font-size: 12px;
+}
+
+.voiceListening {
+  color: var(--dt-text-muted);
 }
 
 .listeningDot {
@@ -436,17 +396,12 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   height: 8px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: #22c55e;
+  background: var(--dt-success);
   animation: statusBlink 2s ease-in-out infinite;
 }
 
 .voiceSpeaking {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  color: $voice-danger;
-  font-size: 12px;
+  color: var(--dt-danger);
 }
 
 .speakingWave {
@@ -455,7 +410,7 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   height: 12px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: rgba(239, 68, 68, 0.6);
+  background: color-mix(in oklab, var(--dt-danger) 70%, transparent);
   animation: speakingPulse 0.8s ease-in-out infinite;
 }
 
@@ -473,17 +428,15 @@ $voice-danger: rgba(239, 68, 68, 0.8);
 }
 
 .voiceProcessing {
-  padding: 8px 14px;
-  color: rgba(59, 130, 246, 0.8);
-  font-size: 12px;
+  color: var(--dt-info);
 }
 
 .voiceError {
   padding: 10px 14px;
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  border: 1px solid color-mix(in oklab, var(--dt-danger) 40%, var(--dt-border));
   border-radius: 12px;
-  background: rgba(239, 68, 68, 0.1);
-  color: rgba(239, 68, 68, 0.9);
+  background: var(--dt-danger-subtle);
+  color: var(--dt-danger);
   font-size: 12px;
 }
 
@@ -499,7 +452,7 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--dt-text-muted);
   animation: thinkingBounce 1.4s ease-in-out infinite;
 
   &:nth-child(2) {
