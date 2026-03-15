@@ -13,68 +13,77 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--dt-border-subtle);
-  background: color-mix(in oklab, var(--dt-surface) 76%, transparent);
+  background: var(--dt-bg-subtle);
   color: var(--dt-text);
-  font-size: 13px;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .messages {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 10px;
   overflow-y: auto;
-  padding: 12px;
+  padding: 0;
 }
 
 .message {
-  max-width: 85%;
   padding: 12px 16px;
-  border: 1px solid var(--dt-border-subtle);
-  border-radius: 18px;
-  box-shadow: 0 10px 24px var(--dt-shadow-color);
+  font-family: var(--font-mono);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .messageUser {
   composes: message;
-  align-self: flex-end;
-  border-color: color-mix(in oklab, var(--dt-accent) 35%, var(--dt-border));
-  border-bottom-right-radius: 6px;
-  background: linear-gradient(135deg, var(--dt-accent) 0%, var(--dt-accent-hover) 100%);
-  color: var(--dt-text-on-accent);
+  background: color-mix(in oklab, var(--dt-accent) 8%, var(--dt-bg));
+  border-left: 3px solid var(--dt-accent);
 }
 
 .messageAssistant {
   composes: message;
-  align-self: flex-start;
-  border-bottom-left-radius: 6px;
-  background: color-mix(in oklab, var(--dt-surface) 82%, transparent);
-  color: var(--dt-text);
+  background: color-mix(in oklab, var(--dt-info) 6%, var(--dt-bg));
+  border-left: 3px solid var(--dt-info);
 }
 
-.messageMeta {
+.messageHeader {
   display: flex;
   align-items: center;
-  margin-bottom: 6px;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.messageSpeaker {
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+}
+
+.messageUser .messageSpeaker {
+  color: var(--dt-accent);
+}
+
+.messageAssistant .messageSpeaker {
+  color: var(--dt-info);
 }
 
 .voiceSourceBadge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--dt-text) 16%, transparent);
-  color: inherit;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--dt-surface);
+  color: var(--dt-text-muted);
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: lowercase;
+  font-family: var(--font-mono);
 }
 
 .markdownContent {
@@ -165,82 +174,6 @@
   }
 }
 
-.inputArea {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
-  border-top: 1px solid var(--dt-border-subtle);
-  background: color-mix(in oklab, var(--dt-surface) 70%, transparent);
-}
-
-.input {
-  flex: 1;
-  padding: 10px 16px;
-  border: 1px solid var(--dt-border);
-  border-radius: 20px;
-  outline: none;
-  background: color-mix(in oklab, var(--dt-bg) 90%, transparent);
-  color: var(--dt-text);
-  font-family: inherit;
-  font-size: 13px;
-  transition:
-    border-color 0.2s,
-    background 0.2s,
-    box-shadow 0.2s;
-
-  &::placeholder {
-    color: var(--dt-text-muted);
-  }
-
-  &:focus {
-    border-color: var(--dt-accent);
-    background: color-mix(in oklab, var(--dt-surface) 86%, transparent);
-    box-shadow: 0 0 0 3px var(--dt-accent-ghost);
-  }
-}
-
-.sendButton {
-  padding: 10px 20px;
-  border: 1px solid var(--dt-accent);
-  border-radius: 20px;
-  background: var(--dt-accent);
-  color: var(--dt-text-on-accent);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-
-  &:hover {
-    border-color: var(--dt-accent-hover);
-    background: var(--dt-accent-hover);
-    box-shadow: 0 10px 20px color-mix(in oklab, var(--dt-accent) 24%, transparent);
-    transform: translateY(-1px);
-  }
-
-  &:active {
-    background: var(--dt-accent-active);
-    border-color: var(--dt-accent-active);
-    transform: translateY(0);
-  }
-}
-
-.statusBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 16px;
-  border-top: 1px solid var(--dt-border-subtle);
-  background: color-mix(in oklab, var(--dt-surface) 70%, transparent);
-  color: var(--dt-text-muted);
-  font-size: 11px;
-}
-
 .placeholder {
   display: flex;
   flex: 1;
@@ -250,107 +183,6 @@
   color: var(--dt-text-muted);
   font-size: 13px;
   text-align: center;
-}
-
-.voiceButton {
-  display: flex;
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--dt-border);
-  border-radius: 50%;
-  background: color-mix(in oklab, var(--dt-surface) 78%, transparent);
-  color: var(--dt-text-secondary);
-  cursor: pointer;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease,
-    transform 0.2s ease;
-
-  &:hover {
-    border-color: var(--dt-accent);
-    background: var(--dt-accent-ghost);
-    color: var(--dt-accent);
-  }
-}
-
-.voiceButtonActive {
-  background: var(--dt-danger-subtle);
-  border-color: color-mix(in oklab, var(--dt-danger) 70%, var(--dt-border));
-  color: var(--dt-danger);
-  animation: voicePulse 2s ease-in-out infinite;
-
-  &:hover {
-    background: color-mix(in oklab, var(--dt-danger) 22%, transparent);
-    border-color: var(--dt-danger);
-    color: var(--dt-danger);
-  }
-}
-
-@keyframes voicePulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--dt-danger) 22%, transparent);
-  }
-
-  50% {
-    box-shadow: 0 0 0 6px color-mix(in oklab, var(--dt-danger) 0%, transparent);
-  }
-}
-
-.voiceStatus {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.statusDot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.statusIdle {
-  background: var(--dt-text-muted);
-}
-
-.statusConnecting {
-  background: var(--dt-warning);
-  animation: statusBlink 1s ease-in-out infinite;
-}
-
-.statusListening {
-  background: var(--dt-success);
-  animation: statusBlink 2s ease-in-out infinite;
-}
-
-.statusSpeaking {
-  background: var(--dt-danger);
-  animation: statusBlink 0.5s ease-in-out infinite;
-}
-
-.statusProcessing {
-  background: var(--dt-info);
-  animation: statusBlink 1s ease-in-out infinite;
-}
-
-.statusError {
-  background: var(--dt-danger);
-}
-
-@keyframes statusBlink {
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.35;
-  }
 }
 
 .partialTranscript {
