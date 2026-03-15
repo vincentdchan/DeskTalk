@@ -60,15 +60,15 @@ import { manifest, activate, deactivate } from '@desktalk/miniapp-note/backend';
 import { activate, deactivate } from '@desktalk/miniapp-note/frontend';
 ```
 
-If `package.json` includes a top-level `icon` field pointing to a PNG file, `desktalk-build` embeds that image into `dist/meta.json` and the core exposes it as `manifest.iconPng` for the Dock. Keep `manifest.icon` as a text fallback for cases where the packaged image is missing.
+If `package.json` includes a top-level `icon` field pointing to a PNG file, `desktalk-build` records that file in `dist/meta.json` and the core exposes it as `manifest.iconPng` through a backend-served URL for the Dock. Keep `manifest.icon` as a text fallback for cases where the packaged image is missing.
 
 ### Icon config
 
 - Put the Dock icon in a PNG file inside the MiniApp package, for example `./icons/miniapp-note-icon.png`.
 - Reference that file from the top-level `icon` field in `package.json`.
 - Keep `manifest.icon` in `src/backend.ts` as a fallback emoji or short text icon.
-- `desktalk-build` reads the PNG, converts it to a data URL, and writes it into `dist/meta.json`.
-- At runtime the core merges `dist/meta.json` into the discovered manifest, so the Dock prefers `manifest.iconPng` and falls back to `manifest.icon`.
+- `desktalk-build` reads the PNG path and writes that metadata into `dist/meta.json`.
+- At runtime the core serves the icon through its backend and merges the resulting URL into `manifest.iconPng`, so the Dock prefers `manifest.iconPng` and falls back to `manifest.icon`.
 
 ## Backend Entry (`backend.ts`)
 
@@ -205,7 +205,7 @@ export interface MiniAppManifest {
   name: string;
   /** Icon fallback (emoji/text) */
   icon: string;
-  /** Optional packaged PNG icon embedded by the build tool */
+  /** Optional packaged PNG icon served by the core as a URL */
   iconPng?: string;
   /** SemVer version */
   version: string;
@@ -399,7 +399,7 @@ Or in `package.json`:
 | ------------------ | ------------------- | ---------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `dist/backend.js`  | `src/backend.ts`    | Node.js (es2022) | ESM    | No bundling of `node_modules` -- external dependencies are resolved at runtime.                                                                                                                                                                   |
 | `dist/frontend.js` | `src/frontend.tsx`  | Browser (es2022) | ESM    | Bundled with all non-`@desktalk/sdk` imports inlined. React/ReactDOM imports are resolved to window globals provided by the core shell. Imported CSS is compiled and injected automatically from the JS bundle. `@desktalk/sdk` remains external. |
-| `dist/meta.json`   | `package.json#icon` | N/A              | JSON   | Optional build metadata. When `package.json.icon` points to a PNG, the file is embedded here as `iconPng` for the core Dock UI.                                                                                                                   |
+| `dist/meta.json`   | `package.json#icon` | N/A              | JSON   | Optional build metadata. When `package.json.icon` points to a PNG, the relative file path is recorded here so the core can serve it to the Dock UI.                                                                                               |
 
 Both outputs include TypeScript declaration files (`*.d.ts`) and source maps.
 

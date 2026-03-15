@@ -9,7 +9,7 @@ export interface MiniAppManifest {
   name: string;
   /** Icon fallback shown in the Dock when no packaged image is available */
   icon: string;
-  /** Optional packaged PNG icon bundled by desktalk-build as a data URL */
+  /** Optional packaged PNG icon served by the core as a URL */
   iconPng?: string;
   /** SemVer version */
   version: string;

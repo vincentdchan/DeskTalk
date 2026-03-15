@@ -23,7 +23,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, join, normalize } from 'node:path';
 
 const cwd = process.cwd();
 
@@ -42,7 +42,7 @@ interface PackageI18nManifest {
 }
 
 interface MiniAppBuildMetadata {
-  iconPng?: string;
+  iconFile?: string;
 }
 
 function sanitizeForDomId(value: string): string {
@@ -503,10 +503,8 @@ function emitI18nAssets(options: {
   }
 }
 
-function toDataUrl(filePath: string): string {
-  const extension = basename(filePath).split('.').pop()?.toLowerCase();
-  const mimeType = extension === 'png' ? 'image/png' : 'application/octet-stream';
-  return `data:${mimeType};base64,${readFileSync(filePath).toString('base64')}`;
+function normalizeIconPath(filePath: string): string {
+  return normalize(filePath).replace(/\\/g, '/');
 }
 
 function emitMiniAppMetadata(packageRoot: string, metadata: MiniAppBuildMetadata): void {
@@ -648,7 +646,10 @@ emitI18nAssets({
 });
 
 emitMiniAppMetadata(cwd, {
-  iconPng: packageIconPath && existsSync(packageIconPath) ? toDataUrl(packageIconPath) : undefined,
+  iconFile:
+    typeof packageJson.icon === 'string' && packageIconPath && existsSync(packageIconPath)
+      ? normalizeIconPath(packageJson.icon)
+      : undefined,
 });
 
 console.log('[desktalk-build] Generating type declarations...');

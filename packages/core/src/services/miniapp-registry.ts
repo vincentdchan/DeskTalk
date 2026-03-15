@@ -1,7 +1,7 @@
 import type { MiniAppManifest, MiniAppBackendActivation } from '@desktalk/sdk';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, normalize } from 'node:path';
 import type pino from 'pino';
 import { resolveMiniAppPaths } from './workspace';
 import { getStoredPreference } from './preferences';
@@ -25,10 +25,22 @@ export interface MiniAppEntry {
   packageRoot: string;
   /** Resolved import specifier the child process can use to load the module. */
   backendPath: string;
+  iconFilePath?: string;
 }
 
 interface MiniAppBuildMetadata {
-  iconPng?: string;
+  iconFile?: string;
+}
+
+function resolveMetadataIconPath(packageRoot: string, iconFile: string): string | undefined {
+  const normalized = normalize(iconFile);
+  const relative = normalized.replace(/\\/g, '/');
+  if (relative === '..' || relative.startsWith('../')) {
+    return undefined;
+  }
+
+  const resolved = join(packageRoot, normalized);
+  return existsSync(resolved) ? resolved : undefined;
 }
 
 function readMiniAppMetadata(packageRoot: string): MiniAppBuildMetadata {
@@ -61,13 +73,20 @@ class MiniAppRegistry {
       throw new Error(`MiniApp already registered: ${manifest.id}`);
     }
     const metadata = readMiniAppMetadata(packageRoot);
+    const iconFilePath =
+      typeof metadata.iconFile === 'string'
+        ? resolveMetadataIconPath(packageRoot, metadata.iconFile)
+        : undefined;
     this.entries.set(manifest.id, {
       manifest: {
         ...manifest,
-        ...(metadata.iconPng ? { iconPng: metadata.iconPng } : {}),
+        ...(iconFilePath
+          ? { iconPng: `/api/miniapps/${encodeURIComponent(manifest.id)}/icon` }
+          : {}),
       },
       packageRoot,
       backendPath,
+      iconFilePath,
     });
   }
 
