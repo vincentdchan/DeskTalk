@@ -95,6 +95,30 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
 
   openWindow(miniAppId: string, title: string): string {
     const state = get();
+    const existingWindow = state.windows
+      .filter((window) => window.miniAppId === miniAppId)
+      .reduce<
+        WindowState | undefined
+      >((topWindow, window) => (!topWindow || window.zIndex > topWindow.zIndex ? window : topWindow), undefined);
+
+    if (existingWindow) {
+      const updated = state.windows.map((window) => ({
+        ...window,
+        focused: window.id === existingWindow.id,
+        zIndex: window.id === existingWindow.id ? state.nextZIndex : window.zIndex,
+        minimized: window.id === existingWindow.id ? false : window.minimized,
+      }));
+
+      set({
+        windows: updated,
+        nextZIndex: state.nextZIndex + 1,
+        focusedWindowActions: state.windowActions[existingWindow.id] ?? [],
+      });
+
+      syncToBackend();
+      return existingWindow.id;
+    }
+
     const windowIdCounter = state.windowIdCounter + 1;
     const id = `win-${windowIdCounter}`;
     const offset = (state.windows.length % 10) * 30;
