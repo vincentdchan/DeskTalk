@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Streamdown } from 'streamdown';
 import 'streamdown/styles.css';
 import { useVoiceSession, type VoiceStatus } from '../stores/voice-session.js';
-import styles from '../styles/InfoPanel.module.css';
+import styles from '../styles/InfoPanel.module.scss';
 
 interface ChatMessage {
   id: string;

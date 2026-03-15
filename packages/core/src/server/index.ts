@@ -26,6 +26,7 @@ const __dirname = dirname(__filename);
 const corePackageRoot = join(__dirname, '..', '..');
 
 export interface ServerOptions {
+  dev: boolean;
   host: string;
   port: number;
   logger: pino.Logger;
@@ -120,13 +121,14 @@ export async function createServer(options: ServerOptions) {
   // Register WebSocket support
   await app.register(fastifyWebsocket);
 
-  // Serve the frontend build from dist/frontend/
-  const frontendDir = join(__dirname, '..', 'frontend');
-  await app.register(fastifyStatic, {
-    root: frontendDir,
-    prefix: '/',
-    wildcard: false,
-  });
+  if (!options.dev) {
+    const frontendDir = join(__dirname, '..', 'frontend');
+    await app.register(fastifyStatic, {
+      root: frontendDir,
+      prefix: '/',
+      wildcard: false,
+    });
+  }
 
   // WebSocket endpoint for MiniApp messaging and AI events
   app.get('/ws', { websocket: true }, (socket, _req) => {
@@ -506,12 +508,17 @@ export async function createServer(options: ServerOptions) {
     return { id, deactivated: true };
   });
 
-  // SPA fallback — serve index.html for all non-API, non-asset routes
   app.setNotFoundHandler(async (req, reply) => {
     if (req.url.startsWith('/api/') || req.url.startsWith('/ws')) {
       reply.code(404);
       return { error: 'Not found' };
     }
+
+    if (options.dev) {
+      reply.code(404);
+      return { error: 'Frontend is served by the Vite dev server in development mode.' };
+    }
+
     return reply.sendFile('index.html');
   });
 

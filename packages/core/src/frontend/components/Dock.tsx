@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from '../styles/Dock.module.css';
+import styles from '../styles/Dock.module.scss';
 
 export interface DockMiniApp {
   id: string;

@@ -4,7 +4,7 @@ import { createRoot, hydrateRoot } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
 import { I18nProvider, type LocaleMessages } from '@desktalk/sdk';
 import { Shell } from './components/Shell.js';
-import './styles/global.css';
+import './styles/global.scss';
 
 interface I18nCatalogResponse {
   locale: string;

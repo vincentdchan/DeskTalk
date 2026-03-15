@@ -42,9 +42,19 @@ program
     log.info('registering built-in MiniApps');
     await registerBuiltinMiniApps(rootLogger.child({ scope: 'registry' }));
 
-    log.info({ host, port }, 'starting DeskTalk server');
-    await createServer({ host, port, logger: rootLogger });
-    log.info({ url: `http://${host}:${port}` }, 'DeskTalk is running');
+    log.info({ host, port, dev }, 'starting DeskTalk server');
+    await createServer({ dev, host, port, logger: rootLogger });
+    if (dev) {
+      log.info(
+        {
+          apiUrl: `http://${host}:${port}`,
+          frontendUrl: 'http://localhost:5173',
+        },
+        'DeskTalk dev mode is running',
+      );
+    } else {
+      log.info({ url: `http://${host}:${port}` }, 'DeskTalk is running');
+    }
 
     // Graceful shutdown — kill all backend child processes
     async function shutdown() {

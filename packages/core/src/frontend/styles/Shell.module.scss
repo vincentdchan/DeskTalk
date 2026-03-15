@@ -5,11 +5,12 @@
   height: 100%;
   min-width: 0;
   min-height: 0;
-  background: var(--desktop-wallpaper) center/cover no-repeat;
+  background: var(--desktop-wallpaper) center / cover no-repeat;
 }
 
 .actionsBar {
   flex: 0 0 var(--actions-bar-height);
+  min-height: 42px;
 }
 
 .content {
@@ -33,6 +34,7 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  border-radius: 0 0 0 var(--border-radius);
 }
 
 .dock {

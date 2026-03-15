@@ -1,6 +1,6 @@
 import React from 'react';
 import { useWindowManager } from '../stores/window-manager.js';
-import styles from '../styles/ActionsBar.module.css';
+import styles from '../styles/ActionsBar.module.scss';
 
 export function ActionsBar() {
   const focusedWindow = useWindowManager((s) => s.windows.find((w) => w.focused));

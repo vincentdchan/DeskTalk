@@ -1,19 +1,19 @@
 .actionsBar {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 0 12px;
-  background: var(--color-top-bar-bg);
-  font-size: 13px;
+  gap: 6px;
   height: 100%;
+  padding: 0 12px;
   overflow-x: auto;
+  background: var(--desktop-window-bg);
   color: var(--color-top-bar-text);
+  font-size: 13px;
 }
 
 .appName {
-  font-weight: 600;
-  color: var(--color-top-bar-text);
   margin-right: 12px;
+  color: var(--color-top-bar-text);
+  font-weight: 600;
   white-space: nowrap;
   text-shadow: var(--color-top-bar-text-shadow);
 }
@@ -21,32 +21,32 @@
 .separator {
   width: 1px;
   height: 16px;
-  background: rgba(255, 255, 255, 0.3);
   margin: 0 6px;
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .action {
   padding: 4px 10px;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
   background: transparent;
   color: var(--color-top-bar-text);
   cursor: pointer;
-  border-radius: 4px;
-  white-space: nowrap;
-  font-size: 12px;
   font-family: inherit;
+  font-size: 12px;
   text-shadow: var(--color-top-bar-text-shadow);
-}
+  white-space: nowrap;
 
-.action:hover {
-  background: rgba(255, 255, 255, 0.15);
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
 }
 
 .builtinAction {
   composes: action;
   opacity: 0.9;
-}
 
-.builtinAction:hover {
-  opacity: 1;
+  &:hover {
+    opacity: 1;
+  }
 }
