@@ -14,6 +14,23 @@ interface DockProps {
   onLaunch: (miniAppId: string) => void;
 }
 
+interface DockIconProps {
+  icon: string;
+  iconPng?: string;
+}
+
+function DockIcon({ icon, iconPng }: DockIconProps) {
+  return (
+    <div className={styles.dockIcon}>
+      {iconPng ? (
+        <img className={styles.dockIconImage} src={iconPng} alt="" aria-hidden="true" />
+      ) : (
+        <span>{icon}</span>
+      )}
+    </div>
+  );
+}
+
 export function Dock({ miniApps, onLaunch }: DockProps) {
   return (
     <div className={styles.dockContainer}>
@@ -23,15 +40,9 @@ export function Dock({ miniApps, onLaunch }: DockProps) {
             key={app.id}
             className={styles.dockItem}
             onClick={() => onLaunch(app.id)}
-            title={app.name}
+            aria-label={app.name}
           >
-            <div className={styles.dockIcon}>
-              {app.iconPng ? (
-                <img className={styles.dockIconImage} src={app.iconPng} alt="" aria-hidden="true" />
-              ) : (
-                <span>{app.icon}</span>
-              )}
-            </div>
+            <DockIcon icon={app.icon} iconPng={app.iconPng} />
             <span className={styles.dockLabel}>{app.name}</span>
             {app.hasOpenWindows && <div className={styles.activeIndicator} />}
           </button>
