@@ -1,6 +1,7 @@
 import React from 'react';
 import styles from './Dock.module.scss';
 import { DockIcon } from './DockIcon';
+import { Tooltip } from './Tooltip';
 
 export interface DockMiniApp {
   id: string;
@@ -26,12 +27,13 @@ export function Dock({ miniApps, onLaunch }: DockProps) {
             onClick={() => onLaunch(app.id)}
             aria-label={app.name}
           >
-            <DockIcon
-              icon={app.icon}
-              iconPng={app.iconPng}
-              className={styles.dockIconHoverTarget}
-            />
-            <span className={styles.dockLabel}>{app.name}</span>
+            <Tooltip content={app.name}>
+              <DockIcon
+                icon={app.icon}
+                iconPng={app.iconPng}
+                className={styles.dockIconHoverTarget}
+              />
+            </Tooltip>
             {app.hasOpenWindows && <div className={styles.activeIndicator} />}
           </button>
         ))}
