@@ -10,7 +10,7 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 6px 12px;
+  padding: 6px 12px 6px 12px;
   border: 1px solid var(--dt-glass-border);
   border-radius: 8px 8px 0 0;
   background: var(--dt-dock-bg);
@@ -28,9 +28,8 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
+  padding: 4px 8px 12px 8px;
   border: 0;
-  border-radius: 12px;
   background: transparent;
   color: var(--dt-text);
   cursor: pointer;
@@ -41,9 +40,6 @@
     transform: translateY(-2px);
 
     .dockIcon {
-      box-shadow:
-        0 10px 20px var(--dt-shadow-color),
-        0 1px 0 var(--dt-glass-highlight) inset;
       transform: translateY(-1px) scale(1.14);
     }
 
@@ -60,10 +56,6 @@
   height: 48px;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--dt-border-subtle);
-  border-radius: var(--border-radius);
-  background: color-mix(in oklab, var(--dt-surface) 82%, transparent);
-  box-shadow: 0 4px 12px color-mix(in oklab, var(--dt-shadow-color) 65%, transparent);
   font-size: 20px;
   transition:
     box-shadow 0.2s ease,
@@ -101,7 +93,7 @@
 
 .activeIndicator {
   position: absolute;
-  bottom: 6px;
+  bottom: 4px;
   width: 4px;
   height: 4px;
   border-radius: 50%;
