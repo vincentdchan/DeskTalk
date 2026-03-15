@@ -26,7 +26,11 @@ export function Dock({ miniApps, onLaunch }: DockProps) {
             onClick={() => onLaunch(app.id)}
             aria-label={app.name}
           >
-            <DockIcon icon={app.icon} iconPng={app.iconPng} />
+            <DockIcon
+              icon={app.icon}
+              iconPng={app.iconPng}
+              className={styles.dockIconHoverTarget}
+            />
             <span className={styles.dockLabel}>{app.name}</span>
             {app.hasOpenWindows && <div className={styles.activeIndicator} />}
           </button>
