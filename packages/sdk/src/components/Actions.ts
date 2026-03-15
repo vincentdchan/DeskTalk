@@ -6,7 +6,7 @@ import React, {
   useRef,
   type ReactNode,
 } from 'react';
-import type { ActionDefinition, ActionHandler } from '../types/actions.js';
+import type { ActionDefinition, ActionHandler } from '../types/actions';
 
 /**
  * Context used by ActionsProvider to collect actions from child <Action> components.

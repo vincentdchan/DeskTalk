@@ -9,7 +9,7 @@ import type {
   CommandResponseMessage,
   EventBroadcastMessage,
   ChildErrorMessage,
-} from './backend-ipc.js';
+} from './backend-ipc';
 
 describe('backend-ipc types', () => {
   it('should define an ActivateMessage shape', () => {
@@ -103,11 +103,7 @@ describe('backend-ipc types', () => {
       { type: 'deactivate' },
     ];
     expect(messages).toHaveLength(3);
-    expect(messages.map((m) => m.type)).toEqual([
-      'activate',
-      'command:invoke',
-      'deactivate',
-    ]);
+    expect(messages.map((m) => m.type)).toEqual(['activate', 'command:invoke', 'deactivate']);
   });
 
   it('ChildToMainMessage union covers ready, command:response, event, and error', () => {
@@ -118,11 +114,6 @@ describe('backend-ipc types', () => {
       { type: 'error', message: 'oops' },
     ];
     expect(messages).toHaveLength(4);
-    expect(messages.map((m) => m.type)).toEqual([
-      'ready',
-      'command:response',
-      'event',
-      'error',
-    ]);
+    expect(messages.map((m) => m.type)).toEqual(['ready', 'command:response', 'event', 'error']);
   });
 });

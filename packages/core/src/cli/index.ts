@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { initWorkspace } from '../services/workspace.js';
-import { registerBuiltinMiniApps } from '../services/miniapp-registry.js';
-import { createServer } from '../server/index.js';
-import { processManager } from '../services/backend-process-manager.js';
-import { createRootLogger, getLoggerConfig } from '../services/logger.js';
+import { initWorkspace } from '../services/workspace';
+import { registerBuiltinMiniApps } from '../services/miniapp-registry';
+import { createServer } from '../server/index';
+import { processManager } from '../services/backend-process-manager';
+import { createRootLogger, getLoggerConfig } from '../services/logger';
 
 const program = new Command();
 
@@ -74,7 +74,7 @@ program
     initWorkspace();
     await registerBuiltinMiniApps();
 
-    const { registry } = await import('../services/miniapp-registry.js');
+    const { registry } = await import('../services/miniapp-registry');
     const manifests = registry.getManifests();
 
     if (manifests.length === 0) {

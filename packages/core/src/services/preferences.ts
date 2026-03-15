@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { getWorkspacePaths } from './workspace.js';
+import { getWorkspacePaths } from './workspace';
 
 type PreferenceValue = string | number | boolean;
 

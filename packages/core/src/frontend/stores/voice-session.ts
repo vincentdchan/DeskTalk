@@ -9,8 +9,8 @@
  */
 
 import { create } from 'zustand';
-import { MicCapture } from '../voice/mic-capture.js';
-import { VoiceWebSocketClient, type VoiceServerEvent } from '../voice/voice-ws.js';
+import { MicCapture } from '../voice/mic-capture';
+import { VoiceWebSocketClient, type VoiceServerEvent } from '../voice/voice-ws';
 
 export type VoiceStatus = 'idle' | 'connecting' | 'listening' | 'speaking' | 'processing' | 'error';
 

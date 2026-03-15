@@ -8,11 +8,11 @@
  */
 
 import type { MiniAppContext, MessagingHook, Disposable } from '@desktalk/sdk';
-import type { MainToChildMessage, ChildToMainMessage, ActivateMessage } from './backend-ipc.js';
-import { createStorageHook } from './storage.js';
-import { createFileSystemHook } from './filesystem.js';
-import { createChildLogger } from './logger.js';
-import { createPackageLocalizer } from './i18n.js';
+import type { MainToChildMessage, ChildToMainMessage, ActivateMessage } from './backend-ipc';
+import { createStorageHook } from './storage';
+import { createFileSystemHook } from './filesystem';
+import { createChildLogger } from './logger';
+import { createPackageLocalizer } from './i18n';
 
 // ─── Per-process state ──────────────────────────────────────────────────────
 

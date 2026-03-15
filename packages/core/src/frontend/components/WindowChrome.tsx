@@ -1,7 +1,7 @@
 import React, { useCallback, useRef } from 'react';
 import type { WindowState } from '@desktalk/sdk';
-import { useWindowManager } from '../stores/window-manager.js';
-import styles from '../styles/Window.module.scss';
+import { useWindowManager } from '../stores/window-manager';
+import styles from './WindowChrome.module.scss';
 
 const MIN_WINDOW_WIDTH = 300;
 const MIN_WINDOW_HEIGHT = 200;

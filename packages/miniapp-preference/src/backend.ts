@@ -1,6 +1,6 @@
 import type { MiniAppManifest, MiniAppContext, MiniAppBackendActivation } from '@desktalk/sdk';
-import type { Config } from './schema.js';
-import { PREFERENCE_SCHEMAS, getDefaultConfig, getSchema, maskSensitive } from './schema.js';
+import type { Config } from './schema';
+import { PREFERENCE_SCHEMAS, getDefaultConfig, getSchema, maskSensitive } from './schema';
 
 // ─── Manifest ────────────────────────────────────────────────────────────────
 

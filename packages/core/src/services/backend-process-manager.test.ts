@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventEmitter } from 'node:events';
-import type { ChildToMainMessage } from './backend-ipc.js';
+import type { ChildToMainMessage } from './backend-ipc';
 
 // We test the BackendProcessManager by mocking child_process.fork.
 // The mock returns an EventEmitter that simulates a child process.
@@ -21,7 +21,7 @@ function createMockChild() {
 
 // We'll dynamically import the module after mocking
 let processManager: Awaited<
-  typeof import('./backend-process-manager.js')
+  typeof import('./backend-process-manager')
 >['processManager'];
 
 let mockChild: ReturnType<typeof createMockChild>;
@@ -43,7 +43,7 @@ beforeEach(async () => {
   vi.clearAllMocks();
   // Re-import to get a fresh singleton (the map inside is stateful)
   // Note: we can't fully reset the singleton across tests without re-importing
-  const mod = await import('./backend-process-manager.js');
+  const mod = await import('./backend-process-manager');
   processManager = mod.processManager;
 });
 

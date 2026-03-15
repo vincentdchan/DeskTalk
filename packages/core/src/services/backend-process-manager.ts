@@ -15,9 +15,9 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import type { MiniAppPaths } from '@desktalk/sdk';
 import type pino from 'pino';
-import type { MainToChildMessage, ChildToMainMessage } from './backend-ipc.js';
-import type { LoggerConfig } from './logger.js';
-import { broadcastEvent } from './messaging.js';
+import type { MainToChildMessage, ChildToMainMessage } from './backend-ipc';
+import type { LoggerConfig } from './logger';
+import { broadcastEvent } from './messaging';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

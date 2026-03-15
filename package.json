@@ -19,6 +19,7 @@
     "eslint": "^9.0.0",
     "eslint-plugin-unused-imports": "^4.4.1",
     "prettier": "^3.4.0",
+    "tsc-alias": "^1.8.16",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.0.0"
   },

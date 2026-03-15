@@ -2,9 +2,9 @@ import type { MiniAppManifest, MiniAppBackendActivation } from '@desktalk/sdk';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import type pino from 'pino';
-import { resolveMiniAppPaths } from './workspace.js';
-import { getStoredPreference } from './preferences.js';
-import { processManager } from './backend-process-manager.js';
+import { resolveMiniAppPaths } from './workspace';
+import { getStoredPreference } from './preferences';
+import { processManager } from './backend-process-manager';
 
 /**
  * MiniApp backend module — what a MiniApp's backend entry exports.

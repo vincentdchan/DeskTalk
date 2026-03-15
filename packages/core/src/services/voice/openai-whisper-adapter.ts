@@ -6,8 +6,8 @@
  * Whisper requires a file-like format.
  */
 
-import type { SttAdapter, SttTranscript } from './stt-adapter.js';
-import { createWavBuffer } from './audio-format.js';
+import type { SttAdapter, SttTranscript } from './stt-adapter';
+import { createWavBuffer } from './audio-format';
 
 export class OpenAIWhisperAdapter implements SttAdapter {
   readonly name = 'openai-whisper';

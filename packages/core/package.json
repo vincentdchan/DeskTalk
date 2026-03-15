@@ -14,8 +14,8 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && vite build",
-    "build:server": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json --resolve-full-paths --resolve-full-extension .js && vite build",
+    "build:server": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json --resolve-full-paths --resolve-full-extension .js",
     "build:frontend": "vite build",
     "start": "node dist/cli/index.js start",
     "dev": "pnpm run build:server && pnpm run --parallel \"/dev:/\"",

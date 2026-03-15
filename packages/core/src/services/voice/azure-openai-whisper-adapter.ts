@@ -5,8 +5,8 @@
  * routing and api-key authentication.
  */
 
-import type { SttAdapter, SttTranscript } from './stt-adapter.js';
-import { createWavBuffer } from './audio-format.js';
+import type { SttAdapter, SttTranscript } from './stt-adapter';
+import { createWavBuffer } from './audio-format';
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');

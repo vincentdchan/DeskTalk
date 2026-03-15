@@ -2,7 +2,7 @@ import { StringEnum } from '@mariozechner/pi-ai';
 import type { ToolDefinition } from '@mariozechner/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
 import type { MiniAppManifest } from '@desktalk/sdk';
-import type { WindowManagerService } from '../window-manager.js';
+import type { WindowManagerService } from '../window-manager';
 
 const windowControlSchema = Type.Object({
   action: StringEnum(['list', 'focus', 'minimize', 'maximize', 'close', 'open', 'invoke_action']),
