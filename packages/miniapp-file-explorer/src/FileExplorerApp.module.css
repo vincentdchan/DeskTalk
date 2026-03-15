@@ -1,0 +1,393 @@
+.root {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--dt-window-body);
+  color: var(--dt-text);
+  font-family: var(--font-sans);
+}
+
+/* ─── Navigation Bar ──────────────────────────────────────────────────────── */
+
+.navBar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--dt-border);
+}
+
+.navBtn {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+  background: var(--dt-surface);
+  color: var(--dt-text);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.navBtn:hover:not(:disabled) {
+  border-color: var(--dt-accent);
+  background: var(--dt-surface-hover);
+  color: var(--dt-accent);
+}
+
+.navBtn:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.breadcrumb {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.breadcrumbSegment {
+  padding: 2px 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--dt-text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  transition:
+    background 0.1s,
+    color 0.1s;
+  white-space: nowrap;
+}
+
+.breadcrumbSegment:hover {
+  background: var(--dt-surface-hover);
+  color: var(--dt-text);
+}
+
+.breadcrumbSegmentActive {
+  composes: breadcrumbSegment;
+  color: var(--dt-text);
+  font-weight: 500;
+}
+
+.breadcrumbSeparator {
+  color: var(--dt-text-muted);
+  font-size: 11px;
+  opacity: 0.5;
+}
+
+/* ─── Main Content ────────────────────────────────────────────────────────── */
+
+.body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ─── File List ───────────────────────────────────────────────────────────── */
+
+.fileListPanel {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fileTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.fileTableHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--dt-window-body);
+}
+
+.fileTableHead th {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--dt-border);
+  color: var(--dt-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-align: left;
+  text-transform: uppercase;
+  transition: color 0.15s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.fileTableHead th:hover {
+  color: var(--dt-text);
+}
+
+.sortIndicator {
+  margin-left: 4px;
+  font-size: 10px;
+}
+
+.colName {
+  width: auto;
+}
+
+.colSize {
+  width: 90px;
+}
+
+.colModified {
+  width: 110px;
+}
+
+.fileTableBody {
+  overflow-y: auto;
+}
+
+.fileRow {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.fileRow:hover {
+  background: var(--dt-surface-hover);
+}
+
+.fileRowSelected {
+  composes: fileRow;
+  background: var(--dt-surface);
+}
+
+.fileRow td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--dt-border);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fileIcon {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.fileNameText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileSize {
+  color: var(--dt-text-muted);
+  font-size: 12px;
+}
+
+.fileModified {
+  color: var(--dt-text-muted);
+  font-size: 12px;
+}
+
+.fileListScroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.emptyState {
+  padding: 48px 16px;
+  color: var(--dt-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ─── File Preview ────────────────────────────────────────────────────────── */
+
+.previewPanel {
+  display: flex;
+  width: 360px;
+  min-width: 280px;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid var(--dt-border);
+}
+
+.previewHeader {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--dt-border);
+}
+
+.previewTitle {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.previewCloseBtn {
+  display: flex;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--dt-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.previewCloseBtn:hover {
+  background: var(--dt-surface-hover);
+  color: var(--dt-text);
+}
+
+.previewBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+.previewCode {
+  overflow-x: auto;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--dt-text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.previewImage {
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+.previewMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.previewMetaRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.previewMetaLabel {
+  color: var(--dt-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.previewMetaValue {
+  font-size: 13px;
+}
+
+.previewPlaceholder {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: var(--dt-text-muted);
+  font-size: 13px;
+}
+
+/* ─── Context Menu ────────────────────────────────────────────────────────── */
+
+.contextMenu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 160px;
+  padding: 4px 0;
+  border: 1px solid var(--dt-border);
+  border-radius: 8px;
+  background: var(--dt-surface);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.contextMenuItem {
+  display: block;
+  width: 100%;
+  padding: 7px 14px;
+  border: none;
+  background: none;
+  color: var(--dt-text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.contextMenuItem:hover {
+  background: var(--dt-surface-hover);
+}
+
+.contextMenuSeparator {
+  margin: 4px 0;
+  border: none;
+  border-top: 1px solid var(--dt-border);
+}
+
+.contextMenuDanger {
+  composes: contextMenuItem;
+  color: var(--dt-danger, #e55);
+}
+
+/* ─── Inline Rename Input ─────────────────────────────────────────────────── */
+
+.renameInput {
+  width: 100%;
+  padding: 2px 6px;
+  border: 1px solid var(--dt-accent);
+  border-radius: 4px;
+  background: var(--dt-surface);
+  color: var(--dt-text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}

@@ -1,3 +1,12 @@
+/**
+ * DeskTalk Color System
+ *
+ * @see docs/color-system.md
+ *
+ * This file implements the OKLCH-based dynamic color system.
+ * The default accent is purple (#7c6ff7 → OKLCH(0.623 0.234 286)).
+ */
+
 :root {
   --dt-accent-h: 286;
   --dt-accent-c: 0.234;
