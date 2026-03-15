@@ -47,6 +47,9 @@ importers:
       '@desktalk/miniapp-preference':
         specifier: workspace:*
         version: link:../miniapp-preference
+      '@desktalk/miniapp-preview':
+        specifier: workspace:*
+        version: link:../miniapp-preview
       '@desktalk/miniapp-todo':
         specifier: workspace:*
         version: link:../miniapp-todo
@@ -187,6 +190,28 @@ importers:
         version: 5.9.3
 
   packages/miniapp-preference:
+    dependencies:
+      '@desktalk/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      react:
+        specifier: ^19.0.0
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.4(react@19.2.4)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.3(@types/react@19.2.14)
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
+  packages/miniapp-preview:
     dependencies:
       '@desktalk/sdk':
         specifier: workspace:*

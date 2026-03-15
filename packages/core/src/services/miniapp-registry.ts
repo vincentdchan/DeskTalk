@@ -160,6 +160,7 @@ export async function registerBuiltinMiniApps(logger?: pino.Logger): Promise<voi
     '@desktalk/miniapp-todo/backend',
     '@desktalk/miniapp-file-explorer/backend',
     '@desktalk/miniapp-preference/backend',
+    '@desktalk/miniapp-preview/backend',
   ];
 
   for (const specifier of builtins) {

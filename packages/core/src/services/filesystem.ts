@@ -35,6 +35,11 @@ export function createFileSystemHook(rootDir: string): FileSystemHook {
       return readFileSync(abs, 'utf-8');
     },
 
+    async readFileBase64(path: string): Promise<string> {
+      const abs = safePath(path);
+      return readFileSync(abs).toString('base64');
+    },
+
     async writeFile(path: string, content: string): Promise<void> {
       const abs = safePath(path);
       // Ensure parent directory exists
