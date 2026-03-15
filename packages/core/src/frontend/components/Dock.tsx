@@ -1,10 +1,12 @@
 import React from 'react';
 import styles from './Dock.module.scss';
+import { DockIcon } from './DockIcon';
 
 export interface DockMiniApp {
   id: string;
   name: string;
-  icon: string | React.ComponentType;
+  icon: string;
+  iconPng?: string;
   hasOpenWindows: boolean;
 }
 
@@ -22,15 +24,13 @@ export function Dock({ miniApps, onLaunch }: DockProps) {
             key={app.id}
             className={styles.dockItem}
             onClick={() => onLaunch(app.id)}
-            title={app.name}
+            aria-label={app.name}
           >
-            <div className={styles.dockIcon}>
-              {typeof app.icon === 'string' ? (
-                <span>{app.icon}</span>
-              ) : (
-                React.createElement(app.icon)
-              )}
-            </div>
+            <DockIcon
+              icon={app.icon}
+              iconPng={app.iconPng}
+              className={styles.dockIconHoverTarget}
+            />
             <span className={styles.dockLabel}>{app.name}</span>
             {app.hasOpenWindows && <div className={styles.activeIndicator} />}
           </button>

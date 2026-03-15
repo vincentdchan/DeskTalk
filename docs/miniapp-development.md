@@ -13,6 +13,8 @@ miniapp-note/
   src/
     backend.ts          # Backend entry — exports manifest, activate(), deactivate()
     frontend.tsx        # Frontend entry — exports activate(), deactivate() hooks
+  icons/
+    miniapp-note-icon.png
     components/         # React components (imported by frontend.tsx)
     ...
   package.json
@@ -26,6 +28,7 @@ miniapp-note/
   "name": "@desktalk/miniapp-note",
   "version": "0.1.0",
   "type": "module",
+  "icon": "./icons/miniapp-note-icon.png",
   "exports": {
     "./backend": {
       "types": "./dist/backend.d.ts",
@@ -56,6 +59,16 @@ import { manifest, activate, deactivate } from '@desktalk/miniapp-note/backend';
 // Frontend bundle — imports only the frontend entry
 import { activate, deactivate } from '@desktalk/miniapp-note/frontend';
 ```
+
+If `package.json` includes a top-level `icon` field pointing to a PNG file, `desktalk-build` records that file in `dist/meta.json` and the core exposes it as `manifest.iconPng` through a backend-served URL for the Dock. Keep `manifest.icon` as a text fallback for cases where the packaged image is missing.
+
+### Icon config
+
+- Put the Dock icon in a PNG file inside the MiniApp package, for example `./icons/miniapp-note-icon.png`.
+- Reference that file from the top-level `icon` field in `package.json`.
+- Keep `manifest.icon` in `src/backend.ts` as a fallback emoji or short text icon.
+- `desktalk-build` reads the PNG path and writes that metadata into `dist/meta.json`.
+- At runtime the core serves the icon through its backend and merges the resulting URL into `manifest.iconPng`, so the Dock prefers `manifest.iconPng` and falls back to `manifest.icon`.
 
 ## Backend Entry (`backend.ts`)
 
@@ -116,7 +129,13 @@ React is the recommended framework, but MiniApps can use any framework. The core
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { MiniAppFrontendContext } from '@desktalk/sdk';
-import { useCommand, ActionsProvider, Action, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
+import {
+  useCommand,
+  ActionsProvider,
+  Action,
+  MiniAppIdProvider,
+  WindowIdProvider,
+} from '@desktalk/sdk';
 
 interface Note {
   id: string;
@@ -184,8 +203,10 @@ export interface MiniAppManifest {
   id: string;
   /** Display name shown in the Dock */
   name: string;
-  /** Icon (emoji string or path) */
+  /** Icon fallback (emoji/text) */
   icon: string;
+  /** Optional packaged PNG icon served by the core as a URL */
+  iconPng?: string;
   /** SemVer version */
   version: string;
   /** Optional human-readable description */
@@ -221,13 +242,13 @@ export interface MiniAppFrontendContext {
 
 ## Lifecycle
 
-| Phase            | Trigger                                    | What happens                                                                                                                                                                                                            |
-| ---------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Discovery**    | `desktalk start`                           | Core scans installed packages and reads each `manifest` export from the backend entry. Icons appear in the Dock.                                                                                                        |
-| **Activation**   | User opens the MiniApp (or AI triggers it) | Core calls the backend entry's `activate(ctx)` to set up command handlers, then loads the frontend entry and calls its `activate(ctx)` with a root DOM element to mount into.                                           |
-| **Running**      | User/AI interacts                          | Frontend uses SDK hooks (`useCommand`, `useEvent`) to communicate with backend handlers.                                                                                                                                |
-| **Deactivation** | All windows of the MiniApp are closed      | Core calls the frontend entry's `deactivate()` to unmount the UI, then calls the backend entry's `deactivate()`. Resources are released.                                                                               |
-| **Uninstall**    | `desktalk uninstall <name>`                | Core calls `deactivate()` if active, then removes the package.                                                                                                                                                          |
+| Phase            | Trigger                                    | What happens                                                                                                                                                                  |
+| ---------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Discovery**    | `desktalk start`                           | Core scans installed packages and reads each `manifest` export from the backend entry. Icons appear in the Dock.                                                              |
+| **Activation**   | User opens the MiniApp (or AI triggers it) | Core calls the backend entry's `activate(ctx)` to set up command handlers, then loads the frontend entry and calls its `activate(ctx)` with a root DOM element to mount into. |
+| **Running**      | User/AI interacts                          | Frontend uses SDK hooks (`useCommand`, `useEvent`) to communicate with backend handlers.                                                                                      |
+| **Deactivation** | All windows of the MiniApp are closed      | Core calls the frontend entry's `deactivate()` to unmount the UI, then calls the backend entry's `deactivate()`. Resources are released.                                      |
+| **Uninstall**    | `desktalk uninstall <name>`                | Core calls `deactivate()` if active, then removes the package.                                                                                                                |
 
 ## Communication Hooks (MiniAppContext)
 
@@ -372,12 +393,13 @@ Or in `package.json`:
 
 ### What it does
 
-`desktalk-build` performs two builds from the MiniApp's package root:
+`desktalk-build` performs two code builds from the MiniApp's package root and also emits MiniApp metadata:
 
-| Output             | Source             | Target           | Format | Notes                                                                                                                                                                                                                                            |
-| ------------------ | ------------------ | ---------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dist/backend.js`  | `src/backend.ts`   | Node.js (es2022) | ESM    | No bundling of `node_modules` -- external dependencies are resolved at runtime.                                                                                                                                                                  |
-| `dist/frontend.js` | `src/frontend.tsx` | Browser (es2022) | ESM    | Bundled with all non-`@desktalk/sdk` imports inlined. React/ReactDOM imports are resolved to window globals provided by the core shell. Imported CSS is compiled and injected automatically from the JS bundle. `@desktalk/sdk` remains external. |
+| Output             | Source              | Target           | Format | Notes                                                                                                                                                                                                                                             |
+| ------------------ | ------------------- | ---------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/backend.js`  | `src/backend.ts`    | Node.js (es2022) | ESM    | No bundling of `node_modules` -- external dependencies are resolved at runtime.                                                                                                                                                                   |
+| `dist/frontend.js` | `src/frontend.tsx`  | Browser (es2022) | ESM    | Bundled with all non-`@desktalk/sdk` imports inlined. React/ReactDOM imports are resolved to window globals provided by the core shell. Imported CSS is compiled and injected automatically from the JS bundle. `@desktalk/sdk` remains external. |
+| `dist/meta.json`   | `package.json#icon` | N/A              | JSON   | Optional build metadata. When `package.json.icon` points to a PNG, the relative file path is recorded here so the core can serve it to the Dock UI.                                                                                               |
 
 Both outputs include TypeScript declaration files (`*.d.ts`) and source maps.
 
@@ -385,6 +407,7 @@ Both outputs include TypeScript declaration files (`*.d.ts`) and source maps.
 
 - Backend source must be at `src/backend.ts` (or `.js`, `.mjs`).
 - Frontend source must be at `src/frontend.tsx` (or `.ts`, `.jsx`, `.js`).
+- Dock PNG icons are declared with the top-level `icon` field in `package.json`.
 - CSS Modules (`*.module.css`) are supported in frontend builds and auto-injected into `dist/frontend.js`.
 - The tool reads `tsconfig.build.json` if present, otherwise uses sensible defaults.
 

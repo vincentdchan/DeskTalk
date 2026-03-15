@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import fastifyWebsocket from '@fastify/websocket';
 import fastifyStatic from '@fastify/static';
+import { createReadStream } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
@@ -469,6 +470,17 @@ export async function createServer(options: ServerOptions) {
   // REST API: Get all registered MiniApp manifests (for initial Dock load)
   app.get('/api/miniapps', async () => {
     return registry.getManifests();
+  });
+
+  app.get<{ Params: { id: string } }>('/api/miniapps/:id/icon', async (req, reply) => {
+    const entry = registry.getEntry(req.params.id);
+    if (!entry?.iconFilePath) {
+      reply.code(404);
+      return { error: 'MiniApp icon not found' };
+    }
+
+    reply.type('image/png');
+    return reply.send(createReadStream(entry.iconFilePath));
   });
 
   app.get('/api/preferences/public', async () => {

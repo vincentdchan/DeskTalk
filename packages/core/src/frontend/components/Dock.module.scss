@@ -10,7 +10,7 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 6px 12px;
+  padding: 6px 12px 6px 12px;
   border: 1px solid var(--dt-glass-border);
   border-radius: 8px 8px 0 0;
   background: var(--dt-dock-bg);
@@ -28,64 +28,42 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
+  padding: 4px 8px 12px 8px;
   border: 0;
-  border-radius: 12px;
   background: transparent;
   color: var(--dt-text);
   cursor: pointer;
   font-family: inherit;
-  transition:
-    background 0.2s ease,
-    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 
   &:hover {
-    background: var(--dt-accent-ghost);
     transform: translateY(-2px);
 
-    .dockIcon {
-      box-shadow:
-        0 10px 20px var(--dt-shadow-color),
-        0 1px 0 var(--dt-glass-highlight) inset;
-      transform: translateY(-1px);
+    .dockIconHoverTarget {
+      transform: translateY(-1px) scale(1.14);
     }
 
     .dockLabel {
       opacity: 1;
-      transform: translateY(0);
+      transform: translate(-50%, 0);
     }
   }
 }
 
-.dockIcon {
-  display: flex;
-  width: 48px;
-  height: 48px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--dt-border-subtle);
-  border-radius: var(--border-radius);
-  background: color-mix(in oklab, var(--dt-surface) 82%, transparent);
-  box-shadow: 0 4px 12px color-mix(in oklab, var(--dt-shadow-color) 65%, transparent);
-  font-size: 20px;
-  transition:
-    box-shadow 0.2s ease,
-    transform 0.2s ease,
-    border-color 0.2s ease;
-}
-
 .dockLabel {
   position: absolute;
-  bottom: -18px;
-  padding: 2px 8px;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  padding: 5px 12px;
   border: 1px solid var(--dt-glass-border);
   border-radius: 999px;
   background: color-mix(in oklab, var(--dt-bg) 88%, transparent);
   color: var(--dt-text);
-  font-size: 10px;
+  font-size: 12px;
+  font-weight: 500;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(4px);
+  transform: translate(-50%, 4px);
   transition:
     opacity 0.2s,
     transform 0.2s;
@@ -94,7 +72,7 @@
 
 .activeIndicator {
   position: absolute;
-  bottom: 6px;
+  bottom: 4px;
   width: 4px;
   height: 4px;
   border-radius: 50%;

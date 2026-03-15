@@ -7,8 +7,10 @@ export interface MiniAppManifest {
   id: string;
   /** Display name shown in the Dock */
   name: string;
-  /** Icon (emoji string or path) */
+  /** Icon fallback shown in the Dock when no packaged image is available */
   icon: string;
+  /** Optional packaged PNG icon served by the core as a URL */
+  iconPng?: string;
   /** SemVer version */
   version: string;
   /** Optional human-readable description */

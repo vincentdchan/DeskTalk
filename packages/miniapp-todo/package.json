@@ -2,6 +2,7 @@
   "name": "@desktalk/miniapp-todo",
   "version": "0.1.0",
   "type": "module",
+  "icon": "./icons/miniapp-todo-icon.png",
   "exports": {
     "./backend": {
       "types": "./dist/backend.d.ts",
