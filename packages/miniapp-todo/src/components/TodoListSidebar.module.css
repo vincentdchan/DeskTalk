@@ -1,0 +1,138 @@
+.sidebarPanel {
+  width: 200px;
+  min-width: 160px;
+  border-right: 1px solid var(--color-border, #3a3a5c);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebarHeader {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border, #3a3a5c);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebarTitle {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted, #8888aa);
+}
+
+.newListBtn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--color-border, #3a3a5c);
+  border-radius: 6px;
+  background: var(--color-surface, #282840);
+  color: var(--color-text, #e0e0f0);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.newListBtn:hover {
+  background: var(--color-surface-hover, #32324a);
+  border-color: var(--color-accent, #7c6ff7);
+  color: var(--color-accent, #7c6ff7);
+}
+
+.listItems {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.listItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-text, #e0e0f0);
+  transition: background 0.1s;
+  border-bottom: 1px solid transparent;
+}
+
+.listItem:hover {
+  background: var(--color-surface-hover, #32324a);
+}
+
+.listItemActive {
+  composes: listItem;
+  background: var(--color-surface, #282840);
+  border-left: 3px solid var(--color-accent, #7c6ff7);
+  padding-left: 11px;
+}
+
+.listItemName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.listItemCount {
+  font-size: 11px;
+  color: var(--color-text-muted, #8888aa);
+  min-width: 20px;
+  text-align: right;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.listItemDeleteBtn {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-muted, #8888aa);
+  font-size: 12px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.listItem:hover .listItemDeleteBtn,
+.listItemActive:hover .listItemDeleteBtn {
+  display: flex;
+}
+
+.listItemDeleteBtn:hover {
+  background: var(--color-surface-hover, #32324a);
+  color: var(--color-danger, #e05050);
+}
+
+.newListInput {
+  width: 100%;
+  background: var(--color-surface, #282840);
+  border: 1px solid var(--color-accent, #7c6ff7);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--color-text, #e0e0f0);
+  font-family: inherit;
+  outline: none;
+}
+
+.newListInput::placeholder {
+  color: var(--color-text-muted, #8888aa);
+}

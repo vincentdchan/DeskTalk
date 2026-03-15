@@ -1,0 +1,219 @@
+.todoItem {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  gap: 10px;
+  transition: background 0.1s;
+  border-bottom: 1px solid var(--color-border-subtle, rgba(58, 58, 92, 0.4));
+}
+
+.todoItem:hover {
+  background: var(--color-surface-hover, #32324a);
+}
+
+.todoItemCompleted {
+  composes: todoItem;
+  opacity: 0.6;
+}
+
+.checkbox {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-border, #3a3a5c);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+  padding: 0;
+}
+
+.checkbox:hover {
+  border-color: var(--color-accent, #7c6ff7);
+}
+
+.checkboxChecked {
+  composes: checkbox;
+  background: var(--color-accent, #7c6ff7);
+  border-color: var(--color-accent, #7c6ff7);
+}
+
+.checkmark {
+  font-size: 10px;
+  color: #fff;
+  line-height: 1;
+}
+
+.todoContent {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.todoTitle {
+  font-size: 14px;
+  color: var(--color-text, #e0e0f0);
+  cursor: text;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.todoTitleCompleted {
+  composes: todoTitle;
+  text-decoration: line-through;
+  color: var(--color-text-muted, #8888aa);
+}
+
+.todoTitleInput {
+  font-size: 14px;
+  color: var(--color-text, #e0e0f0);
+  background: var(--color-surface, #282840);
+  border: 1px solid var(--color-accent, #7c6ff7);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+}
+
+.todoMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.priorityBadge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.priorityLow {
+  composes: priorityBadge;
+  background: rgba(80, 180, 80, 0.15);
+  color: #50b450;
+}
+
+.priorityMedium {
+  composes: priorityBadge;
+  background: rgba(224, 160, 80, 0.15);
+  color: #e0a050;
+}
+
+.priorityHigh {
+  composes: priorityBadge;
+  background: rgba(224, 80, 80, 0.15);
+  color: #e05050;
+}
+
+.dueDate {
+  font-size: 11px;
+  color: var(--color-text-muted, #8888aa);
+}
+
+.dueDateOverdue {
+  composes: dueDate;
+  color: var(--color-danger, #e05050);
+}
+
+.todoDeleteBtn {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-muted, #8888aa);
+  font-size: 14px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.todoItem:hover .todoDeleteBtn,
+.todoItemCompleted:hover .todoDeleteBtn {
+  display: flex;
+}
+
+.todoDeleteBtn:hover {
+  background: var(--color-surface-hover, #32324a);
+  color: var(--color-danger, #e05050);
+}
+
+.detailPopover {
+  position: absolute;
+  right: 16px;
+  top: 0;
+  z-index: 10;
+  background: var(--color-surface, #282840);
+  border: 1px solid var(--color-border, #3a3a5c);
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 200px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.detailField {
+  margin-bottom: 10px;
+}
+
+.detailField:last-child {
+  margin-bottom: 0;
+}
+
+.detailLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted, #8888aa);
+  margin-bottom: 4px;
+}
+
+.detailSelect {
+  width: 100%;
+  background: var(--color-window-body, #1e1e2e);
+  border: 1px solid var(--color-border, #3a3a5c);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+  color: var(--color-text, #e0e0f0);
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+}
+
+.detailSelect:focus {
+  border-color: var(--color-accent, #7c6ff7);
+}
+
+.detailInput {
+  width: 100%;
+  background: var(--color-window-body, #1e1e2e);
+  border: 1px solid var(--color-border, #3a3a5c);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+  color: var(--color-text, #e0e0f0);
+  font-family: inherit;
+  outline: none;
+}
+
+.detailInput:focus {
+  border-color: var(--color-accent, #7c6ff7);
+}
