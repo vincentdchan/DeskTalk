@@ -50,6 +50,15 @@ export function createFileSystemHook(rootDir: string): FileSystemHook {
       writeFileSync(abs, content, 'utf-8');
     },
 
+    async writeFileBase64(path: string, contentBase64: string): Promise<void> {
+      const abs = safePath(path);
+      const parent = resolve(abs, '..');
+      if (!existsSync(parent)) {
+        mkdirSync(parent, { recursive: true });
+      }
+      writeFileSync(abs, Buffer.from(contentBase64, 'base64'));
+    },
+
     async deleteFile(path: string): Promise<void> {
       const abs = safePath(path);
       unlinkSync(abs);

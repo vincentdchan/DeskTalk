@@ -20,6 +20,8 @@ function FileExplorerApp() {
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [sortColumn, setSortColumn] = useState<SortColumn>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // ─── Selection and preview ──────────────────────────────────────────────
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -47,9 +49,29 @@ function FileExplorerApp() {
   const renameEntry = useCommand<{ path: string; newName: string }, FileEntry>('files.rename');
   const copyEntry = useCommand<{ source: string; destination: string }, FileEntry>('files.copy');
   const moveEntry = useCommand<{ source: string; destination: string }, FileEntry>('files.move');
+  const uploadEntry = useCommand<{ path: string; contentBase64: string }, FileEntry>(
+    'files.upload',
+  );
 
   // ─── Clipboard for copy/move ────────────────────────────────────────────
   const clipboardRef = useRef<{ path: string; mode: 'copy' | 'cut' } | null>(null);
+
+  const fileToBase64 = useCallback((file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
+      reader.onload = () => {
+        const result = reader.result;
+        if (typeof result !== 'string') {
+          reject(new Error(`Failed to read file: ${file.name}`));
+          return;
+        }
+        const commaIndex = result.indexOf(',');
+        resolve(commaIndex >= 0 ? result.slice(commaIndex + 1) : result);
+      };
+      reader.readAsDataURL(file);
+    });
+  }, []);
 
   // ─── Fetch directory contents ───────────────────────────────────────────
 
@@ -254,6 +276,51 @@ function FileExplorerApp() {
     }
   }, [currentPath, copyEntry, moveEntry, refresh]);
 
+  // ─── Drag and drop upload ────────────────────────────────────────────────
+
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (!Array.from(e.dataTransfer.types).includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setIsDragActive(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    const nextTarget = e.relatedTarget as Node | null;
+    if (nextTarget && e.currentTarget.contains(nextTarget)) {
+      return;
+    }
+    setIsDragActive(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent<HTMLDivElement>) => {
+      if (!Array.from(e.dataTransfer.types).includes('Files')) return;
+      e.preventDefault();
+      setIsDragActive(false);
+
+      const droppedFiles = Array.from(e.dataTransfer.files).filter((file) => file.size >= 0);
+      if (droppedFiles.length === 0) return;
+
+      setIsUploading(true);
+      try {
+        await Promise.all(
+          droppedFiles.map(async (file) => {
+            const contentBase64 = await fileToBase64(file);
+            const path = currentPath === '.' ? file.name : `${currentPath}/${file.name}`;
+            await uploadEntry({ path, contentBase64 });
+          }),
+        );
+        refresh();
+      } catch (err) {
+        console.error('Failed to upload dropped files:', err);
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [currentPath, fileToBase64, refresh, uploadEntry],
+  );
+
   // ─── Build context menu actions ─────────────────────────────────────────
 
   const buildContextMenuActions = useCallback(
@@ -372,21 +439,39 @@ function FileExplorerApp() {
         {/* Main Content */}
         <div className={styles.body}>
           <div className={styles.fileListPanel}>
-            <FileList
-              entries={entries}
-              sortColumn={sortColumn}
-              sortDirection={sortDirection}
-              selectedPath={selectedPath}
-              renamingPath={renamingPath}
-              renameValue={renameValue}
-              onSort={handleSort}
-              onSelect={handleSelect}
-              onOpen={handleOpen}
-              onContextMenu={handleContextMenu}
-              onRenameChange={setRenameValue}
-              onRenameSubmit={handleRenameSubmit}
-              onRenameCancel={handleRenameCancel}
-            />
+            <div
+              className={styles.fileListDropZone}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <FileList
+                entries={entries}
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                selectedPath={selectedPath}
+                renamingPath={renamingPath}
+                renameValue={renameValue}
+                isUploading={isUploading}
+                onSort={handleSort}
+                onSelect={handleSelect}
+                onOpen={handleOpen}
+                onContextMenu={handleContextMenu}
+                onRenameChange={setRenameValue}
+                onRenameSubmit={handleRenameSubmit}
+                onRenameCancel={handleRenameCancel}
+              />
+              {isDragActive && (
+                <div className={styles.dropOverlay}>
+                  <div className={styles.dropOverlayCard}>
+                    <div className={styles.dropOverlayTitle}>Drop files to upload</div>
+                    <div className={styles.dropOverlayHint}>
+                      Files will be added to this folder.
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {previewEntry && (

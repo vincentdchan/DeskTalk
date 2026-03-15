@@ -62,6 +62,8 @@ export interface FileSystemHook {
   /** Read a file and return its contents as a base64-encoded string. */
   readFileBase64(path: string): Promise<string>;
   writeFile(path: string, content: string): Promise<void>;
+  /** Write a file from a base64-encoded string. */
+  writeFileBase64(path: string, contentBase64: string): Promise<void>;
   deleteFile(path: string): Promise<void>;
   readDir(path: string): Promise<FileEntry[]>;
   mkdir(path: string): Promise<void>;
