@@ -1,7 +1,7 @@
 import type { MiniAppManifest, MiniAppContext, MiniAppBackendActivation } from '@desktalk/sdk';
-import type { Note, NoteMeta, TagCount } from './types.js';
-import { parseFrontMatter, serializeFrontMatter } from './lib/frontmatter.js';
-import { slugify, preview } from './lib/helpers.js';
+import type { Note, NoteMeta, TagCount } from './types';
+import { parseFrontMatter, serializeFrontMatter } from './lib/frontmatter';
+import { slugify, preview } from './lib/helpers';
 
 // ─── Manifest ────────────────────────────────────────────────────────────────
 

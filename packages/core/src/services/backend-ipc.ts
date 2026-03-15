@@ -1,5 +1,5 @@
 import type { MiniAppPaths } from '@desktalk/sdk';
-import type { LoggerConfig } from './logger.js';
+import type { LoggerConfig } from './logger';
 
 // ─── Main → Child Messages ──────────────────────────────────────────────────
 

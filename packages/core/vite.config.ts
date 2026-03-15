@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { localizePlugin, i18nAssetPlugin } from './vite-plugins/localize.js';
-import { audioWorkletPlugin } from './vite-plugins/audio-worklet.js';
+import { localizePlugin, i18nAssetPlugin } from './vite-plugins/localize';
+import { audioWorkletPlugin } from './vite-plugins/audio-worklet';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

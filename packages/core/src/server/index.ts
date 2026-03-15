@@ -5,21 +5,21 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 import type pino from 'pino';
-import { addClient, broadcastRaw } from '../services/messaging.js';
-import { registry } from '../services/miniapp-registry.js';
-import { processManager } from '../services/backend-process-manager.js';
-import { PiSessionService } from '../services/ai/pi-session-service.js';
-import { getStoredPreference } from '../services/preferences.js';
-import { loadMergedLocaleMessages } from '../services/i18n.js';
-import { getWorkspacePaths } from '../services/workspace.js';
-import { VoiceSession } from '../services/voice/voice-session.js';
-import { AzureOpenAIWhisperAdapter } from '../services/voice/azure-openai-whisper-adapter.js';
-import { OpenAIWhisperAdapter } from '../services/voice/openai-whisper-adapter.js';
-import type { SttAdapter } from '../services/voice/stt-adapter.js';
+import { addClient, broadcastRaw } from '../services/messaging';
+import { registry } from '../services/miniapp-registry';
+import { processManager } from '../services/backend-process-manager';
+import { PiSessionService } from '../services/ai/pi-session-service';
+import { getStoredPreference } from '../services/preferences';
+import { loadMergedLocaleMessages } from '../services/i18n';
+import { getWorkspacePaths } from '../services/workspace';
+import { VoiceSession } from '../services/voice/voice-session';
+import { AzureOpenAIWhisperAdapter } from '../services/voice/azure-openai-whisper-adapter';
+import { OpenAIWhisperAdapter } from '../services/voice/openai-whisper-adapter';
+import type { SttAdapter } from '../services/voice/stt-adapter';
 import {
   WindowManagerService,
   type SerializableActionDefinition,
-} from '../services/window-manager.js';
+} from '../services/window-manager';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

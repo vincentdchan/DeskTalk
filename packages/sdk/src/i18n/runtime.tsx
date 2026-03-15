@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
-import type { LocalizeParam, Localizer } from '../types/context.js';
+import type { LocalizeParam, Localizer } from '../types/context';
 
 export type LocaleMessages = Record<string, Record<string, string>>;
 

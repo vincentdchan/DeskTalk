@@ -14,7 +14,7 @@
     "desktalk-build": "./dist/cli/desktalk-build.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json --resolve-full-paths --resolve-full-extension .js",
     "dev": "tsc -p tsconfig.build.json --watch",
     "clean": "rm -rf dist",
     "unit:test": "vitest run"

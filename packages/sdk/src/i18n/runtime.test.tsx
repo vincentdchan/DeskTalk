@@ -9,7 +9,7 @@ import {
   createLocalizer,
   useLocalize,
   type LocaleMessages,
-} from './runtime.js';
+} from './runtime';
 
 const messages: LocaleMessages = {
   core: {

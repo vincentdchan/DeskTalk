@@ -3,7 +3,7 @@ import * as ReactDOM_NS from 'react-dom';
 import { createRoot, hydrateRoot } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
 import { I18nProvider, type LocaleMessages } from '@desktalk/sdk';
-import { Shell } from './components/Shell.js';
+import { Shell } from './components/Shell';
 import './styles/global.scss';
 
 interface I18nCatalogResponse {

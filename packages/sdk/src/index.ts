@@ -7,7 +7,7 @@ export type {
   MiniAppBackendActivation,
   MiniAppFrontendContext,
   MiniAppActivation,
-} from './types/manifest.js';
+} from './types/manifest';
 export type {
   MiniAppContext,
   MiniAppPaths,
@@ -20,15 +20,15 @@ export type {
   Logger,
   Localizer,
   LocalizeParam,
-} from './types/context.js';
-export type { ActionDefinition, ActionHandler, ActionParam } from './types/actions.js';
-export type { WindowState, WindowPosition, WindowSize } from './types/window.js';
-export type { LocaleMessages, LocalizeCall, I18nRuntimeValue } from './i18n/runtime.js';
+} from './types/context';
+export type { ActionDefinition, ActionHandler, ActionParam } from './types/actions';
+export type { WindowState, WindowPosition, WindowSize } from './types/window';
+export type { LocaleMessages, LocalizeCall, I18nRuntimeValue } from './i18n/runtime';
 
 // ─── React Hooks ─────────────────────────────────────────────────────────────
 
-export { useCommand, useEvent } from './hooks/messaging.js';
-export { ActionsProvider, Action } from './components/Actions.js';
+export { useCommand, useEvent } from './hooks/messaging';
+export { ActionsProvider, Action } from './components/Actions';
 export {
   $localize,
   __dtLocalize,
@@ -36,11 +36,11 @@ export {
   I18nScopeProvider,
   useLocalize,
   createLocalizer,
-} from './i18n/runtime.js';
+} from './i18n/runtime';
 
 // ─── Core Shell Internals ────────────────────────────────────────────────────
 // These are used by the core shell to wire up infrastructure.
 // MiniApps should NOT use these directly.
 
-export { initMessaging, MiniAppIdProvider } from './hooks/messaging.js';
-export { WindowIdProvider } from './components/Actions.js';
+export { initMessaging, MiniAppIdProvider } from './hooks/messaging';
+export { WindowIdProvider } from './components/Actions';

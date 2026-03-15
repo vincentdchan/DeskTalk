@@ -9,10 +9,10 @@ import {
   type AgentSession,
   type AgentSessionEvent,
 } from '@mariozechner/pi-coding-agent';
-import { createWindowControlTool, type SendAiCommand } from './window-tools.js';
-import type { WindowManagerService } from '../window-manager.js';
-import { registry } from '../miniapp-registry.js';
-import type { WorkspacePaths } from '../workspace.js';
+import { createWindowControlTool, type SendAiCommand } from './window-tools';
+import type { WindowManagerService } from '../window-manager';
+import { registry } from '../miniapp-registry';
+import type { WorkspacePaths } from '../workspace';
 
 export type ChatSource = 'text' | 'voice';
 

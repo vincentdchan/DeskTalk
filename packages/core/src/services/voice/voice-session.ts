@@ -9,8 +9,8 @@
 
 import type { WebSocket } from 'ws';
 import type pino from 'pino';
-import { VadSegmenter, type VadConfig } from './vad-segmenter.js';
-import type { SttAdapter } from './stt-adapter.js';
+import { VadSegmenter, type VadConfig } from './vad-segmenter';
+import type { SttAdapter } from './stt-adapter';
 
 export type SessionState =
   | 'LISTENING'
