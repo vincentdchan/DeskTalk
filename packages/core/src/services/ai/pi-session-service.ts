@@ -126,6 +126,17 @@ function getMessageKey(role: 'user' | 'assistant', timestamp: number): string {
   return `${role}:${timestamp}`;
 }
 
+/**
+ * Strip the `[Desktop Context]...[/Desktop Context]` block that we prepend
+ * to every user message before sending it to pi. The frontend should never
+ * display this internal metadata.
+ */
+const DESKTOP_CONTEXT_RE = /\[Desktop Context\][\s\S]*?\[\/Desktop Context\]\s*/;
+
+function stripDesktopContext(text: string): string {
+  return text.replace(DESKTOP_CONTEXT_RE, '').trim();
+}
+
 function getMessageText(message: BasicUserMessage | BasicAssistantMessage): string {
   if (message.role === 'user') {
     if (typeof message.content === 'string') {
@@ -356,12 +367,18 @@ export class PiSessionService {
         const role = typedMessage.role as 'user' | 'assistant';
         const metadata = this.getMessageMetadata(role, typedMessage.timestamp);
 
+        let content = getMessageText(
+          typedMessage as unknown as BasicUserMessage | BasicAssistantMessage,
+        );
+        // Strip injected desktop context from user messages before sending to frontend
+        if (role === 'user') {
+          content = stripDesktopContext(content);
+        }
+
         return {
           id: getMessageKey(role, typedMessage.timestamp),
           role,
-          content: getMessageText(
-            typedMessage as unknown as BasicUserMessage | BasicAssistantMessage,
-          ),
+          content,
           timestamp: typedMessage.timestamp,
           ...(role === 'user' ? { source: metadata?.source ?? 'text' } : {}),
           ...(isAssistantMessage(typedMessage)
