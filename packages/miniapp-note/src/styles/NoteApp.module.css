@@ -7,59 +7,6 @@
   font-family: var(--font-sans);
 }
 
-.tagPanel {
-  display: flex;
-  width: 160px;
-  min-width: 160px;
-  flex-direction: column;
-  overflow-y: auto;
-  border-right: 1px solid var(--dt-border);
-}
-
-.tagHeader {
-  padding: 12px 14px 8px;
-  color: var(--dt-text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.tagList {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.tagItem {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 14px;
-  color: var(--dt-text);
-  cursor: pointer;
-  font-size: 13px;
-  transition: background 0.1s;
-}
-
-.tagItem:hover {
-  background: var(--dt-surface-hover);
-}
-
-.tagItemActive {
-  composes: tagItem;
-  background: var(--dt-surface);
-  color: var(--dt-accent);
-  font-weight: 500;
-}
-
-.tagCount {
-  min-width: 20px;
-  color: var(--dt-text-muted);
-  font-size: 11px;
-  text-align: right;
-}
-
 .listPanel {
   display: flex;
   width: 260px;

@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { MiniAppFrontendContext } from '@desktalk/sdk';
 import { useCommand, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
-import type { Note, NoteMeta, TagCount } from './types';
-import { TagFilter } from './components/TagFilter';
+import type { Note, NoteMeta } from './types';
 import { NoteList } from './components/NoteList';
 import { NoteEditor } from './components/NoteEditor';
 import { NoteActions } from './components/NoteActions';
@@ -12,8 +11,6 @@ import styles from './styles/NoteApp.module.css';
 function NoteApp() {
   // ─── State ───────────────────────────────────────────────────────────────
   const [notes, setNotes] = useState<NoteMeta[]>([]);
-  const [tags, setTags] = useState<TagCount[]>([]);
-  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,7 +18,6 @@ function NoteApp() {
 
   // ─── Backend commands ────────────────────────────────────────────────────
   const listNotes = useCommand<{ tag?: string }, NoteMeta[]>('notes.list');
-  const getTags = useCommand<void, TagCount[]>('notes.tags');
   const getNote = useCommand<{ id: string }, Note>('notes.get');
   const updateNote = useCommand<{ id: string; content?: string; tags?: string[] }, Note>(
     'notes.update',
@@ -38,12 +34,6 @@ function NoteApp() {
       let result: NoteMeta[];
       if (searchQuery) {
         result = await searchNotes({ query: searchQuery });
-      } else if (selectedTags.size > 0) {
-        // Backend supports single tag filter. For multi-tag AND, we filter
-        // client-side after fetching all notes for the first tag.
-        const firstTag = Array.from(selectedTags)[0]!;
-        const all = await listNotes({ tag: firstTag });
-        result = all.filter((n) => Array.from(selectedTags).every((t) => n.tags.includes(t)));
       } else {
         result = await listNotes();
       }
@@ -51,21 +41,11 @@ function NoteApp() {
     } catch (err) {
       console.error('Failed to fetch notes:', err);
     }
-  }, [listNotes, searchNotes, searchQuery, selectedTags]);
-
-  const fetchTags = useCallback(async () => {
-    try {
-      const result = await getTags();
-      setTags(result);
-    } catch (err) {
-      console.error('Failed to fetch tags:', err);
-    }
-  }, [getTags]);
+  }, [listNotes, searchNotes, searchQuery]);
 
   const refresh = useCallback(() => {
     fetchNotes();
-    fetchTags();
-  }, [fetchNotes, fetchTags]);
+  }, [fetchNotes]);
 
   // Initial load
   useEffect(() => {
@@ -90,20 +70,6 @@ function NoteApp() {
     },
     [getNote],
   );
-
-  // ─── Tag toggling ───────────────────────────────────────────────────────
-
-  const handleToggleTag = useCallback((tag: string) => {
-    setSelectedTags((prev) => {
-      const next = new Set(prev);
-      if (next.has(tag)) {
-        next.delete(tag);
-      } else {
-        next.add(tag);
-      }
-      return next;
-    });
-  }, []);
 
   // ─── Search (debounced) ─────────────────────────────────────────────────
 
@@ -131,12 +97,11 @@ function NoteApp() {
         setCurrentNote(updated);
         // Refresh list to update preview/date
         fetchNotes();
-        fetchTags();
       } catch (err) {
         console.error('Failed to save note:', err);
       }
     },
-    [selectedId, currentNote, updateNote, fetchNotes, fetchTags],
+    [selectedId, currentNote, updateNote, fetchNotes],
   );
 
   // ─── Action callbacks ───────────────────────────────────────────────────
@@ -197,7 +162,6 @@ function NoteApp() {
       onRefresh={refresh}
     >
       <div className={styles.root}>
-        <TagFilter tags={tags} selectedTags={selectedTags} onToggleTag={handleToggleTag} />
         <NoteList
           notes={notes}
           selectedId={selectedId}
