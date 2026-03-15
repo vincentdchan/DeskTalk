@@ -417,6 +417,34 @@ export function Shell() {
     [manifests],
   );
 
+  const handleHideApp = useCallback((miniAppId: string) => {
+    const store = useWindowManager.getState();
+    const windowsToHide = store
+      .getWindowsByMiniApp(miniAppId)
+      .filter((window) => !window.minimized);
+
+    windowsToHide.forEach((window) => {
+      store.minimizeWindow(window.id);
+    });
+  }, []);
+
+  const handleQuitApp = useCallback(async (miniAppId: string) => {
+    const store = useWindowManager.getState();
+    const windowsToClose = store.getWindowsByMiniApp(miniAppId);
+
+    windowsToClose.forEach((window) => {
+      store.closeWindow(window.id);
+    });
+
+    try {
+      await fetch(`/api/miniapps/${encodeURIComponent(miniAppId)}/deactivate`, {
+        method: 'POST',
+      });
+    } catch (err) {
+      console.error('[shell] Could not quit MiniApp:', err);
+    }
+  }, []);
+
   return (
     <div className={styles.shell}>
       <div className={styles.actionsBar}>
@@ -444,7 +472,12 @@ export function Shell() {
       </div>
 
       <div className={styles.dock}>
-        <Dock miniApps={dockApps} onLaunch={handleLaunch} />
+        <Dock
+          miniApps={dockApps}
+          onLaunch={handleLaunch}
+          onHideApp={handleHideApp}
+          onQuitApp={handleQuitApp}
+        />
       </div>
     </div>
   );
