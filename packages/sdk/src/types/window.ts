@@ -11,6 +11,8 @@ export interface WindowState {
   maximized: boolean;
   focused: boolean;
   zIndex: number;
+  /** Optional launch arguments passed when the window was opened (e.g. by the AI). */
+  args?: Record<string, unknown>;
 }
 
 export interface WindowPosition {

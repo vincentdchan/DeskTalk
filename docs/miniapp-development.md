@@ -237,18 +237,68 @@ export interface MiniAppFrontendContext {
   miniAppId: string;
   /** The window's unique identifier */
   windowId: string;
+  /** Optional launch arguments passed when the window was opened (e.g. by the AI). */
+  args?: Record<string, unknown>;
 }
 ```
 
 ## Lifecycle
 
-| Phase            | Trigger                                    | What happens                                                                                                                                                                  |
-| ---------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Discovery**    | `desktalk start`                           | Core scans installed packages and reads each `manifest` export from the backend entry. Icons appear in the Dock.                                                              |
-| **Activation**   | User opens the MiniApp (or AI triggers it) | Core calls the backend entry's `activate(ctx)` to set up command handlers, then loads the frontend entry and calls its `activate(ctx)` with a root DOM element to mount into. |
-| **Running**      | User/AI interacts                          | Frontend uses SDK hooks (`useCommand`, `useEvent`) to communicate with backend handlers.                                                                                      |
-| **Deactivation** | All windows of the MiniApp are closed      | Core calls the frontend entry's `deactivate()` to unmount the UI, then calls the backend entry's `deactivate()`. Resources are released.                                      |
-| **Uninstall**    | `desktalk uninstall <name>`                | Core calls `deactivate()` if active, then removes the package.                                                                                                                |
+| Phase            | Trigger                                    | What happens                                                                                                                                                                                                                                                             |
+| ---------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Discovery**    | `desktalk start`                           | Core scans installed packages and reads each `manifest` export from the backend entry. Icons appear in the Dock.                                                                                                                                                         |
+| **Activation**   | User opens the MiniApp (or AI triggers it) | Core calls the backend entry's `activate(ctx)` to set up command handlers, then loads the frontend entry and calls its `activate(ctx)` with a root DOM element to mount into. When the AI opens the window, optional launch `args` are included in the frontend context. |
+| **Running**      | User/AI interacts                          | Frontend uses SDK hooks (`useCommand`, `useEvent`) to communicate with backend handlers.                                                                                                                                                                                 |
+| **Deactivation** | All windows of the MiniApp are closed      | Core calls the frontend entry's `deactivate()` to unmount the UI, then calls the backend entry's `deactivate()`. Resources are released.                                                                                                                                 |
+| **Uninstall**    | `desktalk uninstall <name>`                | Core calls `deactivate()` if active, then removes the package.                                                                                                                                                                                                           |
+
+## Launch Arguments
+
+When the AI opens a MiniApp via the `desktop` tool, it can pass an optional `args` object that is forwarded to the frontend's `activate(ctx)` as `ctx.args`. This allows the AI to provide initial context — for example, telling Preview which file to open immediately.
+
+### How it works
+
+1. **AI tool call** — The AI calls the `desktop` tool with `action: "open"`, `miniAppId`, and an optional `args` object:
+   ```json
+   { "action": "open", "miniAppId": "preview", "args": { "path": "photos/cat.png" } }
+   ```
+2. **Core relays** — The core forwards `args` through the WebSocket message to the frontend shell, which stores it in `WindowState` and passes it to `MiniAppFrontendContext`.
+3. **Frontend receives** — The MiniApp's `activate(ctx)` receives `ctx.args` and can use it to set initial state.
+
+### Persistence
+
+Launch arguments are persisted as part of `WindowState`. If the user refreshes the browser, the MiniApp window re-opens with the same `args` so `activate()` can restore its initial state.
+
+### Example: Preview MiniApp
+
+```tsx
+export function activate(ctx: MiniAppFrontendContext): void {
+  const initialPath = typeof ctx.args?.path === 'string' ? ctx.args.path : undefined;
+  root = createRoot(ctx.root);
+  root.render(
+    <WindowIdProvider windowId={ctx.windowId}>
+      <MiniAppIdProvider miniAppId={ctx.miniAppId}>
+        <PreviewApp initialPath={initialPath} />
+      </MiniAppIdProvider>
+    </WindowIdProvider>,
+  );
+}
+```
+
+Inside `PreviewApp`, use an effect to auto-open the file on mount:
+
+```tsx
+useEffect(() => {
+  if (!initialPath) return;
+  openFile({ path: initialPath }).then(handleFileOpened).catch(console.error);
+}, []);
+```
+
+### Guidelines for MiniApp authors
+
+- Always validate `ctx.args` defensively — it may be `undefined` or contain unexpected keys.
+- Use `args` for initial state only. Do not rely on it for ongoing communication; use `useCommand` and `useEvent` instead.
+- Dock-initiated launches (user clicking the icon) do not provide `args`; handle the `undefined` case gracefully.
 
 ## Communication Hooks (MiniAppContext)
 

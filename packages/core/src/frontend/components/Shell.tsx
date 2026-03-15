@@ -32,7 +32,15 @@ function MiniAppLoadError({ miniAppId, message }: { miniAppId: string; message: 
  * Window content that loads the MiniApp bundle on demand.
  * Provides a root DOM element and calls activate/deactivate on the MiniApp module.
  */
-function MiniAppWindow({ miniAppId, windowId }: { miniAppId: string; windowId: string }) {
+function MiniAppWindow({
+  miniAppId,
+  windowId,
+  args,
+}: {
+  miniAppId: string;
+  windowId: string;
+  args?: Record<string, unknown>;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const modRef = useRef<MiniAppFrontendModule | null>(null);
@@ -48,6 +56,7 @@ function MiniAppWindow({ miniAppId, windowId }: { miniAppId: string; windowId: s
             root: containerRef.current,
             miniAppId,
             windowId,
+            args,
           });
           setError(null);
         }
@@ -223,14 +232,15 @@ export function Shell() {
 
         // AI tool invocation — backend asks frontend to execute a window operation
         if (message.type === 'window:ai_command') {
-          const { action, windowId, miniAppId, title, requestId } = message as {
+          const { action, windowId, miniAppId, title, requestId, args } = message as {
             action: string;
             windowId?: string;
             miniAppId?: string;
             title?: string;
             requestId: string;
+            args?: Record<string, unknown>;
           };
-          handleAiCommand(action, windowId, miniAppId, title, requestId);
+          handleAiCommand(action, windowId, miniAppId, title, requestId, args);
           return;
         }
 
@@ -282,6 +292,7 @@ export function Shell() {
     miniAppId?: string,
     title?: string,
     requestId?: string,
+    args?: Record<string, unknown>,
   ): void {
     const store = useWindowManager.getState();
     let resultWindowId: string | undefined;
@@ -294,7 +305,7 @@ export function Shell() {
           void fetch(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {
             method: 'POST',
           });
-          resultWindowId = store.openWindow(miniAppId, title);
+          resultWindowId = store.openWindow(miniAppId, title, args);
           break;
         }
         case 'close':
@@ -380,6 +391,34 @@ export function Shell() {
     };
   }, [buildClientActions, setFocusedWindowActions]);
 
+  // Listen for MiniApp requests to open another MiniApp window
+  useEffect(() => {
+    const handleOpenWindow = (event: Event) => {
+      const { miniAppId, args } = (
+        event as CustomEvent<{ miniAppId: string; args?: Record<string, unknown> }>
+      ).detail;
+      if (!miniAppId) return;
+
+      void (async () => {
+        try {
+          await fetch(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {
+            method: 'POST',
+          });
+          const manifest = manifests.find((m) => m.id === miniAppId);
+          const title = manifest?.name ?? miniAppId;
+          useWindowManager.getState().openWindow(miniAppId, title, args);
+        } catch (err) {
+          console.error('[shell] Could not open MiniApp window:', err);
+        }
+      })();
+    };
+
+    window.addEventListener('desktalk:open-window', handleOpenWindow);
+    return () => {
+      window.removeEventListener('desktalk:open-window', handleOpenWindow);
+    };
+  }, [manifests]);
+
   const handleLaunch = useCallback(
     async (miniAppId: string) => {
       try {
@@ -456,7 +495,7 @@ export function Shell() {
           {wsReady
             ? windows.map((win) => (
                 <WindowChrome key={win.id} window={win}>
-                  <MiniAppWindow miniAppId={win.miniAppId} windowId={win.id} />
+                  <MiniAppWindow miniAppId={win.miniAppId} windowId={win.id} args={win.args} />
                 </WindowChrome>
               ))
             : windows.length > 0 && (

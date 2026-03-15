@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { MiniAppFrontendContext } from '@desktalk/sdk';
-import { useCommand, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
+import { useCommand, useOpenMiniApp, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
 import type { FileEntry, SortColumn, SortDirection } from './types';
 import { FileBreadcrumb } from './components/FileBreadcrumb';
 import { FileList } from './components/FileList';
@@ -9,6 +9,12 @@ import { FilePreview } from './components/FilePreview';
 import { FileActions } from './components/FileActions';
 import { ContextMenu, type ContextMenuAction } from './components/ContextMenu';
 import styles from './FileExplorerApp.module.css';
+
+const PREVIEW_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+function isPreviewable(entry: FileEntry): boolean {
+  return entry.type === 'file' && entry.mimeType !== null && PREVIEW_MIME_TYPES.has(entry.mimeType);
+}
 
 function FileExplorerApp() {
   // ─── Navigation state ───────────────────────────────────────────────────
@@ -55,6 +61,9 @@ function FileExplorerApp() {
 
   // ─── Clipboard for copy/move ────────────────────────────────────────────
   const clipboardRef = useRef<{ path: string; mode: 'copy' | 'cut' } | null>(null);
+
+  // ─── Open another MiniApp window ───────────────────────────────────────
+  const openMiniApp = useOpenMiniApp();
 
   const fileToBase64 = useCallback((file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -168,7 +177,13 @@ function FileExplorerApp() {
         return;
       }
 
-      // Open file preview
+      // Open previewable images in the Preview MiniApp
+      if (isPreviewable(entry)) {
+        openMiniApp('preview', { path: entry.path });
+        return;
+      }
+
+      // Open file preview in the side panel for other file types
       setPreviewEntry(entry);
       setPreviewLoading(true);
       setPreviewContent(null);
@@ -183,7 +198,7 @@ function FileExplorerApp() {
         setPreviewLoading(false);
       }
     },
-    [navigateTo, readFile],
+    [navigateTo, openMiniApp, readFile],
   );
 
   // ─── Context menu ──────────────────────────────────────────────────────
@@ -332,6 +347,11 @@ function FileExplorerApp() {
           label: 'Open',
           handler: () => navigateTo(entry.path),
         });
+      } else if (isPreviewable(entry)) {
+        actions.push({
+          label: 'Open in Preview',
+          handler: () => openMiniApp('preview', { path: entry.path }),
+        });
       } else {
         actions.push({
           label: 'Preview',
@@ -369,7 +389,16 @@ function FileExplorerApp() {
 
       return actions;
     },
-    [navigateTo, handleOpen, startRename, handleCopy, handleCut, handlePaste, handleDelete],
+    [
+      navigateTo,
+      openMiniApp,
+      handleOpen,
+      startRename,
+      handleCopy,
+      handleCut,
+      handlePaste,
+      handleDelete,
+    ],
   );
 
   // ─── Close preview ─────────────────────────────────────────────────────

@@ -1,7 +1,12 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { MiniAppFrontendContext } from '@desktalk/sdk';
-import { useCommand, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
+import {
+  useCommand,
+  useWindowArgsUpdated,
+  MiniAppIdProvider,
+  WindowIdProvider,
+} from '@desktalk/sdk';
 import type { PreviewFile, SiblingList } from './types';
 import { PreviewToolbar } from './components/PreviewToolbar';
 import { ImageViewport } from './components/ImageViewport';
@@ -12,7 +17,7 @@ const ZOOM_STEP = 0.25;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 10;
 
-function PreviewApp() {
+function PreviewApp({ initialPath }: { initialPath?: string }) {
   // ─── State ───────────────────────────────────────────────────────────────
   const [currentFile, setCurrentFile] = useState<PreviewFile | null>(null);
   const [siblings, setSiblings] = useState<SiblingList | null>(null);
@@ -21,6 +26,7 @@ function PreviewApp() {
   const viewportRef = useRef<HTMLDivElement>(null);
 
   // ─── Backend commands ────────────────────────────────────────────────────
+  const openFile = useCommand<{ path: string }, PreviewFile>('preview.open');
   const getSiblings = useCommand<{ path: string }, SiblingList>('preview.siblings');
   const nextFile = useCommand<{ currentPath: string }, PreviewFile>('preview.next');
   const previousFile = useCommand<{ currentPath: string }, PreviewFile>('preview.previous');
@@ -35,6 +41,25 @@ function PreviewApp() {
       getSiblings({ path: file.path }).then(setSiblings).catch(console.error);
     },
     [getSiblings],
+  );
+
+  // Auto-open the file specified by launch arguments
+  useEffect(() => {
+    if (!initialPath) return;
+    openFile({ path: initialPath }).then(handleFileOpened).catch(console.error);
+  }, []);
+
+  // Handle updated args when the shell reuses this window with a new file
+  useWindowArgsUpdated(
+    useCallback(
+      (args: Record<string, unknown>) => {
+        const path = typeof args.path === 'string' ? args.path : undefined;
+        if (path) {
+          openFile({ path }).then(handleFileOpened).catch(console.error);
+        }
+      },
+      [openFile, handleFileOpened],
+    ),
   );
 
   // ─── Zoom controls ──────────────────────────────────────────────────────
@@ -193,11 +218,12 @@ function PreviewApp() {
 let root: ReturnType<typeof createRoot> | null = null;
 
 export function activate(ctx: MiniAppFrontendContext): void {
+  const initialPath = typeof ctx.args?.path === 'string' ? ctx.args.path : undefined;
   root = createRoot(ctx.root);
   root.render(
     <WindowIdProvider windowId={ctx.windowId}>
       <MiniAppIdProvider miniAppId={ctx.miniAppId}>
-        <PreviewApp />
+        <PreviewApp initialPath={initialPath} />
       </MiniAppIdProvider>
     </WindowIdProvider>,
   );

@@ -66,7 +66,7 @@ interface WindowManagerState {
   windowActions: Record<string, ActionDefinition[]>;
 
   // Mutations (execute locally, then sync to backend)
-  openWindow: (miniAppId: string, title: string) => string;
+  openWindow: (miniAppId: string, title: string, args?: Record<string, unknown>) => string;
   closeWindow: (windowId: string) => void;
   focusWindow: (windowId: string) => void;
   minimizeWindow: (windowId: string) => void;
@@ -93,7 +93,7 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
   focusedWindowActions: [],
   windowActions: {},
 
-  openWindow(miniAppId: string, title: string): string {
+  openWindow(miniAppId: string, title: string, args?: Record<string, unknown>): string {
     const state = get();
     const existingWindow = state.windows
       .filter((window) => window.miniAppId === miniAppId)
@@ -107,6 +107,7 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
         focused: window.id === existingWindow.id,
         zIndex: window.id === existingWindow.id ? state.nextZIndex : window.zIndex,
         minimized: window.id === existingWindow.id ? false : window.minimized,
+        args: window.id === existingWindow.id && args ? args : window.args,
       }));
 
       set({
@@ -116,6 +117,16 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
       });
 
       syncToBackend();
+
+      // Notify the running MiniApp that its args have been updated
+      if (args && typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('desktalk:window-args-updated', {
+            detail: { windowId: existingWindow.id, args },
+          }),
+        );
+      }
+
       return existingWindow.id;
     }
 
@@ -133,6 +144,7 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
       maximized: false,
       focused: true,
       zIndex: state.nextZIndex,
+      args,
     };
 
     const updatedWindows = state.windows.map((w) => ({ ...w, focused: false }));
