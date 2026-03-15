@@ -4,7 +4,7 @@ import type { MiniAppFrontendContext } from '@desktalk/sdk';
 import { useCommand, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
 import type { Note, NoteMeta } from './types';
 import { NoteList } from './components/NoteList';
-import { NoteEditor } from './components/NoteEditor';
+import { NoteEditor, type NoteEditorHandle } from './components/NoteEditor';
 import { NoteActions } from './components/NoteActions';
 import styles from './styles/NoteApp.module.css';
 
@@ -15,6 +15,7 @@ function NoteApp() {
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingNote, setLoadingNote] = useState(false);
+  const editorRef = useRef<NoteEditorHandle>(null);
 
   // ─── Backend commands ────────────────────────────────────────────────────
   const listNotes = useCommand<{ tag?: string }, NoteMeta[]>('notes.list');
@@ -155,6 +156,7 @@ function NoteApp() {
     <NoteActions
       selectedNoteId={selectedId}
       selectedNote={currentNote}
+      editorRef={editorRef}
       onNoteCreated={handleNoteCreated}
       onNoteDeleted={handleNoteDeleted}
       onSearch={handleSearch}
@@ -170,7 +172,12 @@ function NoteApp() {
           searchQuery={searchQuery}
           onSearchChange={handleSearchChange}
         />
-        <NoteEditor note={currentNote} loading={loadingNote} onSave={handleEditorSave} />
+        <NoteEditor
+          ref={editorRef}
+          note={currentNote}
+          loading={loadingNote}
+          onSave={handleEditorSave}
+        />
       </div>
     </NoteActions>
   );
