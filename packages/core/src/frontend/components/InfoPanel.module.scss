@@ -37,18 +37,19 @@
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.6;
+  color: color-mix(in oklab, var(--dt-text) 85%, var(--dt-text-secondary));
 }
 
 .messageUser {
   composes: message;
   background: color-mix(in oklab, var(--dt-accent) 8%, var(--dt-bg));
-  border-left: 3px solid var(--dt-accent);
+  border-left: 3px solid color-mix(in oklab, var(--dt-accent) 75%, var(--dt-border));
 }
 
 .messageAssistant {
   composes: message;
   background: color-mix(in oklab, var(--dt-info) 6%, var(--dt-bg));
-  border-left: 3px solid var(--dt-info);
+  border-left: 3px solid color-mix(in oklab, var(--dt-info) 75%, var(--dt-border));
 }
 
 .messageHeader {
@@ -65,11 +66,11 @@
 }
 
 .messageUser .messageSpeaker {
-  color: var(--dt-accent);
+  color: color-mix(in oklab, var(--dt-accent) 70%, var(--dt-text));
 }
 
 .messageAssistant .messageSpeaker {
-  color: var(--dt-info);
+  color: color-mix(in oklab, var(--dt-info) 70%, var(--dt-text));
 }
 
 .voiceSourceBadge {
