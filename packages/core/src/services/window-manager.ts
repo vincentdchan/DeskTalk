@@ -135,10 +135,15 @@ export class WindowManagerService {
   }
 
   /**
-   * Build context for the AI system prompt describing the current desktop state.
+   * Build a dynamic desktop context block to prepend to user messages.
+   *
+   * This is injected per-prompt so the AI always sees the latest state
+   * without polluting the cacheable system prompt.
    */
-  getSystemPromptContext(availableMiniApps: Array<{ id: string; name: string }>): string {
+  getDesktopContext(availableMiniApps: Array<{ id: string; name: string }>): string {
     const focusedWindow = this.getFocusedWindow();
+
+    // ─── Windows ──────────────────────────────────────────────────────────
     const windowLines = this.state.windows.length
       ? [...this.state.windows]
           .sort((a, b) => a.zIndex - b.zIndex)
@@ -146,36 +151,47 @@ export class WindowManagerService {
             const states = [w.focused ? 'focused' : null, w.minimized ? 'minimized' : null]
               .filter(Boolean)
               .join(', ');
-            return `- ${w.id}: "${w.title}" (miniapp: ${w.miniAppId}${states ? `, ${states}` : ''}, position: ${w.position.x},${w.position.y}, size: ${w.size.width}x${w.size.height})`;
+            return `  ${w.id}: "${w.title}" (miniapp: ${w.miniAppId}${states ? `, ${states}` : ''})`;
           })
-      : ['- No open windows'];
+      : ['  (none)'];
 
-    const focusedActionLines = focusedWindow
-      ? (this.windowActions[focusedWindow.id] ?? []).map(
-          (action) => `- ${action.name}: ${action.description}`,
-        )
-      : [];
-
+    // ─── MiniApps ─────────────────────────────────────────────────────────
     const miniAppLines = availableMiniApps.length
-      ? availableMiniApps.map((miniApp) => `- ${miniApp.id}: ${miniApp.name}`)
-      : ['- No MiniApps registered'];
+      ? availableMiniApps.map((m) => `  ${m.id}: ${m.name}`)
+      : ['  (none)'];
+
+    // ─── Actions on focused window ────────────────────────────────────────
+    const actionLines: string[] = [];
+    if (focusedWindow) {
+      const actions = this.windowActions[focusedWindow.id] ?? [];
+      for (const action of actions) {
+        const paramEntries = action.params ? Object.entries(action.params) : [];
+        if (paramEntries.length === 0) {
+          actionLines.push(`  ${action.name}: ${action.description} (no params)`);
+        } else {
+          const paramDescs = paramEntries
+            .map(([key, p]) => {
+              const req = p.required ? 'required' : 'optional';
+              const desc = p.description ? ` — ${p.description}` : '';
+              return `${key}: ${p.type} (${req}${desc})`;
+            })
+            .join(', ');
+          actionLines.push(`  ${action.name}: ${action.description} | params: {${paramDescs}}`);
+        }
+      }
+    }
 
     return [
-      'You are running inside DeskTalk and can control desktop windows with the window_control tool.',
-      '',
-      'Current desktop state:',
-      focusedWindow
-        ? `- Focused window: "${focusedWindow.title}" (${focusedWindow.id}, miniapp: ${focusedWindow.miniAppId})`
-        : '- Focused window: none',
+      '[Desktop Context]',
+      `Focused: ${focusedWindow ? `"${focusedWindow.title}" (${focusedWindow.id}, miniapp: ${focusedWindow.miniAppId})` : 'none'}`,
+      'Windows:',
       ...windowLines,
-      '',
-      'Available MiniApps:',
+      'MiniApps:',
       ...miniAppLines,
-      '',
-      'Available actions on the focused window:',
-      ...(focusedActionLines.length > 0 ? focusedActionLines : ['- No actions registered']),
-      '',
-      'Use window_control action="list" when you need the latest windows or actions before operating on them.',
+      ...(actionLines.length > 0
+        ? [`Actions (${focusedWindow!.id}):`, ...actionLines]
+        : ['Actions: (none — no focused window or no actions registered)']),
+      '[/Desktop Context]',
     ].join('\n');
   }
 }
