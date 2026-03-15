@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styles from './Dock.module.scss';
 import { DockIcon } from './DockIcon';
 import { Tooltip } from './Tooltip';
+import { ContextMenu } from './ContextMenu';
 
 export interface DockMiniApp {
   id: string;
@@ -14,9 +15,27 @@ export interface DockMiniApp {
 interface DockProps {
   miniApps: DockMiniApp[];
   onLaunch: (miniAppId: string) => void;
+  onQuitApp?: (miniAppId: string) => void;
+  onHideApp?: (miniAppId: string) => void;
 }
 
-export function Dock({ miniApps, onLaunch }: DockProps) {
+const menuItems = [
+  { id: 'hide', label: 'Hide' },
+  { id: 'quit', label: 'Quit' },
+];
+
+export function Dock({ miniApps, onLaunch, onQuitApp, onHideApp }: DockProps) {
+  const [contextMenuOpen, setContextMenuOpen] = useState<string | null>(null);
+
+  const handleMenuSelect = (appId: string, itemId: string) => {
+    if (itemId === 'quit' && onQuitApp) {
+      onQuitApp(appId);
+    } else if (itemId === 'hide' && onHideApp) {
+      onHideApp(appId);
+    }
+    setContextMenuOpen(null);
+  };
+
   return (
     <div className={styles.dockContainer}>
       <div className={styles.dock}>
@@ -27,13 +46,19 @@ export function Dock({ miniApps, onLaunch }: DockProps) {
             onClick={() => onLaunch(app.id)}
             aria-label={app.name}
           >
-            <Tooltip content={app.name}>
-              <DockIcon
-                icon={app.icon}
-                iconPng={app.iconPng}
-                className={styles.dockIconHoverTarget}
-              />
-            </Tooltip>
+            <ContextMenu
+              items={menuItems}
+              onSelect={(itemId) => handleMenuSelect(app.id, itemId)}
+              onOpen={() => setContextMenuOpen(app.id)}
+            >
+              <Tooltip content={app.name} disabled={contextMenuOpen === app.id}>
+                <DockIcon
+                  icon={app.icon}
+                  iconPng={app.iconPng}
+                  className={styles.dockIconHoverTarget}
+                />
+              </Tooltip>
+            </ContextMenu>
             {app.hasOpenWindows && <div className={styles.activeIndicator} />}
           </button>
         ))}

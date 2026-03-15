@@ -6,9 +6,10 @@ interface TooltipProps {
   children: React.ReactNode;
   content: string;
   delay?: number;
+  disabled?: boolean;
 }
 
-export function Tooltip({ children, content, delay = 0 }: TooltipProps) {
+export function Tooltip({ children, content, delay = 0, disabled = false }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [position, setPosition] = useState({ left: 0, top: 0 });
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
@@ -34,6 +35,7 @@ export function Tooltip({ children, content, delay = 0 }: TooltipProps) {
   }, []);
 
   const handleMouseEnter = () => {
+    if (disabled) return;
     updatePosition();
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (delay > 0) {
@@ -56,6 +58,12 @@ export function Tooltip({ children, content, delay = 0 }: TooltipProps) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (disabled) {
+      setIsVisible(false);
+    }
+  }, [disabled]);
 
   const tooltip = isVisible ? (
     <div

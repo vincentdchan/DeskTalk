@@ -1,0 +1,60 @@
+.contextMenuTrigger {
+  display: inline-flex;
+}
+
+.contextMenu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 140px;
+  padding: 6px 0;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--dt-bg) 95%, transparent);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow:
+    0 8px 28px var(--dt-shadow-color),
+    0 0 0 1px var(--dt-border);
+  border: 1px solid var(--dt-border);
+  animation: contextMenuFadeIn 0.1s ease-out;
+}
+
+@keyframes contextMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.menuItem {
+  display: block;
+  width: calc(100% - 12px);
+  margin: 0 6px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dt-text);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s ease;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--dt-accent) 15%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.menuItemDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
