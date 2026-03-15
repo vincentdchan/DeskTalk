@@ -5,11 +5,9 @@
   height: 100%;
   padding: 0 12px;
   overflow-x: auto;
-  background: color-mix(in oklab, var(--dt-actions-bar-bg) 84%, transparent);
+  background: var(--dt-actions-bar-bg);
   color: var(--dt-text);
   font-size: 13px;
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
 }
 
 .appName {

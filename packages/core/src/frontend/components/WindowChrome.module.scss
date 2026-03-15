@@ -33,7 +33,7 @@
   flex-shrink: 0;
   align-items: center;
   padding: 0 12px;
-  background: color-mix(in oklab, var(--dt-window-chrome) 88%, transparent);
+  background: var(--dt-window-chrome);
   cursor: grab;
   user-select: none;
 
