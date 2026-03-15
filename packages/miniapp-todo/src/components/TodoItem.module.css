@@ -24,7 +24,7 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 2px solid var(--dt-border);
+  border: 2px solid var(--dt-text-muted);
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
@@ -128,7 +128,7 @@
 }
 
 .todoDeleteBtn {
-  display: none;
+  display: flex;
   width: 24px;
   height: 24px;
   flex-shrink: 0;
@@ -140,14 +140,16 @@
   color: var(--dt-text-muted);
   cursor: pointer;
   font-size: 14px;
+  opacity: 0;
   transition:
     background 0.15s,
-    color 0.15s;
+    color 0.15s,
+    opacity 0.15s;
 }
 
 .todoItem:hover .todoDeleteBtn,
 .todoItemCompleted:hover .todoDeleteBtn {
-  display: flex;
+  opacity: 1;
 }
 
 .todoDeleteBtn:hover {
