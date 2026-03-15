@@ -1,5 +1,6 @@
 import React from 'react';
 import styles from './Dock.module.scss';
+import { DockIcon } from './DockIcon';
 
 export interface DockMiniApp {
   id: string;
@@ -12,23 +13,6 @@ export interface DockMiniApp {
 interface DockProps {
   miniApps: DockMiniApp[];
   onLaunch: (miniAppId: string) => void;
-}
-
-interface DockIconProps {
-  icon: string;
-  iconPng?: string;
-}
-
-function DockIcon({ icon, iconPng }: DockIconProps) {
-  return (
-    <div className={styles.dockIcon}>
-      {iconPng ? (
-        <img className={styles.dockIconImage} src={iconPng} alt="" aria-hidden="true" />
-      ) : (
-        <span>{icon}</span>
-      )}
-    </div>
-  );
 }
 
 export function Dock({ miniApps, onLaunch }: DockProps) {
