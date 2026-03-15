@@ -65,30 +65,6 @@
   user-select: none;
 }
 
-.statusIdle {
-  color: var(--dt-text-muted);
-}
-
-.statusConnecting {
-  color: var(--dt-warning);
-}
-
-.statusListening {
-  color: var(--dt-success);
-}
-
-.statusSpeaking {
-  color: var(--dt-danger);
-}
-
-.statusProcessing {
-  color: var(--dt-info);
-}
-
-.statusError {
-  color: var(--dt-danger);
-}
-
 .voiceButton {
   display: flex;
   width: 36px;

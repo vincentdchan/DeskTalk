@@ -10,9 +10,6 @@ export interface CommandInputProps {
   isVoiceActive: boolean;
   onVoiceToggle: () => void;
   modelLabel: string;
-  tokenCount: number;
-  voiceStatusLabel: string;
-  voiceStatusClassName: string;
   wsReady: boolean;
 }
 
@@ -24,9 +21,6 @@ export function CommandInput({
   isVoiceActive,
   onVoiceToggle,
   modelLabel,
-  tokenCount,
-  voiceStatusLabel,
-  voiceStatusClassName,
   wsReady,
 }: CommandInputProps) {
   const handleKeyDown = useCallback(
@@ -61,12 +55,6 @@ export function CommandInput({
       </div>
       <div className={styles.statusRow}>
         <span className={styles.statusItem}>{wsReady ? modelLabel : 'offline'}</span>
-        <span className={styles.statusDivider}>|</span>
-        <span className={styles.statusItem}>{tokenCount} tokens</span>
-        <span className={styles.statusDivider}>|</span>
-        <span className={`${styles.statusItem} ${styles[voiceStatusClassName]}`}>
-          {voiceStatusLabel}
-        </span>
       </div>
     </div>
   );

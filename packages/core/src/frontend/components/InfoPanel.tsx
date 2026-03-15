@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Streamdown } from 'streamdown';
 import 'streamdown/styles.css';
-import { useVoiceSession, type VoiceStatus } from '../stores/voice-session';
+import { useVoiceSession } from '../stores/voice-session';
 import { CommandInput } from './CommandInput';
 import styles from './InfoPanel.module.scss';
 
@@ -24,26 +24,6 @@ interface AiEventMessage {
     totalTokens?: number;
   };
   messages?: ChatMessage[];
-}
-
-/**
- * Status label and class for the voice status indicator.
- */
-function getVoiceStatusInfo(status: VoiceStatus): { label: string; className: string } {
-  switch (status) {
-    case 'idle':
-      return { label: 'Voice Off', className: styles.statusIdle };
-    case 'connecting':
-      return { label: 'Connecting...', className: styles.statusConnecting };
-    case 'listening':
-      return { label: 'Listening', className: styles.statusListening };
-    case 'speaking':
-      return { label: 'Speaking...', className: styles.statusSpeaking };
-    case 'processing':
-      return { label: 'Processing...', className: styles.statusProcessing };
-    case 'error':
-      return { label: 'Error', className: styles.statusError };
-  }
 }
 
 function MarkdownMessage({ content, isStreaming }: { content: string; isStreaming: boolean }) {
@@ -240,12 +220,11 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     }
   }, [isAiRunning, flushPendingVoicePrompts]);
 
-  const voiceStatusInfo = getVoiceStatusInfo(voiceStatus);
-
   return (
     <div className={styles.infoPanel}>
       <div className={styles.header}>
         <span>AI Assistant</span>
+        {tokenCount > 0 && <span className={styles.tokenCount}>{tokenCount} tokens</span>}
       </div>
 
       <div className={styles.messages}>
@@ -335,9 +314,6 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
         isVoiceActive={isVoiceActive}
         onVoiceToggle={handleVoiceToggle}
         modelLabel={modelLabel}
-        tokenCount={tokenCount}
-        voiceStatusLabel={voiceStatusInfo.label}
-        voiceStatusClassName={voiceStatusInfo.className}
         wsReady={wsReady}
       />
     </div>
