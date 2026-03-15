@@ -1,0 +1,137 @@
+.controlFrame {
+  border-top: 1px solid var(--dt-border-subtle);
+  background: var(--dt-bg);
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.promptIndicator {
+  color: var(--dt-accent);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  user-select: none;
+}
+
+.input {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  border-bottom: 2px solid var(--dt-border);
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  color: var(--dt-text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: var(--dt-text-muted);
+  }
+
+  &:focus {
+    border-color: var(--dt-accent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px 8px;
+  border-top: 1px solid var(--dt-border-subtle);
+  background: var(--dt-bg-subtle);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.statusItem {
+  color: var(--dt-text-muted);
+}
+
+.statusDivider {
+  color: var(--dt-border);
+  user-select: none;
+}
+
+.statusIdle {
+  color: var(--dt-text-muted);
+}
+
+.statusConnecting {
+  color: var(--dt-warning);
+}
+
+.statusListening {
+  color: var(--dt-success);
+}
+
+.statusSpeaking {
+  color: var(--dt-danger);
+}
+
+.statusProcessing {
+  color: var(--dt-info);
+}
+
+.statusError {
+  color: var(--dt-danger);
+}
+
+.voiceButton {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--dt-border);
+  border-radius: 4px;
+  background: var(--dt-surface);
+  color: var(--dt-text-secondary);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+
+  &:hover {
+    border-color: var(--dt-accent);
+    background: var(--dt-accent-ghost);
+    color: var(--dt-accent);
+  }
+}
+
+.voiceButtonActive {
+  background: var(--dt-danger-subtle);
+  border-color: var(--dt-danger);
+  color: var(--dt-danger);
+
+  &:hover {
+    background: color-mix(in oklab, var(--dt-danger) 15%, var(--dt-surface));
+    border-color: var(--dt-danger);
+    color: var(--dt-danger);
+  }
+}
+
+@keyframes voicePulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--dt-danger) 22%, transparent);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--dt-danger) 0%, transparent);
+  }
+}

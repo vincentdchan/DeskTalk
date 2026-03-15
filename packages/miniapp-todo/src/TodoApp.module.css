@@ -2,7 +2,7 @@
   display: flex;
   height: 100%;
   overflow: hidden;
-  background: var(--color-window-body, #1e1e2e);
-  color: var(--color-text, #e0e0f0);
-  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
+  background: var(--dt-window-body);
+  color: var(--dt-text);
+  font-family: var(--font-sans);
 }

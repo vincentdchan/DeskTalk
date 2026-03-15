@@ -1,11 +1,13 @@
 .shell {
   display: flex;
   flex-direction: column;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  background: var(--desktop-wallpaper) center / cover no-repeat;
+  width: 100vw;
+  height: 100vh;
+  background: var(--dt-wallpaper) center / cover no-repeat;
+
+  position: fixed;
+  top: 0px;
+  left: 0px;
 }
 
 .actionsBar {

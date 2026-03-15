@@ -1,14 +1,14 @@
 .todoItem {
   display: flex;
   align-items: center;
-  padding: 8px 16px;
   gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--dt-border-subtle);
   transition: background 0.1s;
-  border-bottom: 1px solid var(--color-border-subtle, rgba(58, 58, 92, 0.4));
 }
 
 .todoItem:hover {
-  background: var(--color-surface-hover, #32324a);
+  background: var(--dt-surface-hover);
 }
 
 .todoItemCompleted {
@@ -17,71 +17,71 @@
 }
 
 .checkbox {
-  flex-shrink: 0;
+  display: flex;
   width: 18px;
   height: 18px;
-  border: 2px solid var(--color-border, #3a3a5c);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 2px solid var(--dt-border);
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   transition:
     border-color 0.15s,
     background 0.15s;
-  padding: 0;
 }
 
 .checkbox:hover {
-  border-color: var(--color-accent, #7c6ff7);
+  border-color: var(--dt-accent);
 }
 
 .checkboxChecked {
   composes: checkbox;
-  background: var(--color-accent, #7c6ff7);
-  border-color: var(--color-accent, #7c6ff7);
+  border-color: var(--dt-accent);
+  background: var(--dt-accent);
 }
 
 .checkmark {
+  color: var(--dt-text-on-accent);
   font-size: 10px;
-  color: #fff;
   line-height: 1;
 }
 
 .todoContent {
-  flex: 1;
-  min-width: 0;
   display: flex;
+  min-width: 0;
+  flex: 1;
   flex-direction: column;
   gap: 2px;
 }
 
 .todoTitle {
-  font-size: 14px;
-  color: var(--color-text, #e0e0f0);
-  cursor: text;
-  white-space: nowrap;
   overflow: hidden;
+  color: var(--dt-text);
+  cursor: text;
+  font-size: 14px;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .todoTitleCompleted {
   composes: todoTitle;
+  color: var(--dt-text-muted);
   text-decoration: line-through;
-  color: var(--color-text-muted, #8888aa);
 }
 
 .todoTitleInput {
-  font-size: 14px;
-  color: var(--color-text, #e0e0f0);
-  background: var(--color-surface, #282840);
-  border: 1px solid var(--color-accent, #7c6ff7);
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-family: inherit;
-  outline: none;
   width: 100%;
+  padding: 2px 6px;
+  border: 1px solid var(--dt-accent);
+  border-radius: 4px;
+  background: var(--dt-surface);
+  color: var(--dt-text);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
 }
 
 .todoMeta {
@@ -91,55 +91,55 @@
 }
 
 .priorityBadge {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   padding: 1px 6px;
   border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .priorityLow {
   composes: priorityBadge;
-  background: rgba(80, 180, 80, 0.15);
-  color: #50b450;
+  background: var(--dt-success-subtle);
+  color: var(--dt-success);
 }
 
 .priorityMedium {
   composes: priorityBadge;
-  background: rgba(224, 160, 80, 0.15);
-  color: #e0a050;
+  background: var(--dt-warning-subtle);
+  color: var(--dt-warning);
 }
 
 .priorityHigh {
   composes: priorityBadge;
-  background: rgba(224, 80, 80, 0.15);
-  color: #e05050;
+  background: var(--dt-danger-subtle);
+  color: var(--dt-danger);
 }
 
 .dueDate {
+  color: var(--dt-text-muted);
   font-size: 11px;
-  color: var(--color-text-muted, #8888aa);
 }
 
 .dueDateOverdue {
   composes: dueDate;
-  color: var(--color-danger, #e05050);
+  color: var(--dt-danger);
 }
 
 .todoDeleteBtn {
-  flex-shrink: 0;
+  display: none;
   width: 24px;
   height: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: var(--color-text-muted, #8888aa);
-  font-size: 14px;
+  color: var(--dt-text-muted);
   cursor: pointer;
-  display: none;
-  align-items: center;
-  justify-content: center;
+  font-size: 14px;
   transition:
     background 0.15s,
     color 0.15s;
@@ -151,21 +151,21 @@
 }
 
 .todoDeleteBtn:hover {
-  background: var(--color-surface-hover, #32324a);
-  color: var(--color-danger, #e05050);
+  background: var(--dt-surface-hover);
+  color: var(--dt-danger);
 }
 
 .detailPopover {
   position: absolute;
-  right: 16px;
   top: 0;
+  right: 16px;
   z-index: 10;
-  background: var(--color-surface, #282840);
-  border: 1px solid var(--color-border, #3a3a5c);
-  border-radius: 8px;
-  padding: 12px;
   min-width: 200px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 12px;
+  border: 1px solid var(--dt-border);
+  border-radius: 8px;
+  background: var(--dt-surface);
+  box-shadow: 0 12px 28px var(--dt-shadow-color);
 }
 
 .detailField {
@@ -177,43 +177,32 @@
 }
 
 .detailLabel {
+  margin-bottom: 4px;
+  color: var(--dt-text-muted);
   font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-text-muted, #8888aa);
-  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.detailSelect,
+.detailInput {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--dt-border);
+  border-radius: 4px;
+  background: var(--dt-window-body);
+  color: var(--dt-text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
 }
 
 .detailSelect {
-  width: 100%;
-  background: var(--color-window-body, #1e1e2e);
-  border: 1px solid var(--color-border, #3a3a5c);
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 13px;
-  color: var(--color-text, #e0e0f0);
-  font-family: inherit;
   cursor: pointer;
-  outline: none;
 }
 
-.detailSelect:focus {
-  border-color: var(--color-accent, #7c6ff7);
-}
-
-.detailInput {
-  width: 100%;
-  background: var(--color-window-body, #1e1e2e);
-  border: 1px solid var(--color-border, #3a3a5c);
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 13px;
-  color: var(--color-text, #e0e0f0);
-  font-family: inherit;
-  outline: none;
-}
-
+.detailSelect:focus,
 .detailInput:focus {
-  border-color: var(--color-accent, #7c6ff7);
+  border-color: var(--dt-accent);
 }

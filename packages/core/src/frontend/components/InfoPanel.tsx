@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Streamdown } from 'streamdown';
 import 'streamdown/styles.css';
 import { useVoiceSession, type VoiceStatus } from '../stores/voice-session';
+import { CommandInput } from './CommandInput';
 import styles from './InfoPanel.module.scss';
 
 interface ChatMessage {
@@ -204,16 +205,6 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     void submitPrompt(text, 'text');
   }, [input, submitPrompt]);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    },
-    [handleSend],
-  );
-
   const handleVoiceToggle = useCallback(() => {
     if (isVoiceActive) {
       stopVoice();
@@ -277,11 +268,14 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
                   key={msg.id}
                   className={msg.role === 'user' ? styles.messageUser : styles.messageAssistant}
                 >
-                  {msg.role === 'user' && msg.source === 'voice' && (
-                    <div className={styles.messageMeta}>
-                      <span className={styles.voiceSourceBadge}>Voice</span>
-                    </div>
-                  )}
+                  <div className={styles.messageHeader}>
+                    <span className={styles.messageSpeaker}>
+                      {msg.role === 'user' ? 'ME' : 'AI'}
+                    </span>
+                    {msg.role === 'user' && msg.source === 'voice' && (
+                      <span className={styles.voiceSourceBadge}>voice</span>
+                    )}
+                  </div>
                   {isThinking ? (
                     <div className={styles.thinkingIndicator}>
                       <span className={styles.thinkingDot} />
@@ -333,57 +327,19 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
         <div ref={messagesEndRef} />
       </div>
 
-      <div className={styles.inputArea}>
-        <button
-          className={`${styles.voiceButton} ${isVoiceActive ? styles.voiceButtonActive : ''}`}
-          onClick={handleVoiceToggle}
-          title={isVoiceActive ? 'Stop voice input' : 'Start voice input'}
-        >
-          <MicIcon active={isVoiceActive} />
-        </button>
-        <input
-          className={styles.input}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask the AI..."
-        />
-        <button className={styles.sendButton} onClick={handleSend}>
-          {isAiRunning ? '...' : 'Send'}
-        </button>
-      </div>
-
-      <div className={styles.statusBar}>
-        <span>Model: {wsReady ? modelLabel : 'offline'}</span>
-        <div className={styles.voiceStatus}>
-          <span className={`${styles.statusDot} ${voiceStatusInfo.className}`} />
-          <span>{voiceStatusInfo.label}</span>
-        </div>
-        <span>Tokens: {tokenCount}</span>
-      </div>
+      <CommandInput
+        value={input}
+        onChange={setInput}
+        onSubmit={handleSend}
+        isAiRunning={isAiRunning}
+        isVoiceActive={isVoiceActive}
+        onVoiceToggle={handleVoiceToggle}
+        modelLabel={modelLabel}
+        tokenCount={tokenCount}
+        voiceStatusLabel={voiceStatusInfo.label}
+        voiceStatusClassName={voiceStatusInfo.className}
+        wsReady={wsReady}
+      />
     </div>
-  );
-}
-
-/**
- * SVG microphone icon with active/inactive states.
- */
-function MicIcon({ active }: { active: boolean }) {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={active ? '#ef4444' : 'currentColor'}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-      <line x1="12" y1="19" x2="12" y2="23" />
-      <line x1="8" y1="23" x2="16" y2="23" />
-    </svg>
   );
 }

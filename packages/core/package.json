@@ -36,6 +36,7 @@
     "@mariozechner/pi-coding-agent": "^0.57.1",
     "@sinclair/typebox": "^0.34.48",
     "commander": "^13.0.0",
+    "culori": "^4.0.2",
     "env-paths": "^3.0.0",
     "fastify": "^5.0.0",
     "pino": "^10.3.1",
@@ -45,6 +46,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@types/culori": "^4.0.1",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

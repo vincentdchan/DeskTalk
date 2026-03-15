@@ -1,77 +1,71 @@
-/* ─── Layout ──────────────────────────────────────────────────────────────── */
-
 .root {
   display: flex;
   height: 100%;
   overflow: hidden;
-  background: var(--color-window-body, #1e1e2e);
-  color: var(--color-text, #e0e0f0);
-  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
+  background: var(--dt-window-body);
+  color: var(--dt-text);
+  font-family: var(--font-sans);
 }
-
-/* ─── Category Sidebar ───────────────────────────────────────────────────── */
 
 .sidebar {
   width: 180px;
   min-width: 180px;
-  border-right: 1px solid var(--color-border, #3a3a5c);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   padding: 8px 0;
+  border-right: 1px solid var(--dt-border);
 }
 
 .sidebarHeader {
   padding: 12px 16px 8px;
+  color: var(--dt-text-muted);
   font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-text-muted, #8888aa);
+  text-transform: uppercase;
 }
 
 .categoryItem {
   display: flex;
+  width: 100%;
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--color-text, #e0e0f0);
-  transition: background 0.1s;
   border: none;
   background: none;
-  width: 100%;
-  text-align: left;
+  color: var(--dt-text);
+  cursor: pointer;
   font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  transition: background 0.1s;
 }
 
 .categoryItem:hover {
-  background: var(--color-surface-hover, #32324a);
+  background: var(--dt-surface-hover);
 }
 
 .categoryItemActive {
   composes: categoryItem;
-  background: var(--color-surface, #282840);
-  color: var(--color-accent, #7c6ff7);
+  background: var(--dt-surface);
+  border-left: 3px solid var(--dt-accent);
+  color: var(--dt-accent);
   font-weight: 500;
-  border-left: 3px solid var(--color-accent, #7c6ff7);
   padding-left: 13px;
 }
 
 .categoryIcon {
-  font-size: 15px;
   width: 20px;
+  font-size: 15px;
   text-align: center;
 }
 
-/* ─── Settings Panel ─────────────────────────────────────────────────────── */
-
 .settingsPanel {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
   padding: 0;
-  min-width: 0;
 }
 
 .section {
@@ -79,25 +73,23 @@
 }
 
 .sectionTitle {
+  margin-bottom: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--dt-border);
+  color: var(--dt-text-muted);
   font-size: 13px;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--color-text-muted, #8888aa);
-  padding-bottom: 8px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid var(--color-border, #3a3a5c);
+  text-transform: uppercase;
 }
-
-/* ─── Setting Row ────────────────────────────────────────────────────────── */
 
 .row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 0;
   gap: 16px;
-  border-bottom: 1px solid var(--color-border-subtle, rgba(58, 58, 92, 0.4));
+  padding: 12px 0;
+  border-bottom: 1px solid var(--dt-border-subtle);
 }
 
 .row:last-child {
@@ -110,79 +102,77 @@
 }
 
 .rowLabel {
+  margin-bottom: 2px;
   font-size: 14px;
   font-weight: 500;
-  margin-bottom: 2px;
 }
 
 .rowDescription {
+  color: var(--dt-text-muted);
   font-size: 12px;
-  color: var(--color-text-muted, #8888aa);
   line-height: 1.4;
 }
 
 .rowRestartBadge {
   display: inline-block;
   margin-left: 6px;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
   padding: 1px 5px;
   border-radius: 3px;
-  background: var(--color-warning-bg, rgba(224, 160, 80, 0.15));
-  color: var(--color-warning, #e0a050);
+  background: var(--dt-warning-subtle);
+  color: var(--dt-warning);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .rowControl {
-  flex-shrink: 0;
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 8px;
 }
 
-/* ─── Controls: Text Input ───────────────────────────────────────────────── */
+.textInput,
+.numberInput,
+.dropdown {
+  padding: 6px 10px;
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+  background: var(--dt-surface);
+  color: var(--dt-text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background 0.15s;
+}
+
+.textInput:focus,
+.numberInput:focus,
+.dropdown:focus {
+  border-color: var(--dt-accent);
+  box-shadow: 0 0 0 3px var(--dt-accent-ghost);
+}
 
 .textInput {
-  background: var(--color-surface, #282840);
-  border: 1px solid var(--color-border, #3a3a5c);
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 13px;
-  color: var(--color-text, #e0e0f0);
-  font-family: inherit;
-  outline: none;
   width: 220px;
-  transition: border-color 0.15s;
 }
 
 .textInput::placeholder {
-  color: var(--color-text-muted, #8888aa);
-}
-
-.textInput:focus {
-  border-color: var(--color-accent, #7c6ff7);
+  color: var(--dt-text-muted);
 }
 
 .textInputSensitive {
   composes: textInput;
-  font-family: var(--font-mono, 'SF Mono', monospace);
+  font-family: var(--font-mono);
   letter-spacing: 0.05em;
 }
 
-/* ─── Controls: Number Input ─────────────────────────────────────────────── */
-
 .numberInput {
-  background: var(--color-surface, #282840);
-  border: 1px solid var(--color-border, #3a3a5c);
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 13px;
-  color: var(--color-text, #e0e0f0);
-  font-family: inherit;
-  outline: none;
   width: 100px;
-  transition: border-color 0.15s;
   -moz-appearance: textfield;
 }
 
@@ -192,75 +182,61 @@
   margin: 0;
 }
 
-.numberInput:focus {
-  border-color: var(--color-accent, #7c6ff7);
-}
-
-/* ─── Controls: Dropdown ─────────────────────────────────────────────────── */
-
 .dropdown {
-  background: var(--color-surface, #282840);
-  border: 1px solid var(--color-border, #3a3a5c);
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 13px;
-  color: var(--color-text, #e0e0f0);
-  font-family: inherit;
-  outline: none;
-  cursor: pointer;
   min-width: 120px;
-  transition: border-color 0.15s;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238888aa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 28px;
-}
-
-.dropdown:focus {
-  border-color: var(--color-accent, #7c6ff7);
+  cursor: pointer;
 }
 
 .dropdown option {
-  background: var(--color-surface, #282840);
-  color: var(--color-text, #e0e0f0);
+  background: var(--dt-surface);
+  color: var(--dt-text);
 }
 
-/* ─── Controls: Toggle Switch ────────────────────────────────────────────── */
+.colorControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.colorInput {
+  width: 40px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--dt-border);
+  border-radius: 8px;
+  background: var(--dt-surface);
+  cursor: pointer;
+}
 
 .toggle {
   position: relative;
   width: 42px;
   height: 24px;
-  cursor: pointer;
   flex-shrink: 0;
+  cursor: pointer;
 }
 
 .toggleInput {
-  opacity: 0;
+  position: absolute;
   width: 0;
   height: 0;
-  position: absolute;
+  opacity: 0;
 }
 
 .toggleTrack {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--color-surface, #282840);
-  border: 1px solid var(--color-border, #3a3a5c);
+  inset: 0;
+  border: 1px solid var(--dt-border);
   border-radius: 12px;
+  background: var(--dt-surface);
   transition:
     background 0.2s,
     border-color 0.2s;
 }
 
 .toggleInput:checked + .toggleTrack {
-  background: var(--color-accent, #7c6ff7);
-  border-color: var(--color-accent, #7c6ff7);
+  border-color: var(--dt-accent);
+  background: var(--dt-accent);
 }
 
 .toggleKnob {
@@ -269,8 +245,8 @@
   left: 3px;
   width: 18px;
   height: 18px;
-  background: #fff;
   border-radius: 50%;
+  background: var(--dt-text-on-accent);
   transition: transform 0.2s;
   pointer-events: none;
 }
@@ -279,21 +255,20 @@
   transform: translateX(18px);
 }
 
-/* ─── Restart Notification ───────────────────────────────────────────────── */
-
 .notification {
   position: fixed;
   bottom: 80px;
   left: 50%;
-  transform: translateX(-50%);
-  background: var(--color-warning-bg, rgba(224, 160, 80, 0.95));
-  color: #1e1e2e;
+  z-index: 1000;
   padding: 10px 20px;
+  border: 1px solid color-mix(in oklab, var(--dt-warning) 40%, var(--dt-border));
   border-radius: 8px;
+  background: color-mix(in oklab, var(--dt-warning) 20%, var(--dt-surface));
+  box-shadow: 0 14px 28px var(--dt-shadow-color);
+  color: var(--dt-text);
   font-size: 13px;
   font-weight: 500;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
+  transform: translateX(-50%);
   animation: slideUp 0.3s ease-out;
 }
 
@@ -302,6 +277,7 @@
     opacity: 0;
     transform: translateX(-50%) translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0);

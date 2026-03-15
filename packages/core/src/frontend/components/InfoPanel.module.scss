@@ -1,85 +1,90 @@
-$panel-border: rgba(255, 255, 255, 0.1);
-$panel-text: rgba(255, 255, 255, 0.95);
-$panel-text-muted: rgba(255, 255, 255, 0.5);
-$panel-surface: rgba(0, 0, 0, 0.2);
-$panel-surface-strong: rgba(0, 0, 0, 0.3);
-$voice-danger: rgba(239, 68, 68, 0.8);
-
 .infoPanel {
   display: flex;
   height: 100%;
   flex-direction: column;
   overflow: hidden;
-  border-left: 1px solid $panel-border;
-  background: var(--desktop-window-bg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-left: 1px solid var(--dt-border-subtle);
+  background: color-mix(in oklab, var(--dt-info-panel-bg) 88%, transparent);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid $panel-border;
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 13px;
-  font-weight: 600;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--dt-border-subtle);
+  background: var(--dt-bg-subtle);
+  color: var(--dt-text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .messages {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 10px;
   overflow-y: auto;
-  padding: 12px;
+  padding: 0;
 }
 
 .message {
-  max-width: 85%;
   padding: 12px 16px;
-  border-radius: 18px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  font-size: 13px;
-  line-height: 1.5;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.3;
+  color: color-mix(in oklab, var(--dt-text) 85%, var(--dt-text-secondary));
 }
 
 .messageUser {
   composes: message;
-  align-self: flex-end;
-  border-bottom-right-radius: 6px;
-  background: linear-gradient(135deg, #7c6ff7 0%, #6a5ce0 100%);
-  color: #fff;
+  background: color-mix(in oklab, var(--dt-accent) 8%, var(--dt-bg));
+  border-left: 3px solid color-mix(in oklab, var(--dt-accent) 75%, var(--dt-border));
 }
 
 .messageAssistant {
   composes: message;
-  align-self: flex-start;
-  border-bottom-left-radius: 6px;
-  background: rgba(255, 255, 255, 0.15);
-  color: $panel-text;
+  background: color-mix(in oklab, var(--dt-info) 6%, var(--dt-bg));
+  border-left: 3px solid color-mix(in oklab, var(--dt-info) 75%, var(--dt-border));
 }
 
-.messageMeta {
+.messageHeader {
   display: flex;
   align-items: center;
-  margin-bottom: 6px;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.messageSpeaker {
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+}
+
+.messageUser .messageSpeaker {
+  color: color-mix(in oklab, var(--dt-accent) 70%, var(--dt-text));
+}
+
+.messageAssistant .messageSpeaker {
+  color: color-mix(in oklab, var(--dt-info) 70%, var(--dt-text));
 }
 
 .voiceSourceBadge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
-  color: rgba(255, 255, 255, 0.9);
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--dt-surface);
+  color: var(--dt-text-muted);
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: lowercase;
+  font-family: var(--font-mono);
 }
 
 .markdownContent {
@@ -120,16 +125,17 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   code {
     padding: 0.15em 0.4em;
     border-radius: 6px;
-    background: rgba(0, 0, 0, 0.22);
-    font-family: 'SFMono-Regular', 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+    background: color-mix(in oklab, var(--dt-bg) 85%, transparent);
+    font-family: var(--font-mono);
     font-size: 0.92em;
   }
 
   pre {
     overflow-x: auto;
     padding: 0.8em 0.95em;
+    border: 1px solid var(--dt-border-subtle);
     border-radius: 12px;
-    background: rgba(0, 0, 0, 0.28);
+    background: color-mix(in oklab, var(--dt-bg) 92%, transparent);
 
     code {
       padding: 0;
@@ -139,12 +145,12 @@ $voice-danger: rgba(239, 68, 68, 0.8);
 
   blockquote {
     padding-left: 0.9em;
-    border-left: 3px solid rgba(255, 255, 255, 0.22);
-    color: rgba(255, 255, 255, 0.72);
+    border-left: 3px solid var(--dt-accent-subtle);
+    color: var(--dt-text-secondary);
   }
 
   a {
-    color: #9dd6ff;
+    color: var(--dt-accent);
     text-decoration: underline;
     text-underline-offset: 0.16em;
   }
@@ -158,84 +164,15 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   th,
   td {
     padding: 0.45em 0.55em;
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    border: 1px solid var(--dt-border-subtle);
     text-align: left;
   }
 
   hr {
     margin: 0.9em 0;
     border: 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    border-top: 1px solid var(--dt-border-subtle);
   }
-}
-
-.inputArea {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
-  border-top: 1px solid $panel-border;
-  background: $panel-surface;
-}
-
-.input {
-  flex: 1;
-  padding: 10px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 20px;
-  outline: none;
-  background: $panel-surface-strong;
-  color: $panel-text;
-  font-family: inherit;
-  font-size: 13px;
-  transition:
-    border-color 0.2s,
-    background 0.2s;
-
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.4);
-  }
-
-  &:focus {
-    border-color: rgba(124, 111, 247, 0.8);
-    background: rgba(0, 0, 0, 0.4);
-  }
-}
-
-.sendButton {
-  padding: 10px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.15);
-  color: $panel-text;
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: rgba(255, 255, 255, 0.4);
-    background: rgba(255, 255, 255, 0.25);
-    transform: translateY(-1px);
-  }
-
-  &:active {
-    background: rgba(255, 255, 255, 0.1);
-    transform: translateY(0);
-  }
-}
-
-.statusBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 16px;
-  border-top: 1px solid $panel-border;
-  background: $panel-surface;
-  color: $panel-text-muted;
-  font-size: 11px;
 }
 
 .placeholder {
@@ -244,158 +181,9 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   align-items: center;
   justify-content: center;
   padding: 20px;
-  color: $panel-text-muted;
+  color: var(--dt-text-muted);
   font-size: 13px;
   text-align: center;
-}
-
-.voiceButton {
-  display: flex;
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.8);
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: rgba(255, 255, 255, 0.35);
-    background: rgba(255, 255, 255, 0.2);
-  }
-}
-
-.voiceButtonActive {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: rgba(239, 68, 68, 0.5);
-  animation: voicePulse 2s ease-in-out infinite;
-
-  &:hover {
-    background: rgba(239, 68, 68, 0.3);
-    border-color: rgba(239, 68, 68, 0.6);
-  }
-}
-
-@keyframes voicePulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3);
-  }
-
-  50% {
-    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
-  }
-}
-
-.voiceStatus {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.statusDot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.statusIdle {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.statusConnecting {
-  background: #f59e0b;
-  animation: statusBlink 1s ease-in-out infinite;
-}
-
-.statusListening {
-  background: #22c55e;
-  animation: statusBlink 2s ease-in-out infinite;
-}
-
-.statusSpeaking {
-  background: #ef4444;
-  animation: statusBlink 0.5s ease-in-out infinite;
-}
-
-.statusProcessing {
-  background: #3b82f6;
-  animation: statusBlink 1s ease-in-out infinite;
-}
-
-.statusError {
-  background: #ef4444;
-}
-
-@keyframes statusBlink {
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.3;
-  }
-}
-
-.transcriptSection {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.transcriptHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  color: $panel-text-muted;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-.clearButton {
-  padding: 2px 8px;
-  border: 0;
-  border-radius: 10px;
-  background: none;
-  color: rgba(255, 255, 255, 0.4);
-  cursor: pointer;
-  font-size: 11px;
-  transition: all 0.2s;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.7);
-  }
-}
-
-.transcriptEntry {
-  padding: 10px 14px;
-  border-left: 3px solid rgba(124, 111, 247, 0.5);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.transcriptText {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.transcriptMeta {
-  margin-top: 4px;
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 10px;
 }
 
 .partialTranscript {
@@ -403,10 +191,10 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border: 1px solid rgba(124, 111, 247, 0.2);
+  border: 1px solid color-mix(in oklab, var(--dt-accent) 35%, var(--dt-border));
   border-radius: 12px;
-  background: rgba(124, 111, 247, 0.1);
-  color: rgba(255, 255, 255, 0.7);
+  background: var(--dt-accent-ghost);
+  color: var(--dt-text-secondary);
   font-size: 13px;
   font-style: italic;
 }
@@ -417,17 +205,22 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   height: 8px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: #7c6ff7;
+  background: var(--dt-accent);
   animation: statusBlink 0.6s ease-in-out infinite;
 }
 
-.voiceListening {
+.voiceListening,
+.voiceSpeaking,
+.voiceProcessing {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
-  color: rgba(255, 255, 255, 0.4);
   font-size: 12px;
+}
+
+.voiceListening {
+  color: var(--dt-text-muted);
 }
 
 .listeningDot {
@@ -436,17 +229,12 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   height: 8px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: #22c55e;
+  background: var(--dt-success);
   animation: statusBlink 2s ease-in-out infinite;
 }
 
 .voiceSpeaking {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  color: $voice-danger;
-  font-size: 12px;
+  color: var(--dt-danger);
 }
 
 .speakingWave {
@@ -455,7 +243,7 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   height: 12px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: rgba(239, 68, 68, 0.6);
+  background: color-mix(in oklab, var(--dt-danger) 70%, transparent);
   animation: speakingPulse 0.8s ease-in-out infinite;
 }
 
@@ -473,17 +261,15 @@ $voice-danger: rgba(239, 68, 68, 0.8);
 }
 
 .voiceProcessing {
-  padding: 8px 14px;
-  color: rgba(59, 130, 246, 0.8);
-  font-size: 12px;
+  color: var(--dt-info);
 }
 
 .voiceError {
   padding: 10px 14px;
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  border: 1px solid color-mix(in oklab, var(--dt-danger) 40%, var(--dt-border));
   border-radius: 12px;
-  background: rgba(239, 68, 68, 0.1);
-  color: rgba(239, 68, 68, 0.9);
+  background: var(--dt-danger-subtle);
+  color: var(--dt-danger);
   font-size: 12px;
 }
 
@@ -499,7 +285,7 @@ $voice-danger: rgba(239, 68, 68, 0.8);
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--dt-text-muted);
   animation: thinkingBounce 1.4s ease-in-out infinite;
 
   &:nth-child(2) {

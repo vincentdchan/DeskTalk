@@ -5,46 +5,50 @@
   height: 100%;
   padding: 0 12px;
   overflow-x: auto;
-  background: var(--desktop-window-bg);
-  color: var(--color-top-bar-text);
+  background: var(--dt-actions-bar-bg);
+  color: var(--dt-text);
   font-size: 13px;
 }
 
 .appName {
   margin-right: 12px;
-  color: var(--color-top-bar-text);
-  font-weight: 600;
+  color: var(--dt-text);
+  font-weight: 700;
   white-space: nowrap;
-  text-shadow: var(--color-top-bar-text-shadow);
 }
 
 .separator {
   width: 1px;
   height: 16px;
   margin: 0 6px;
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--dt-border-subtle);
 }
 
 .action {
   padding: 4px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--dt-border);
   border-radius: 12px;
-  background: transparent;
-  color: var(--color-top-bar-text);
+  background: color-mix(in oklab, var(--dt-surface) 64%, transparent);
+  color: var(--dt-text);
   cursor: pointer;
   font-family: inherit;
   font-size: 12px;
-  text-shadow: var(--color-top-bar-text-shadow);
   white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.15);
+    border-color: var(--dt-accent);
+    background: var(--dt-accent-ghost);
+    color: var(--dt-accent);
   }
 }
 
 .builtinAction {
   composes: action;
-  opacity: 0.9;
+  opacity: 0.92;
 
   &:hover {
     opacity: 1;
