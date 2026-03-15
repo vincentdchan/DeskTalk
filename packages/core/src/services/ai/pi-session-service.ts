@@ -5,6 +5,7 @@ import {
   createAgentSession,
   DefaultResourceLoader,
   ModelRegistry,
+  readTool,
   SessionManager,
   type AgentSession,
   type AgentSessionEvent,
@@ -18,7 +19,7 @@ import type { WorkspacePaths } from '../workspace';
 /**
  * Static system prompt — fully cacheable, never changes between prompts.
  *
- * Describes the DeskTalk environment, the two tools (`desktop` and `action`),
+ * Describes the DeskTalk environment, the three tools (`read`, `desktop`, and `action`),
  * and how the dynamic `[Desktop Context]` block works.
  */
 const DESKTALK_SYSTEM_PROMPT = [
@@ -27,7 +28,11 @@ const DESKTALK_SYSTEM_PROMPT = [
   '',
   '## Tools',
   '',
-  'You have two tools:',
+  'You have three tools:',
+  '',
+  '### read',
+  'Read a file from the workspace by path. Returns the file content with line numbers.',
+  'Use this to inspect files the user mentions or that you need context from.',
   '',
   '### desktop',
   'Manage windows on the desktop.',
@@ -276,7 +281,7 @@ export class PiSessionService {
       modelRegistry,
       model: initialModel,
       sessionManager,
-      tools: [],
+      tools: [readTool],
       customTools,
       resourceLoader,
     });
