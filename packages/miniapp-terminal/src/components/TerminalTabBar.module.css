@@ -1,0 +1,96 @@
+.tabBar {
+  display: flex;
+  height: 36px;
+  flex-shrink: 0;
+  align-items: stretch;
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
+  overflow-x: auto;
+}
+
+.tabBar::-webkit-scrollbar {
+  height: 0;
+}
+
+.tab {
+  display: flex;
+  min-width: 100px;
+  max-width: 200px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border-right: 1px solid #3c3c3c;
+  background: #2d2d2d;
+  color: #969696;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  background: #333333;
+  color: #cccccc;
+}
+
+.tabActive {
+  composes: tab;
+  background: #1e1e1e;
+  color: #ffffff;
+  border-bottom: 2px solid #007acc;
+}
+
+.tabLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tabCloseBtn {
+  display: flex;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: #969696;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.tab:hover .tabCloseBtn,
+.tabActive:hover .tabCloseBtn {
+  opacity: 1;
+}
+
+.tabCloseBtn:hover {
+  background: #444444;
+  color: #ffffff;
+}
+
+.newTabBtn {
+  display: flex;
+  width: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #969696;
+  cursor: pointer;
+  font-size: 18px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.newTabBtn:hover {
+  background: #333333;
+  color: #ffffff;
+}

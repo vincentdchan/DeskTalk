@@ -1,0 +1,9 @@
+.root {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  background: #1e1e1e;
+  color: #cccccc;
+  font-family: var(--font-mono, 'Menlo', 'Monaco', 'Courier New', monospace);
+}
