@@ -4,6 +4,9 @@ import { createRoot, hydrateRoot } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
 import { I18nProvider, type LocaleMessages } from '@desktalk/sdk';
 import { Shell } from './components/Shell';
+import { LoginPage } from './components/LoginPage';
+import { OnboardPage } from './components/OnboardPage';
+import { useAuthStore } from './stores/auth';
 import { applyTheme, DEFAULT_THEME_PREFERENCES, type ThemePreferences } from './theme';
 import './styles/global.scss';
 
@@ -18,6 +21,48 @@ interface PublicPreferencesResponse {
 }
 
 applyTheme(DEFAULT_THEME_PREFERENCES);
+
+/**
+ * AuthGate checks the user's authentication state and renders:
+ * - A loading indicator while checking auth
+ * - LoginPage if not authenticated (or setup mode)
+ * - OnboardPage if authenticated but not onboarded
+ * - The full App (Shell) if authenticated and onboarded
+ */
+function AuthGate() {
+  const { user, loading, checkAuth } = useAuthStore();
+
+  useEffect(() => {
+    void checkAuth();
+  }, [checkAuth]);
+
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100vw',
+        height: '100vh',
+        background: 'var(--dt-bg-base)',
+        color: 'var(--dt-text-muted)',
+        fontSize: 16,
+      }}>
+        Loading…
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  if (!user.onboarded) {
+    return <OnboardPage />;
+  }
+
+  return <App />;
+}
 
 function App() {
   const [locale, setLocale] = useState('en');
@@ -143,6 +188,6 @@ if (!rootEl) {
 const root = createRoot(rootEl);
 root.render(
   <React.StrictMode>
-    <App />
+    <AuthGate />
   </React.StrictMode>,
 );

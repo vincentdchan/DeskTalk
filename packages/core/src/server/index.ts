@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import fastifyWebsocket from '@fastify/websocket';
 import fastifyStatic from '@fastify/static';
+import fastifyCookie from '@fastify/cookie';
 import { createReadStream } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,6 +22,10 @@ import {
   WindowManagerService,
   type SerializableActionDefinition,
 } from '../services/window-manager';
+import { UserService, type User } from '../services/user-service';
+
+const COOKIE_NAME = 'desktalk_session';
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 days in seconds
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -37,6 +42,57 @@ export async function createServer(options: ServerOptions) {
   const app = Fastify({ loggerInstance: options.logger.child({ scope: 'http' }) });
   const log = options.logger;
   const workspacePaths = getWorkspacePaths();
+
+  // ─── User / auth service ────────────────────────────────────────────────
+  const userService = new UserService(join(workspacePaths.data, 'storage', 'users.json'));
+
+  // In dev mode, inject a default admin user and create a session
+  let devSessionId: string | undefined;
+  if (options.dev) {
+    const { session } = await userService.ensureDevAdmin();
+    devSessionId = session.id;
+    log.info({ sessionId: session.id }, 'dev mode: injected admin user with auto-login session');
+  }
+
+  // Register cookie support
+  await app.register(fastifyCookie);
+
+  // ─── Augment Fastify request with user ──────────────────────────────────
+  app.decorateRequest('user', null);
+
+  // ─── Auth middleware ────────────────────────────────────────────────────
+  // Public routes that don't require authentication
+  const publicRoutes = new Set(['/api/auth/login', '/api/auth/me', '/api/auth/status']);
+
+  app.addHook('preHandler', async (request, reply) => {
+    // Skip auth for non-API routes (static assets, SPA fallback)
+    if (!request.url.startsWith('/api/') && !request.url.startsWith('/ws')) {
+      return;
+    }
+    // Skip auth for public routes
+    if (publicRoutes.has(request.url.split('?')[0])) {
+      return;
+    }
+    // Skip auth entirely when in setup mode (no users yet)
+    if (userService.isSetupMode()) {
+      return;
+    }
+
+    const sessionId = request.cookies[COOKIE_NAME];
+    if (!sessionId) {
+      reply.code(401).send({ error: 'Unauthorized' });
+      return;
+    }
+
+    const user = userService.validateSession(sessionId);
+    if (!user) {
+      reply.code(401).send({ error: 'Unauthorized' });
+      return;
+    }
+
+    (request as unknown as Record<string, unknown>).user = user;
+  });
+
   const windowManager = new WindowManagerService(
     join(workspacePaths.data, 'storage', 'window-state.json'),
   );
@@ -526,6 +582,166 @@ export async function createServer(options: ServerOptions) {
     await registry.deactivate(id);
     return { id, deactivated: true };
   });
+
+  // ─── Auth API ─────────────────────────────────────────────────────────────
+
+  /** Returns auth status + dev session info so the frontend can bootstrap. */
+  app.get('/api/auth/status', async () => {
+    return {
+      setupMode: userService.isSetupMode(),
+      devMode: options.dev,
+      devSessionId: options.dev ? devSessionId : undefined,
+    };
+  });
+
+  /** Return current user info (or 401). */
+  app.get('/api/auth/me', async (req, reply) => {
+    const sessionId = req.cookies[COOKIE_NAME];
+    if (!sessionId) {
+      reply.code(401);
+      return { error: 'Unauthorized' };
+    }
+    const user = userService.validateSession(sessionId);
+    if (!user) {
+      reply.code(401);
+      return { error: 'Unauthorized' };
+    }
+    return user;
+  });
+
+  /** Authenticate with username + password. */
+  app.post<{ Body: { username: string; password: string } }>('/api/auth/login', async (req, reply) => {
+    const { username, password } = req.body ?? {};
+    if (!username || !password) {
+      reply.code(400);
+      return { error: 'Username and password are required' };
+    }
+
+    try {
+      const { user, session } = await userService.login(username, password);
+      reply.setCookie(COOKIE_NAME, session.id, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'strict',
+        maxAge: COOKIE_MAX_AGE,
+      });
+      return user;
+    } catch {
+      reply.code(401);
+      return { error: 'Invalid username or password' };
+    }
+  });
+
+  /** Destroy the current session. */
+  app.post('/api/auth/logout', async (req, reply) => {
+    const sessionId = req.cookies[COOKIE_NAME];
+    if (sessionId) {
+      userService.logout(sessionId);
+    }
+    reply.clearCookie(COOKIE_NAME, { path: '/' });
+    return { ok: true };
+  });
+
+  /** Mark current user as onboarded. */
+  app.post('/api/auth/onboard', async (req, reply) => {
+    const sessionId = req.cookies[COOKIE_NAME];
+    const user = sessionId ? userService.validateSession(sessionId) : null;
+    if (!user) {
+      reply.code(401);
+      return { error: 'Unauthorized' };
+    }
+    userService.markOnboarded(user.id);
+    return { ...user, onboarded: true };
+  });
+
+  // ─── User management API (admin only) ─────────────────────────────────────
+
+  function requireAdmin(req: unknown): User {
+    const user = (req as Record<string, unknown>).user as User | undefined;
+    if (!user || user.role !== 'admin') {
+      throw { statusCode: 403, message: 'Forbidden' };
+    }
+    return user;
+  }
+
+  app.get('/api/users', async (req, reply) => {
+    try {
+      requireAdmin(req);
+    } catch {
+      reply.code(403);
+      return { error: 'Forbidden' };
+    }
+    return userService.listUsers();
+  });
+
+  app.post<{ Body: { username: string; password: string } }>('/api/users', async (req, reply) => {
+    try {
+      requireAdmin(req);
+    } catch {
+      reply.code(403);
+      return { error: 'Forbidden' };
+    }
+
+    const { username, password } = req.body ?? {};
+    if (!username || !password) {
+      reply.code(400);
+      return { error: 'Username and password are required' };
+    }
+    if (username.length < 3 || username.length > 32) {
+      reply.code(400);
+      return { error: 'Username must be 3-32 characters' };
+    }
+    if (password.length < 8) {
+      reply.code(400);
+      return { error: 'Password must be at least 8 characters' };
+    }
+
+    try {
+      const user = await userService.createUser(username, password);
+      reply.code(201);
+      return user;
+    } catch (err) {
+      reply.code(409);
+      return { error: (err as Error).message };
+    }
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/users/:id', async (req, reply) => {
+    try {
+      requireAdmin(req);
+    } catch {
+      reply.code(403);
+      return { error: 'Forbidden' };
+    }
+
+    try {
+      await userService.deleteUser(Number(req.params.id));
+      return { ok: true };
+    } catch (err) {
+      reply.code(404);
+      return { error: (err as Error).message };
+    }
+  });
+
+  app.patch<{ Params: { id: string }; Body: { password?: string; onboarded?: boolean } }>(
+    '/api/users/:id',
+    async (req, reply) => {
+      try {
+        requireAdmin(req);
+      } catch {
+        reply.code(403);
+        return { error: 'Forbidden' };
+      }
+
+      try {
+        const user = await userService.updateUser(Number(req.params.id), req.body ?? {});
+        return user;
+      } catch (err) {
+        reply.code(404);
+        return { error: (err as Error).message };
+      }
+    },
+  );
 
   app.setNotFoundHandler(async (req, reply) => {
     if (req.url.startsWith('/api/') || req.url.startsWith('/ws')) {
