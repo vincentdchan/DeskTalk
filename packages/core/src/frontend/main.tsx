@@ -19,12 +19,20 @@ interface PublicPreferencesResponse {
   accentColor: string;
 }
 
-interface AuthMeResponse {
+interface AuthMeAuthenticated {
+  authenticated: true;
   username: string;
   displayName: string;
   role: string;
   onboarded: boolean;
 }
+
+interface AuthMeUnauthenticated {
+  authenticated: false;
+  needsOnboarding: boolean;
+}
+
+type AuthMeResponse = AuthMeAuthenticated | AuthMeUnauthenticated;
 
 type Page = 'loading' | 'login' | 'onboard' | 'desktop';
 
@@ -36,7 +44,7 @@ function App() {
   const [themePreferences, setThemePreferences] =
     useState<ThemePreferences>(DEFAULT_THEME_PREFERENCES);
   const [page, setPage] = useState<Page>('loading');
-  const [authUser, setAuthUser] = useState<AuthMeResponse | null>(null);
+  const [authUser, setAuthUser] = useState<AuthMeAuthenticated | null>(null);
 
   const checkSession = useCallback(async () => {
     try {
@@ -46,10 +54,23 @@ function App() {
         return;
       }
 
-      const user = (await res.json()) as AuthMeResponse;
-      setAuthUser(user);
+      const data = (await res.json()) as AuthMeResponse;
 
-      if (!user.onboarded) {
+      if (!data.authenticated) {
+        // Not logged in — check if the system needs initial onboarding
+        if (data.needsOnboarding) {
+          setPage('onboard');
+          setAuthUser(null);
+        } else {
+          setPage('login');
+        }
+        return;
+      }
+
+      // Authenticated
+      setAuthUser(data);
+
+      if (!data.onboarded) {
         setPage('onboard');
       } else {
         setPage('desktop');
@@ -167,11 +188,12 @@ function App() {
     return <LoginPage onLoginSuccess={checkSession} />;
   }
 
-  if (page === 'onboard' && authUser) {
+  if (page === 'onboard') {
     return (
       <OnboardPage
-        username={authUser.username}
-        displayName={authUser.displayName}
+        username={authUser?.username ?? 'admin'}
+        displayName={authUser?.displayName ?? 'Administrator'}
+        authenticated={authUser !== null}
         onComplete={checkSession}
       />
     );

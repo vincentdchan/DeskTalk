@@ -203,6 +203,18 @@ export function completeOnboarding(username: string, displayName?: string): bool
   return result.changes > 0;
 }
 
+/**
+ * Check whether any admin user has completed onboarding.
+ * Used to decide if a fresh install should show the onboarding flow
+ * even before authentication.
+ */
+export function hasOnboardedAdmin(): boolean {
+  const row = getDb()
+    .prepare("SELECT COUNT(*) AS cnt FROM users WHERE role = 'admin' AND onboarded = 1")
+    .get() as { cnt: number };
+  return row.cnt > 0;
+}
+
 // ─── Password verification ──────────────────────────────────────────────────
 
 /**

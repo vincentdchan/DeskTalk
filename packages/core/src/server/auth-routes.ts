@@ -19,6 +19,7 @@ import {
   deleteSession,
   updateUserPassword,
   completeOnboarding,
+  hasOnboardedAdmin,
   type PublicUser,
 } from '../services/user-db';
 
@@ -73,14 +74,20 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true };
   });
 
-  // ─── GET /api/auth/me ───────────────────────────────────────────────
-  app.get('/api/auth/me', async (req, reply) => {
+  // ─── GET /api/auth/me (public) ───────────────────────────────────────
+  // When authenticated: returns the current user info.
+  // When unauthenticated: returns { authenticated: false, needsOnboarding }
+  // so the frontend can decide between login vs onboard page.
+  app.get('/api/auth/me', async (req) => {
     const user = (req as FastifyRequest & { user?: PublicUser }).user;
     if (!user) {
-      reply.code(401);
-      return { error: 'Not authenticated.' };
+      return {
+        authenticated: false,
+        needsOnboarding: !hasOnboardedAdmin(),
+      };
     }
     return {
+      authenticated: true,
       username: user.username,
       displayName: user.displayName,
       role: user.role,

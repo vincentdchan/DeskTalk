@@ -158,7 +158,7 @@ export async function createServer(options: ServerOptions) {
   // ─── Auth middleware ──────────────────────────────────────────────────────
   // Validate session cookie on every request except public routes.
 
-  const PUBLIC_ROUTES = new Set(['/api/auth/login', '/api/preferences/public']);
+  const PUBLIC_ROUTES = new Set(['/api/auth/login', '/api/auth/me', '/api/preferences/public']);
 
   app.addHook('onRequest', async (req, reply) => {
     // Skip auth for public routes

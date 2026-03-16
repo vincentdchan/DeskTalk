@@ -4,6 +4,8 @@ import styles from './OnboardPage.module.scss';
 export interface OnboardPageProps {
   username: string;
   displayName: string;
+  /** Whether the user is already authenticated (has a session). */
+  authenticated?: boolean;
   onComplete: () => void;
 }
 
@@ -14,6 +16,7 @@ const STEPS: Step[] = ['welcome', 'password', 'profile', 'preferences', 'done'];
 export function OnboardPage({
   username,
   displayName: initialDisplayName,
+  authenticated = true,
   onComplete,
 }: OnboardPageProps) {
   const [step, setStep] = useState<Step>('welcome');
@@ -60,6 +63,21 @@ export function OnboardPage({
     setLoading(true);
 
     try {
+      // If not yet authenticated (initial setup), log in with the default
+      // admin credentials first so we have a valid session cookie.
+      if (!authenticated) {
+        const loginRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: 'admin', password: 'desktalk' }),
+        });
+        if (!loginRes.ok) {
+          const body = (await loginRes.json()) as { error?: string };
+          setError(body.error ?? 'Failed to authenticate. Has the default password been changed?');
+          return;
+        }
+      }
+
       const res = await fetch('/api/auth/me/onboard', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
