@@ -38,6 +38,15 @@ interface AiProviderResponse {
   providers: AiProviderOption[];
 }
 
+function getProviderStatusLabel(providerId: string, providers: AiProviderOption[]): string {
+  const provider = providers.find((entry) => entry.id === providerId);
+  if (!provider || !provider.model) {
+    return 'not configured';
+  }
+
+  return `${provider.id}/${provider.model}`;
+}
+
 function MarkdownMessage({ content, isStreaming }: { content: string; isStreaming: boolean }) {
   return (
     <Streamdown className={styles.markdownContent} isAnimating={isStreaming} animated>
@@ -119,10 +128,12 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
 
         setProviderOptions(payload.providers);
         setSelectedProvider((current) => current || payload.defaultProvider);
+        setModelLabel(getProviderStatusLabel(payload.defaultProvider, payload.providers));
       } catch {
         if (isMounted) {
           setProviderOptions([]);
           setSelectedProvider('');
+          setModelLabel('not configured');
         }
       }
     }
@@ -266,6 +277,12 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
       flushPendingVoicePrompts();
     }
   }, [isAiRunning, flushPendingVoicePrompts]);
+
+  useEffect(() => {
+    if (!isAiRunning && selectedProvider) {
+      setModelLabel(getProviderStatusLabel(selectedProvider, providerOptions));
+    }
+  }, [isAiRunning, providerOptions, selectedProvider]);
 
   return (
     <div className={styles.infoPanel}>
