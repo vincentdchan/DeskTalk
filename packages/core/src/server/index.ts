@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import fastifyWebsocket from '@fastify/websocket';
 import fastifyStatic from '@fastify/static';
 import fastifyCookie from '@fastify/cookie';
+import fastifyRateLimit from '@fastify/rate-limit';
 import { createReadStream } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,6 +57,9 @@ export async function createServer(options: ServerOptions) {
 
   // Register cookie support
   await app.register(fastifyCookie);
+
+  // Register rate-limiting (applied per-route below)
+  await app.register(fastifyRateLimit, { global: false });
 
   // ─── Augment Fastify request with user ──────────────────────────────────
   app.decorateRequest('user', null);
@@ -610,7 +614,14 @@ export async function createServer(options: ServerOptions) {
   });
 
   /** Authenticate with username + password. */
-  app.post<{ Body: { username: string; password: string } }>('/api/auth/login', async (req, reply) => {
+  app.post<{ Body: { username: string; password: string } }>('/api/auth/login', {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (req, reply) => {
     const { username, password } = req.body ?? {};
     if (!username || !password) {
       reply.code(400);

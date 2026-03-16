@@ -95,45 +95,51 @@ true / false
 
 ### Library
 
-Use the [`bcrypt`](https://www.npmjs.com/package/bcrypt) npm package (native C++ bindings, fast and well-maintained). The cost factor of **12** provides a good balance between security and performance (~250 ms per hash on modern hardware).
+Use the [`bcryptjs`](https://www.npmjs.com/package/bcryptjs) npm package (pure JavaScript implementation, portable with no native compilation required). The cost factor of **12** provides a good balance between security and performance (~250 ms per hash on modern hardware).
 
 ## Storage
 
-### Why SQLite
+### Why JSON File Storage
 
-- A single `users.db` file stored alongside existing JSON data at `<data>/storage/users.db`.
-- Zero-configuration: no external database server to manage.
-- Supports concurrent reads and serialized writes, sufficient for a local desktop app.
-- Well-supported in Node.js via [`better-sqlite3`](https://www.npmjs.com/package/better-sqlite3).
+- A single `users.json` file stored alongside existing JSON data at `<data>/storage/users.json`.
+- Consistent with the existing storage approach used throughout DeskTalk (preferences, window state, MiniApp storage all use JSON files).
+- Zero-configuration: no external database server or native compilation required.
+- Sufficient for a local desktop app with a small number of users.
 
 ### Schema
 
-```sql
--- Users table
-CREATE TABLE IF NOT EXISTS users (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  username    TEXT    NOT NULL UNIQUE,
-  password    TEXT    NOT NULL,           -- bcrypt hash
-  role        TEXT    NOT NULL DEFAULT 'normal',  -- 'admin' | 'normal'
-  onboarded   INTEGER NOT NULL DEFAULT 0,         -- 0 = false, 1 = true
-  created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
-  updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
-);
+The JSON file stores users and sessions in a single structure:
 
--- Sessions table
-CREATE TABLE IF NOT EXISTS sessions (
-  id          TEXT    PRIMARY KEY,        -- random UUID token
-  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
-  expires_at  TEXT    NOT NULL            -- session expiry timestamp
-);
+```json
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "password": "$2a$12$...",
+      "role": "admin",
+      "onboarded": true,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "uuid-v4",
+      "userId": 1,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "expiresAt": "2024-01-08T00:00:00.000Z"
+    }
+  ],
+  "nextId": 2
+}
 ```
 
 ### Data Location
 
 ```
 <data>/storage/
-  users.db              # SQLite database (new)
+  users.json            # User and session data (new)
   preference.json       # existing
   window-state.json     # existing
   ...
@@ -346,8 +352,7 @@ No external router library is needed—the three states are mutually exclusive a
 
 | Package | Version | Purpose |
 | --- | --- | --- |
-| `better-sqlite3` | ^11.0.0 | SQLite driver for Node.js |
-| `bcrypt` | ^6.0.0 | Password hashing |
+| `bcryptjs` | ^3.0.0 | Password hashing (pure JS, no native compilation) |
 | `@fastify/cookie` | ^11.0.0 | Cookie parsing for Fastify |
 
 These are added to `packages/core/package.json` as runtime dependencies. Session IDs are generated using Node.js built-in `crypto.randomUUID()` (available since Node.js 19; the project requires ≥ 20).
@@ -372,9 +377,25 @@ Since DeskTalk has no existing user data, no migration is needed. On first start
 4. After the admin account is created, the admin can create normal user accounts.
 5. All subsequent requests require authentication.
 
+## Dev Mode Auto-Login
+
+When the server starts with the `--dev` flag (via `pnpm dev` or `desktalk start --dev`), the following happens automatically:
+
+1. A default **admin** user is injected (username: `admin`, password: `admin`).
+2. The admin user is marked as **onboarded** (skips the onboard page).
+3. A valid session is created and its ID is exposed via `GET /api/auth/status`.
+4. The frontend reads the session ID from the status endpoint and sets it as a cookie.
+5. The developer lands directly on the **Desktop** without manual login.
+
+This enables fast iteration during development while keeping the full auth system active for testing.
+
+```
+GET /api/auth/status → { setupMode: false, devMode: true, devSessionId: "<uuid>" }
+```
+
 ## Open Questions
 
 1. **Should the admin be able to change their own role?** Recommendation: no, to prevent accidental de-escalation.
 2. **Should users be able to change their own passwords?** Recommendation: yes, via a profile page or the Preference MiniApp.
-3. **Should sessions persist across server restarts?** Recommendation: yes, since they are stored in SQLite they survive restarts automatically.
+3. **Should sessions persist across server restarts?** Recommendation: yes, since they are stored in a JSON file they survive restarts automatically.
 4. **Multi-admin support?** Recommendation: defer to a future proposal. For now, only the first user is admin.

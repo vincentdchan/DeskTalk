@@ -186,15 +186,19 @@ export class UserService {
     let storedUser = this.store.users.find((u) => u.username === DEV_USERNAME);
     if (!storedUser) {
       await this.createUser(DEV_USERNAME, DEV_PASSWORD, 'admin');
+      storedUser = this.store.users.find((u) => u.username === DEV_USERNAME);
+      if (!storedUser) {
+        throw new Error('Failed to create dev admin user');
+      }
       // Mark the dev admin as already onboarded
-      storedUser = this.store.users.find((u) => u.username === DEV_USERNAME)!;
       storedUser.onboarded = true;
       this.save();
     }
 
     // Reuse or create a session
+    const userId = storedUser.id;
     const existing = this.store.sessions.find(
-      (s) => s.userId === storedUser!.id && new Date(s.expiresAt).getTime() > Date.now(),
+      (s) => s.userId === userId && new Date(s.expiresAt).getTime() > Date.now(),
     );
     if (existing) {
       return { user: toPublicUser(storedUser), session: existing };

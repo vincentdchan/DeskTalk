@@ -8,6 +8,7 @@ import { LoginPage } from './components/LoginPage';
 import { OnboardPage } from './components/OnboardPage';
 import { useAuthStore } from './stores/auth';
 import { applyTheme, DEFAULT_THEME_PREFERENCES, type ThemePreferences } from './theme';
+import authGateStyles from './components/AuthGate.module.scss';
 import './styles/global.scss';
 
 interface I18nCatalogResponse {
@@ -38,16 +39,7 @@ function AuthGate() {
 
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '100vw',
-        height: '100vh',
-        background: 'var(--dt-bg-base)',
-        color: 'var(--dt-text-muted)',
-        fontSize: 16,
-      }}>
+      <div className={authGateStyles.loading}>
         Loading…
       </div>
     );
