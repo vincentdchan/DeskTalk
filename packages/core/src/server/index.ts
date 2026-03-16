@@ -671,8 +671,13 @@ export async function createServer(options: ServerOptions) {
 
   // ─── User management API (admin only) ─────────────────────────────────────
 
+  /** Extract the authenticated user from the request (set by auth middleware). */
+  function getAuthUser(req: unknown): User | null {
+    return ((req as Record<string, unknown>).user as User) ?? null;
+  }
+
   function requireAdmin(req: unknown): User {
-    const user = (req as Record<string, unknown>).user as User | undefined;
+    const user = getAuthUser(req);
     if (!user || user.role !== 'admin') {
       throw { statusCode: 403, message: 'Forbidden' };
     }
@@ -759,11 +764,6 @@ export async function createServer(options: ServerOptions) {
   );
 
   // ─── Memory API ─────────────────────────────────────────────────────────
-
-  /** Helper: extract the authenticated user from the request. */
-  function getAuthUser(req: unknown): User | null {
-    return ((req as Record<string, unknown>).user as User) ?? null;
-  }
 
   /** List memories for the current user (optionally filtered by category). */
   app.get<{ Querystring: { category?: string; q?: string } }>(
