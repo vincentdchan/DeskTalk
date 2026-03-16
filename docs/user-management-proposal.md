@@ -140,7 +140,6 @@ The JSON file stores users and sessions in a single structure:
 ```
 <data>/storage/
   users.json            # User and session data (new)
-  memories.json         # Per-user memory storage (see memory-storage-proposal.md)
   preference.json       # existing
   window-state.json     # existing
   ...

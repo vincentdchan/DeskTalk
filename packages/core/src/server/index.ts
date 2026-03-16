@@ -24,7 +24,6 @@ import {
   type SerializableActionDefinition,
 } from '../services/window-manager';
 import { UserService, type User } from '../services/user-service';
-import { MemoryService } from '../services/memory-service';
 
 const COOKIE_NAME = 'desktalk_session';
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 days in seconds
@@ -47,9 +46,6 @@ export async function createServer(options: ServerOptions) {
 
   // ─── User / auth service ────────────────────────────────────────────────
   const userService = new UserService(join(workspacePaths.data, 'storage', 'users.json'));
-
-  // ─── Memory service ────────────────────────────────────────────────────
-  const memoryService = new MemoryService(join(workspacePaths.data, 'storage', 'memories.json'));
 
   // In dev mode, inject a default admin user and create a session
   let devSessionId: string | undefined;
@@ -757,117 +753,6 @@ export async function createServer(options: ServerOptions) {
       }
     },
   );
-
-  // ─── Memory API ─────────────────────────────────────────────────────────
-
-  /** Helper: extract the authenticated user from the request. */
-  function getAuthUser(req: unknown): User | null {
-    return ((req as Record<string, unknown>).user as User) ?? null;
-  }
-
-  /** List memories for the current user (optionally filtered by category). */
-  app.get<{ Querystring: { category?: string; q?: string } }>(
-    '/api/memories',
-    async (req, reply) => {
-      const user = getAuthUser(req);
-      if (!user) {
-        reply.code(401);
-        return { error: 'Unauthorized' };
-      }
-
-      const { category, q } = req.query;
-      if (q) {
-        return memoryService.searchMemories(user.id, q);
-      }
-      return memoryService.listMemories(user.id, category ? { category } : undefined);
-    },
-  );
-
-  /** Create a new memory for the current user. */
-  app.post<{ Body: { content: string; category?: string; source?: 'user' | 'ai' | 'system' } }>(
-    '/api/memories',
-    async (req, reply) => {
-      const user = getAuthUser(req);
-      if (!user) {
-        reply.code(401);
-        return { error: 'Unauthorized' };
-      }
-
-      const { content, category, source } = req.body ?? {};
-      if (!content) {
-        reply.code(400);
-        return { error: 'Content is required' };
-      }
-
-      const memory = memoryService.createMemory(user.id, content, { category, source });
-      reply.code(201);
-      return memory;
-    },
-  );
-
-  /** Get a single memory by ID. */
-  app.get<{ Params: { id: string } }>('/api/memories/:id', async (req, reply) => {
-    const user = getAuthUser(req);
-    if (!user) {
-      reply.code(401);
-      return { error: 'Unauthorized' };
-    }
-
-    const memory = memoryService.getMemory(Number(req.params.id));
-    if (!memory || memory.userId !== user.id) {
-      reply.code(404);
-      return { error: 'Memory not found' };
-    }
-    return memory;
-  });
-
-  /** Update a memory. */
-  app.patch<{ Params: { id: string }; Body: { content?: string; category?: string } }>(
-    '/api/memories/:id',
-    async (req, reply) => {
-      const user = getAuthUser(req);
-      if (!user) {
-        reply.code(401);
-        return { error: 'Unauthorized' };
-      }
-
-      const memory = memoryService.getMemory(Number(req.params.id));
-      if (!memory || memory.userId !== user.id) {
-        reply.code(404);
-        return { error: 'Memory not found' };
-      }
-
-      try {
-        return memoryService.updateMemory(memory.id, req.body ?? {});
-      } catch (err) {
-        reply.code(404);
-        return { error: (err as Error).message };
-      }
-    },
-  );
-
-  /** Delete a memory. */
-  app.delete<{ Params: { id: string } }>('/api/memories/:id', async (req, reply) => {
-    const user = getAuthUser(req);
-    if (!user) {
-      reply.code(401);
-      return { error: 'Unauthorized' };
-    }
-
-    const memory = memoryService.getMemory(Number(req.params.id));
-    if (!memory || memory.userId !== user.id) {
-      reply.code(404);
-      return { error: 'Memory not found' };
-    }
-
-    try {
-      memoryService.deleteMemory(memory.id);
-      return { ok: true };
-    } catch (err) {
-      reply.code(404);
-      return { error: (err as Error).message };
-    }
-  });
 
   app.setNotFoundHandler(async (req, reply) => {
     if (req.url.startsWith('/api/') || req.url.startsWith('/ws')) {
