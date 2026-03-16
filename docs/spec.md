@@ -493,12 +493,13 @@ This is the end-to-end flow when the AI decides to invoke a MiniApp action:
 
 Pi credentials (API keys, OAuth tokens) are stored at `<config>/pi-auth.json` via pi's `AuthStorage`. The Preference MiniApp exposes settings for:
 
-| Setting        | Description                                     |
-| -------------- | ----------------------------------------------- |
-| LLM Provider   | Which provider to use (Anthropic, OpenAI, etc.) |
-| Model          | Which model to use within the provider          |
-| Thinking Level | off, minimal, low, medium, high                 |
-| API Key        | Per-provider API key entry                      |
+| Setting           | Description                                                      |
+| ----------------- | ---------------------------------------------------------------- |
+| Default Provider  | Which provider to use by default (Anthropic, OpenAI, etc.)       |
+| Provider Model    | Which model to use within each configured provider               |
+| Thinking Level    | off, minimal, low, medium, high                                  |
+| Provider API Key  | Per-provider API key entry                                       |
+| Provider Base URL | Optional per-provider endpoint override for compatible providers |
 
 These settings map to `session.setModel()` and `session.setThinkingLevel()` calls on the backend.
 

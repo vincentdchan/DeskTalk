@@ -29,7 +29,37 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
   /** Load the persisted config, merging with defaults for any missing keys. */
   async function loadConfig(): Promise<Config> {
     const stored = await ctx.storage.get<Config>('config');
-    return { ...defaults, ...(stored ?? {}) };
+    const config = { ...defaults, ...(stored ?? {}) };
+
+    const legacyProvider =
+      typeof stored?.['ai.provider'] === 'string' ? stored['ai.provider'] : undefined;
+    if (legacyProvider && typeof stored?.['ai.defaultProvider'] !== 'string') {
+      config['ai.defaultProvider'] = legacyProvider;
+    }
+
+    if (legacyProvider) {
+      const legacyModel = typeof stored?.['ai.model'] === 'string' ? stored['ai.model'] : undefined;
+      const legacyApiKey =
+        typeof stored?.['ai.apiKey'] === 'string' ? stored['ai.apiKey'] : undefined;
+      const legacyBaseUrl =
+        typeof stored?.['ai.baseUrl'] === 'string' ? stored['ai.baseUrl'] : undefined;
+
+      const providerModelKey = `ai.providers.${legacyProvider}.model`;
+      const providerApiKeyKey = `ai.providers.${legacyProvider}.apiKey`;
+      const providerBaseUrlKey = `ai.providers.${legacyProvider}.baseUrl`;
+
+      if (legacyModel && !config[providerModelKey]) {
+        config[providerModelKey] = legacyModel;
+      }
+      if (legacyApiKey && !config[providerApiKeyKey]) {
+        config[providerApiKeyKey] = legacyApiKey;
+      }
+      if (legacyBaseUrl && !config[providerBaseUrlKey]) {
+        config[providerBaseUrlKey] = legacyBaseUrl;
+      }
+    }
+
+    return config;
   }
 
   /** Persist the config to storage. */

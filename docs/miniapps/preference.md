@@ -15,7 +15,7 @@ The global configuration controls critical application behavior (server bind add
 1. **Manifest ID check** — At activation time the core inspects `manifest.id`. Only `"preference"` receives a populated `ctx.config` hook. All other MiniApps receive `ctx.config === undefined`.
 2. **Built-in priority** — The `"preference"` ID is reserved for the built-in `@desktalk/miniapp-preference` package. Third-party packages cannot claim this ID; the core rejects duplicate IDs and gives built-in packages priority.
 3. **Reserved command namespace** — The `preferences.*` command namespace is exclusively reserved for this MiniApp. The core rejects `ctx.messaging.onCommand('preferences.*', ...)` registrations from any other MiniApp.
-4. **Read-only broadcast** — When a setting changes, the core broadcasts a `config:changed` event (key + value) to all MiniApps so they can react (e.g., theme switch). Sensitive keys (e.g., `ai.apiKey`) are omitted from broadcasts.
+4. **Read-only broadcast** — When a setting changes, the core broadcasts a `config:changed` event (key + value) to all MiniApps so they can react (e.g., theme switch). Sensitive keys (e.g., `ai.providers.openai.apiKey`) are omitted from broadcasts.
 
 ### ctx.config (ConfigHook)
 
@@ -37,22 +37,18 @@ interface ConfigHook {
 
 ### Configurable Settings
 
-| Category | Setting        | Type      | Default              | Description                                                                                 |
-| -------- | -------------- | --------- | -------------------- | ------------------------------------------------------------------------------------------- |
-| General  | Theme          | `string`  | `"light"`            | UI theme: `"light"` or `"dark"`.                                                            |
-| General  | Language       | `string`  | `"en"`               | UI language/locale.                                                                         |
-| General  | Data Directory | `string`  | _(platform default)_ | Override the base data directory. Resolved via `env-paths` by default (see `docs/spec.md`). |
-| Server   | Host           | `string`  | `"localhost"`        | Server bind address.                                                                        |
-| Server   | Port           | `number`  | `3000`               | Server listen port.                                                                         |
-| Window   | Default Width  | `number`  | `800`                | Default width for new windows (px).                                                         |
-| Window   | Default Height | `number`  | `600`                | Default height for new windows (px).                                                        |
-| Window   | Snap to Edges  | `boolean` | `true`               | Snap windows to screen edges when dragging.                                                 |
-| AI       | Model          | `string`  | `""`                 | AI model identifier.                                                                        |
-| AI       | API Key        | `string`  | `""`                 | API key for the AI provider.                                                                |
-| AI       | Max Tokens     | `number`  | `4096`               | Maximum tokens per AI response.                                                             |
-| Dock     | Position       | `string`  | `"bottom"`           | Dock position: `"bottom"`, `"left"`, `"right"`.                                             |
-| Dock     | Auto-hide      | `boolean` | `false`              | Hide the dock when not hovered.                                                             |
-| Dock     | Icon Size      | `number`  | `48`                 | Dock icon size (px).                                                                        |
+| Category | Setting           | Type     | Default              | Description                                                                                 |
+| -------- | ----------------- | -------- | -------------------- | ------------------------------------------------------------------------------------------- |
+| General  | Theme             | `string` | `"light"`            | UI theme: `"light"` or `"dark"`.                                                            |
+| General  | Language          | `string` | `"en"`               | UI language/locale.                                                                         |
+| General  | Data Directory    | `string` | _(platform default)_ | Override the base data directory. Resolved via `env-paths` by default (see `docs/spec.md`). |
+| Server   | Host              | `string` | `"localhost"`        | Server bind address.                                                                        |
+| Server   | Port              | `number` | `3000`               | Server listen port.                                                                         |
+| AI       | Default Provider  | `string` | `"openai"`           | Default provider used for AI chat/tool execution.                                           |
+| AI       | Provider Model    | `string` | `""`                 | Model identifier for each configured AI provider.                                           |
+| AI       | Provider API Key  | `string` | `""`                 | API key for each configured provider that uses API-key auth.                                |
+| AI       | Provider Base URL | `string` | `""`                 | Optional custom base URL for providers that support endpoint overrides.                     |
+| AI       | Max Tokens        | `number` | `4096`               | Maximum tokens per AI response.                                                             |
 
 ### Persistence
 
@@ -68,9 +64,7 @@ interface ConfigHook {
 |           |  Setting Label    [Control]  |
 | General   |  Setting Label    [Control]  |
 | Server    |  Setting Label    [Control]  |
-| Window    |                              |
 | AI        |         ...                  |
-| Dock      |                              |
 |-----------------------------------------|
 ```
 
@@ -113,13 +107,13 @@ The Preference MiniApp does not implement its own HTTP server. All backend logic
 
 ### Commands (via MessagingHook)
 
-| Command                | Request                                               | Response                                 | Description                            |
-| ---------------------- | ----------------------------------------------------- | ---------------------------------------- | -------------------------------------- |
-| `preferences.getAll`   | `void`                                                | `Config`                                 | Get all current settings.              |
-| `preferences.get`      | `{ key: string }`                                     | `{ value: string \| number \| boolean }` | Get a single setting's value.          |
-| `preferences.set`      | `{ key: string, value: string \| number \| boolean }` | `void`                                   | Update a single setting.               |
-| `preferences.reset`    | `{ key: string }`                                     | `void`                                   | Reset a single setting to its default. |
-| `preferences.resetAll` | `void`                                                | `void`                                   | Reset all settings to defaults.        |
+| Command                | Request                                               | Response                                 | Description                                                                                |
+| ---------------------- | ----------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `preferences.getAll`   | `void`                                                | `Config`                                 | Get all current settings.                                                                  |
+| `preferences.get`      | `{ key: string }`                                     | `{ value: string \| number \| boolean }` | Get a single setting's value.                                                              |
+| `preferences.set`      | `{ key: string, value: string \| number \| boolean }` | `void`                                   | Update a single setting, including per-provider AI keys like `ai.providers.openai.apiKey`. |
+| `preferences.reset`    | `{ key: string }`                                     | `void`                                   | Reset a single setting to its default.                                                     |
+| `preferences.resetAll` | `void`                                                | `void`                                   | Reset all settings to defaults.                                                            |
 
 ### Data Model
 
@@ -143,6 +137,6 @@ type Config = Record<string, string | number | boolean>;
 
 ### Security
 
-- The API key setting should be masked in the UI and API responses (only show last 4 characters).
+- AI provider API key settings should be masked in the UI and API responses (only show last 4 characters).
 - The config file (`<config>/config.toml`) is written by the core with restricted filesystem permissions (`0600`).
 - The Preference MiniApp never reads or writes the TOML file directly — all I/O goes through the core's `ConfigHook`.
