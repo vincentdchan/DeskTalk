@@ -45,7 +45,10 @@ function TerminalApp() {
   }, [listTabs]);
 
   // Create initial tab on mount
+  const initRef = React.useRef(false);
   useEffect(() => {
+    if (initRef.current) return;
+    initRef.current = true;
     const init = async () => {
       try {
         const result = await createTab({});
@@ -56,7 +59,7 @@ function TerminalApp() {
       }
     };
     init();
-  }, []);
+  }, [createTab, fetchTabs]);
 
   // ─── Tab actions ──────────────────────────────────────────────────────────
 
@@ -156,7 +159,6 @@ function TerminalApp() {
 
   return (
     <TerminalActions
-      tabs={tabs}
       activeTabId={activeTabId}
       onTabCreated={handleActionTabCreated}
       onTabClosed={handleActionTabClosed}

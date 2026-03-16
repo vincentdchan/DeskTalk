@@ -4,7 +4,6 @@ import type { TerminalTab } from '../types';
 
 interface TerminalActionsProps {
   children: React.ReactNode;
-  tabs: TerminalTab[];
   activeTabId: string | null;
   onTabCreated: (tabId: string) => void;
   onTabClosed: (tabId: string) => void;
@@ -13,7 +12,6 @@ interface TerminalActionsProps {
 
 export function TerminalActions({
   children,
-  tabs,
   activeTabId,
   onTabCreated,
   onTabClosed,
@@ -153,7 +151,6 @@ export function TerminalActions({
         }}
         handler={handleGetOutput}
       />
-      {tabs.length === 0 && null}
       {children}
     </ActionsProvider>
   );
