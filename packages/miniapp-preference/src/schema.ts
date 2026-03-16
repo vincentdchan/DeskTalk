@@ -18,8 +18,139 @@ export interface PreferenceSchema {
 
 export type Config = Record<string, string | number | boolean>;
 
-export const CATEGORIES = ['General', 'Server', 'Window', 'AI', 'Dock', 'Voice'] as const;
+export const CATEGORIES = ['General', 'Server', 'AI', 'Voice'] as const;
 export type Category = (typeof CATEGORIES)[number];
+
+interface AiProviderDefinition {
+  id: string;
+  label: string;
+  supportsApiKey: boolean;
+  supportsBaseUrl: boolean;
+}
+
+const AI_PROVIDER_DEFINITIONS: AiProviderDefinition[] = [
+  { id: 'anthropic', label: 'Anthropic', supportsApiKey: true, supportsBaseUrl: false },
+  {
+    id: 'azure-openai-responses',
+    label: 'Azure OpenAI',
+    supportsApiKey: true,
+    supportsBaseUrl: true,
+  },
+  { id: 'openai', label: 'OpenAI', supportsApiKey: true, supportsBaseUrl: true },
+  { id: 'google', label: 'Google Gemini', supportsApiKey: true, supportsBaseUrl: false },
+  {
+    id: 'mistral',
+    label: 'Mistral',
+    supportsApiKey: true,
+    supportsBaseUrl: true,
+  },
+  { id: 'groq', label: 'Groq', supportsApiKey: true, supportsBaseUrl: true },
+  {
+    id: 'cerebras',
+    label: 'Cerebras',
+    supportsApiKey: true,
+    supportsBaseUrl: true,
+  },
+  { id: 'xai', label: 'xAI', supportsApiKey: true, supportsBaseUrl: true },
+  {
+    id: 'openrouter',
+    label: 'OpenRouter',
+    supportsApiKey: true,
+    supportsBaseUrl: true,
+  },
+  {
+    id: 'vercel-ai-gateway',
+    label: 'Vercel AI Gateway',
+    supportsApiKey: true,
+    supportsBaseUrl: true,
+  },
+  { id: 'zai', label: 'ZAI', supportsApiKey: true, supportsBaseUrl: false },
+  { id: 'opencode', label: 'OpenCode Zen', supportsApiKey: true, supportsBaseUrl: false },
+  { id: 'opencode-go', label: 'OpenCode Go', supportsApiKey: true, supportsBaseUrl: false },
+  {
+    id: 'huggingface',
+    label: 'Hugging Face',
+    supportsApiKey: true,
+    supportsBaseUrl: true,
+  },
+  {
+    id: 'kimi-coding',
+    label: 'Kimi For Coding',
+    supportsApiKey: true,
+    supportsBaseUrl: false,
+  },
+  { id: 'minimax', label: 'MiniMax', supportsApiKey: true, supportsBaseUrl: false },
+  {
+    id: 'minimax-cn',
+    label: 'MiniMax China',
+    supportsApiKey: true,
+    supportsBaseUrl: false,
+  },
+  { id: 'ollama', label: 'Ollama', supportsApiKey: false, supportsBaseUrl: true },
+];
+
+function getAiProviderPreferenceSchemas(): PreferenceSchema[] {
+  const schemas: PreferenceSchema[] = [
+    {
+      key: 'ai.defaultProvider',
+      label: 'Default Provider',
+      description: 'Provider selected by default for chat and tool execution.',
+      type: 'string',
+      default: 'openai',
+      options: AI_PROVIDER_DEFINITIONS.map((provider) => provider.id),
+      category: 'AI',
+    },
+  ];
+
+  for (const provider of AI_PROVIDER_DEFINITIONS) {
+    schemas.push({
+      key: `ai.providers.${provider.id}.model`,
+      label: `${provider.label} Model`,
+      description: `Model identifier to use when ${provider.label} is selected.`,
+      type: 'string',
+      default: '',
+      category: 'AI',
+    });
+
+    if (provider.supportsApiKey) {
+      schemas.push({
+        key: `ai.providers.${provider.id}.apiKey`,
+        label: `${provider.label} API Key`,
+        description: `API key for ${provider.label}.`,
+        type: 'string',
+        default: '',
+        category: 'AI',
+        sensitive: true,
+      });
+    }
+
+    if (provider.supportsBaseUrl) {
+      schemas.push({
+        key: `ai.providers.${provider.id}.baseUrl`,
+        label: `${provider.label} Base URL`,
+        description: `Optional custom API base URL for ${provider.label}.`,
+        type: 'string',
+        default: '',
+        category: 'AI',
+      });
+    }
+  }
+
+  schemas.push({
+    key: 'ai.maxTokens',
+    label: 'Max Tokens',
+    description: 'Maximum tokens per AI response.',
+    type: 'number',
+    default: 4096,
+    min: 256,
+    max: 128000,
+    category: 'AI',
+  });
+
+  return schemas;
+}
+
+const AI_PREFERENCE_SCHEMAS = getAiProviderPreferenceSchemas();
 
 export const PREFERENCE_SCHEMAS: PreferenceSchema[] = [
   // ─── General ─────────────────────────────────────────────────────────────
@@ -82,111 +213,8 @@ export const PREFERENCE_SCHEMAS: PreferenceSchema[] = [
     requiresRestart: true,
   },
 
-  // ─── Window ──────────────────────────────────────────────────────────────
-  {
-    key: 'window.defaultWidth',
-    label: 'Default Width',
-    description: 'Default width for new windows (px).',
-    type: 'number',
-    default: 800,
-    min: 200,
-    max: 3840,
-    category: 'Window',
-  },
-  {
-    key: 'window.defaultHeight',
-    label: 'Default Height',
-    description: 'Default height for new windows (px).',
-    type: 'number',
-    default: 600,
-    min: 150,
-    max: 2160,
-    category: 'Window',
-  },
-  {
-    key: 'window.snapToEdges',
-    label: 'Snap to Edges',
-    description: 'Snap windows to screen edges when dragging.',
-    type: 'boolean',
-    default: true,
-    category: 'Window',
-  },
-
   // ─── AI ──────────────────────────────────────────────────────────────────
-  {
-    key: 'ai.provider',
-    label: 'Provider',
-    description: 'LLM provider used by pi for chat and tool execution.',
-    type: 'string',
-    default: 'openai',
-    options: ['anthropic', 'openai', 'google', 'bedrock', 'mistral', 'xai', 'openrouter', 'ollama'],
-    category: 'AI',
-  },
-  {
-    key: 'ai.model',
-    label: 'Model',
-    description:
-      'Model identifier for the selected AI provider (e.g. claude-sonnet-4-20250514, gpt-4o).',
-    type: 'string',
-    default: '',
-    category: 'AI',
-  },
-  {
-    key: 'ai.apiKey',
-    label: 'API Key',
-    description: 'API key for the selected AI provider.',
-    type: 'string',
-    default: '',
-    category: 'AI',
-    sensitive: true,
-  },
-  {
-    key: 'ai.baseUrl',
-    label: 'Base URL',
-    description: 'Optional custom API base URL for OpenAI-compatible or self-hosted providers.',
-    type: 'string',
-    default: '',
-    category: 'AI',
-  },
-  {
-    key: 'ai.maxTokens',
-    label: 'Max Tokens',
-    description: 'Maximum tokens per AI response.',
-    type: 'number',
-    default: 4096,
-    min: 256,
-    max: 128000,
-    category: 'AI',
-  },
-
-  // ─── Dock ────────────────────────────────────────────────────────────────
-  {
-    key: 'dock.position',
-    label: 'Position',
-    description: 'Dock position on screen.',
-    type: 'string',
-    default: 'bottom',
-    options: ['bottom', 'left', 'right'],
-    category: 'Dock',
-  },
-  {
-    key: 'dock.autoHide',
-    label: 'Auto-hide',
-    description: 'Hide the dock when not hovered.',
-    type: 'boolean',
-    default: false,
-    category: 'Dock',
-  },
-  {
-    key: 'dock.iconSize',
-    label: 'Icon Size',
-    description: 'Dock icon size (px).',
-    type: 'number',
-    default: 48,
-    min: 24,
-    max: 128,
-    category: 'Dock',
-  },
+  ...AI_PREFERENCE_SCHEMAS,
 
   // ─── Voice ────────────────────────────────────────────────────────────
   {

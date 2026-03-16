@@ -12,6 +12,13 @@ import {
 } from '@mariozechner/pi-coding-agent';
 import { createDesktopTool, type SendAiCommand } from './desktop-tool';
 import { createActionTool } from './action-tool';
+import {
+  AI_PROVIDER_DEFINITIONS,
+  getAiProviderPreferences,
+  getAllAiProviderPreferences,
+  getDefaultAiProvider,
+  type PreferenceReader,
+} from './providers';
 import type { WindowManagerService } from '../window-manager';
 import { registry } from '../miniapp-registry';
 import type { WorkspacePaths } from '../workspace';
@@ -33,10 +40,18 @@ export interface HistoryMessage {
 export interface PromptInput {
   text: string;
   source: ChatSource;
+  provider?: string;
 }
 
 export interface PromptCallbacks {
   onEvent: (event: Record<string, unknown>) => void;
+}
+
+export interface AiProviderOption {
+  id: string;
+  label: string;
+  configured: boolean;
+  model: string;
 }
 
 interface MessageMetadata {
@@ -45,10 +60,6 @@ interface MessageMetadata {
 
 interface MessageMetadataStore {
   byKey: Record<string, MessageMetadata>;
-}
-
-interface PreferenceReader {
-  (key: string): Promise<string | number | boolean | undefined>;
 }
 
 type BasicUserMessage = {
@@ -137,6 +148,24 @@ function writeMetadata(filePath: string, store: MessageMetadataStore): void {
   writeFileSync(filePath, JSON.stringify(store, null, 2), 'utf-8');
 }
 
+function shouldRegisterProviderBaseUrl(provider: string, baseUrl: string): boolean {
+  return (
+    Boolean(baseUrl) &&
+    [
+      'azure-openai-responses',
+      'openai',
+      'mistral',
+      'groq',
+      'cerebras',
+      'xai',
+      'openrouter',
+      'vercel-ai-gateway',
+      'huggingface',
+      'ollama',
+    ].includes(provider)
+  );
+}
+
 export class PiSessionService {
   private readonly authStorage;
   private readonly modelRegistry;
@@ -185,26 +214,29 @@ export class PiSessionService {
 
     const sessionManager = SessionManager.continueRecent(process.cwd(), sessionDir);
 
-    const provider = ((await getPreference('ai.provider')) as string) ?? 'openai';
-    const configuredModel = ((await getPreference('ai.model')) as string) ?? '';
-    const apiKey = ((await getPreference('ai.apiKey')) as string) ?? '';
-    const baseUrl = ((await getPreference('ai.baseUrl')) as string) ?? '';
+    const allProviderPreferences = await getAllAiProviderPreferences(getPreference);
+    for (const config of allProviderPreferences) {
+      if (config.apiKey) {
+        authStorage.setRuntimeApiKey(config.provider, config.apiKey);
+      }
 
-    if (apiKey) {
-      authStorage.setRuntimeApiKey(provider, apiKey);
+      if (shouldRegisterProviderBaseUrl(config.provider, config.baseUrl)) {
+        modelRegistry.registerProvider(config.provider, {
+          baseUrl: config.baseUrl,
+          ...(config.apiKey ? { apiKey: config.apiKey } : {}),
+          authHeader: config.provider !== 'ollama',
+        });
+      }
     }
 
-    if (baseUrl && ['openai', 'openrouter', 'xai', 'mistral', 'ollama'].includes(provider)) {
-      modelRegistry.registerProvider(provider, {
-        baseUrl,
-        ...(apiKey ? { apiKey } : {}),
-        authHeader: provider !== 'ollama',
-      });
-    }
-
-    const initialModel = configuredModel
-      ? modelRegistry.find(provider, configuredModel)
-      : undefined;
+    const defaultProvider = await getDefaultAiProvider(getPreference);
+    const defaultProviderPreferences = await getAiProviderPreferences(
+      getPreference,
+      defaultProvider,
+    );
+    const initialModel = defaultProviderPreferences.model
+      ? modelRegistry.find(defaultProvider, defaultProviderPreferences.model)
+      : modelRegistry.getAvailable().find((model) => model.provider === defaultProvider);
 
     const resourceLoader = new DefaultResourceLoader({
       cwd: process.cwd(),
@@ -254,40 +286,72 @@ export class PiSessionService {
     return this.session.sessionId;
   }
 
-  private async syncPreferences(): Promise<void> {
+  async getProviderOptions(): Promise<{ defaultProvider: string; providers: AiProviderOption[] }> {
+    await this.syncProviderCredentials();
+
+    const defaultProvider = await getDefaultAiProvider(this.getPreference);
+    const availableByProvider = new Set(
+      this.modelRegistry.getAvailable().map((model) => model.provider),
+    );
+    const configuredProviders = await getAllAiProviderPreferences(this.getPreference);
+
+    return {
+      defaultProvider,
+      providers: AI_PROVIDER_DEFINITIONS.map((provider) => {
+        const config = configuredProviders.find((entry) => entry.provider === provider.id);
+        return {
+          id: provider.id,
+          label: provider.label,
+          configured:
+            availableByProvider.has(provider.id) ||
+            Boolean(config?.model.trim()) ||
+            Boolean(config?.apiKey.trim()) ||
+            Boolean(config?.baseUrl.trim()),
+          model: config?.model ?? '',
+        };
+      }),
+    };
+  }
+
+  private async syncProviderCredentials(): Promise<void> {
+    const configuredProviders = await getAllAiProviderPreferences(this.getPreference);
+
+    for (const config of configuredProviders) {
+      if (config.apiKey) {
+        this.authStorage.setRuntimeApiKey(config.provider, config.apiKey);
+      } else {
+        this.authStorage.removeRuntimeApiKey(config.provider);
+      }
+
+      if (shouldRegisterProviderBaseUrl(config.provider, config.baseUrl)) {
+        this.modelRegistry.registerProvider(config.provider, {
+          baseUrl: config.baseUrl,
+          ...(config.apiKey ? { apiKey: config.apiKey } : {}),
+          authHeader: config.provider !== 'ollama',
+        });
+      } else {
+        this.modelRegistry.unregisterProvider(config.provider);
+      }
+    }
+  }
+
+  private async syncPreferences(providerOverride?: string): Promise<void> {
     await this.resourceLoader.reload();
+    await this.syncProviderCredentials();
 
-    const configuredProvider = ((await this.getPreference('ai.provider')) as string) ?? 'openai';
-    const configuredModel = ((await this.getPreference('ai.model')) as string) ?? '';
-    const configuredApiKey = ((await this.getPreference('ai.apiKey')) as string) ?? '';
-    const configuredBaseUrl = ((await this.getPreference('ai.baseUrl')) as string) ?? '';
+    const configuredProvider = providerOverride ?? (await getDefaultAiProvider(this.getPreference));
+    const configuredModel = (await getAiProviderPreferences(this.getPreference, configuredProvider))
+      .model;
+    const targetModel = configuredModel
+      ? this.modelRegistry.find(configuredProvider, configuredModel)
+      : this.modelRegistry.getAvailable().find((model) => model.provider === configuredProvider);
 
-    if (configuredApiKey) {
-      this.authStorage.setRuntimeApiKey(configuredProvider, configuredApiKey);
-    } else {
-      this.authStorage.removeRuntimeApiKey(configuredProvider);
-    }
-
-    if (
-      configuredBaseUrl &&
-      ['openai', 'openrouter', 'xai', 'mistral', 'ollama'].includes(configuredProvider)
-    ) {
-      this.modelRegistry.registerProvider(configuredProvider, {
-        baseUrl: configuredBaseUrl,
-        ...(configuredApiKey ? { apiKey: configuredApiKey } : {}),
-        authHeader: configuredProvider !== 'ollama',
-      });
-    } else {
-      this.modelRegistry.unregisterProvider(configuredProvider);
-    }
-
-    if (!configuredModel) {
-      return;
-    }
-
-    const targetModel = this.modelRegistry.find(configuredProvider, configuredModel);
     if (!targetModel) {
-      throw new Error(`Configured model not found: ${configuredProvider}/${configuredModel}`);
+      throw new Error(
+        configuredModel
+          ? `Configured model not found: ${configuredProvider}/${configuredModel}`
+          : `No model available for ${configuredProvider}. Configure a model in Preferences -> AI.`,
+      );
     }
 
     if (
@@ -350,7 +414,7 @@ export class PiSessionService {
   }
 
   async prompt(input: PromptInput, callbacks: PromptCallbacks): Promise<void> {
-    await this.syncPreferences();
+    await this.syncPreferences(input.provider);
 
     const { onEvent } = callbacks;
     let pendingUserSource: ChatSource | null = input.source;

@@ -82,6 +82,25 @@ function PreferenceApp() {
   // ─── Render ──────────────────────────────────────────────────────────────
   const categoriesToShow = CATEGORIES.filter((c) => c === activeCategory);
 
+  const getVisibleSchemas = useCallback(
+    (category: string) => {
+      const schemas = getSchemasByCategory(category);
+      if (category !== 'AI') {
+        return schemas;
+      }
+
+      const selectedProvider = String(config['ai.defaultProvider'] ?? 'openai');
+      return schemas.filter((schema) => {
+        if (!schema.key.startsWith('ai.providers.')) {
+          return true;
+        }
+
+        return schema.key.startsWith(`ai.providers.${selectedProvider}.`);
+      });
+    },
+    [config],
+  );
+
   return (
     <PreferenceActions onConfigChanged={fetchConfig}>
       <div className={styles.root}>
@@ -91,7 +110,7 @@ function PreferenceApp() {
         {/* Settings panel */}
         <div className={styles.settingsPanel}>
           {categoriesToShow.map((category) => {
-            const schemas = getSchemasByCategory(category);
+            const schemas = getVisibleSchemas(category);
             return (
               <PreferenceSection key={category} title={category}>
                 {schemas.map((schema) => (

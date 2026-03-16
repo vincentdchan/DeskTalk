@@ -26,6 +26,27 @@ interface AiEventMessage {
   messages?: ChatMessage[];
 }
 
+interface AiProviderOption {
+  id: string;
+  label: string;
+  configured: boolean;
+  model: string;
+}
+
+interface AiProviderResponse {
+  defaultProvider: string;
+  providers: AiProviderOption[];
+}
+
+function getProviderStatusLabel(providerId: string, providers: AiProviderOption[]): string {
+  const provider = providers.find((entry) => entry.id === providerId);
+  if (!provider || !provider.model) {
+    return 'not configured';
+  }
+
+  return `${provider.id}/${provider.model}`;
+}
+
 function MarkdownMessage({ content, isStreaming }: { content: string; isStreaming: boolean }) {
   return (
     <Streamdown className={styles.markdownContent} isAnimating={isStreaming} animated>
@@ -40,6 +61,8 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const [isAiRunning, setIsAiRunning] = useState(false);
   const [modelLabel, setModelLabel] = useState('not configured');
   const [tokenCount, setTokenCount] = useState(0);
+  const [providerOptions, setProviderOptions] = useState<AiProviderOption[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activeRequestIdRef = useRef<string | null>(null);
   const sentVoiceUtteranceIdsRef = useRef<Set<string>>(new Set());
@@ -79,13 +102,48 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
           requestId,
           text,
           source,
+          ...(selectedProvider ? { provider: selectedProvider } : {}),
         }),
       );
 
       return true;
     },
-    [socket, isAiRunning],
+    [socket, isAiRunning, selectedProvider],
   );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadProviders() {
+      try {
+        const response = await fetch('/api/ai/providers');
+        if (!response.ok) {
+          throw new Error('Failed to load AI providers');
+        }
+
+        const payload = (await response.json()) as AiProviderResponse;
+        if (!isMounted) {
+          return;
+        }
+
+        setProviderOptions(payload.providers);
+        setSelectedProvider((current) => current || payload.defaultProvider);
+        setModelLabel(getProviderStatusLabel(payload.defaultProvider, payload.providers));
+      } catch {
+        if (isMounted) {
+          setProviderOptions([]);
+          setSelectedProvider('');
+          setModelLabel('not configured');
+        }
+      }
+    }
+
+    void loadProviders();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const flushPendingVoicePrompts = useCallback(() => {
     if (isAiRunning) return;
@@ -220,11 +278,37 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     }
   }, [isAiRunning, flushPendingVoicePrompts]);
 
+  useEffect(() => {
+    if (!isAiRunning && selectedProvider) {
+      setModelLabel(getProviderStatusLabel(selectedProvider, providerOptions));
+    }
+  }, [isAiRunning, providerOptions, selectedProvider]);
+
   return (
     <div className={styles.infoPanel}>
       <div className={styles.header}>
         <span>AI Assistant</span>
-        {tokenCount > 0 && <span className={styles.tokenCount}>{tokenCount} tokens</span>}
+        <div className={styles.headerControls}>
+          {providerOptions.length > 0 && (
+            <label className={styles.providerPicker}>
+              <span className={styles.providerLabel}>Provider</span>
+              <select
+                className={styles.providerSelect}
+                value={selectedProvider}
+                onChange={(event) => setSelectedProvider(event.target.value)}
+                disabled={isAiRunning}
+              >
+                {providerOptions.map((provider) => (
+                  <option key={provider.id} value={provider.id}>
+                    {provider.label}
+                    {provider.configured ? '' : ' (setup needed)'}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {tokenCount > 0 && <span className={styles.tokenCount}>{tokenCount} tokens</span>}
+        </div>
       </div>
 
       <div className={styles.messages}>

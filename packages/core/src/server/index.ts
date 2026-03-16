@@ -233,6 +233,7 @@ export async function createServer(options: ServerOptions) {
           const requestId = typeof msg.requestId === 'string' ? msg.requestId : `ai-${Date.now()}`;
           const text = typeof msg.text === 'string' ? msg.text.trim() : '';
           const source = msg.source === 'voice' ? 'voice' : 'text';
+          const provider = typeof msg.provider === 'string' ? msg.provider : undefined;
 
           if (!text) {
             sendAiEvent({
@@ -259,6 +260,7 @@ export async function createServer(options: ServerOptions) {
               {
                 text,
                 source,
+                provider,
               },
               {
                 onEvent: (event) =>
@@ -488,6 +490,10 @@ export async function createServer(options: ServerOptions) {
       theme: getStoredPreference('general.theme') === 'dark' ? 'dark' : 'light',
       accentColor: String(getStoredPreference('general.accentColor') ?? '#7c6ff7'),
     };
+  });
+
+  app.get('/api/ai/providers', async () => {
+    return piSessionService.getProviderOptions();
   });
 
   app.get<{ Querystring: { locale?: string } }>('/api/i18n/catalog', async (req) => {

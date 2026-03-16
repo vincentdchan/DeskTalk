@@ -5,9 +5,7 @@ import styles from '../styles/PreferenceApp.module.css';
 const CATEGORY_ICONS: Record<Category, string> = {
   General: '\u2699',
   Server: '\uD83C\uDF10',
-  Window: '\uD83D\uDDA5',
   AI: '\uD83E\uDD16',
-  Dock: '\u2693',
   Voice: '\uD83C\uDF99',
 };
 
