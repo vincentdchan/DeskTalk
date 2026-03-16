@@ -55,8 +55,20 @@ export class WindowManagerService {
     windowIdCounter: 0,
   };
   private readonly windowActions: Record<string, SerializableActionDefinition[]> = {};
+  private filePath: string;
 
-  constructor(private readonly filePath: string) {
+  constructor(filePath: string) {
+    this.filePath = filePath;
+    this.load();
+  }
+
+  /**
+   * Switch the backing file path (e.g. when a different user connects)
+   * and reload persisted state from the new location.
+   */
+  switchUser(newFilePath: string): void {
+    this.filePath = newFilePath;
+    this.state = { windows: [], nextZIndex: 1, windowIdCounter: 0 };
     this.load();
   }
 

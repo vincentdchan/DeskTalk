@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import fastifyCookie from '@fastify/cookie';
 import fastifyWebsocket from '@fastify/websocket';
 import fastifyStatic from '@fastify/static';
 import { createReadStream } from 'node:fs';
@@ -10,9 +11,9 @@ import { addClient, broadcastRaw } from '../services/messaging';
 import { registry } from '../services/miniapp-registry';
 import { processManager } from '../services/backend-process-manager';
 import { PiSessionService } from '../services/ai/pi-session-service';
-import { getStoredPreference } from '../services/preferences';
+import { getStoredPreference, setPreferenceUser } from '../services/preferences';
 import { loadMergedLocaleMessages } from '../services/i18n';
-import { getWorkspacePaths } from '../services/workspace';
+import { getWorkspacePaths, getUserHomeDir } from '../services/workspace';
 import { VoiceSession } from '../services/voice/voice-session';
 import { AzureOpenAIWhisperAdapter } from '../services/voice/azure-openai-whisper-adapter';
 import { OpenAIWhisperAdapter } from '../services/voice/openai-whisper-adapter';
@@ -21,6 +22,9 @@ import {
   WindowManagerService,
   type SerializableActionDefinition,
 } from '../services/window-manager';
+import { validateSession, type PublicUser } from '../services/user-db';
+import { COOKIE_NAME, authRoutes } from './auth-routes';
+import { adminRoutes } from './admin-routes';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -33,15 +37,31 @@ export interface ServerOptions {
   logger: pino.Logger;
 }
 
+// Augment Fastify request with the authenticated user
+declare module 'fastify' {
+  interface FastifyRequest {
+    user?: PublicUser;
+  }
+}
+
 export async function createServer(options: ServerOptions) {
   const app = Fastify({ loggerInstance: options.logger.child({ scope: 'http' }) });
   const log = options.logger;
   const workspacePaths = getWorkspacePaths();
   const windowManager = new WindowManagerService(
-    join(workspacePaths.data, 'storage', 'window-state.json'),
+    join(getUserHomeDir('admin'), '.storage', 'window-state.json'),
   );
+
+  // ─── Track the "current user" for the AI service ───────────────────────
+  // The AI service is currently a singleton (not per-user). We track the
+  // most recently authenticated WebSocket user so the AI can activate
+  // MiniApps on their behalf.
+  let currentWsUsername: string | null = null;
+
   windowManager.activatePersistedMiniApps(async (miniAppId) => {
-    await registry.activate(miniAppId);
+    // During startup restore, use the admin user as the default owner.
+    // In practice, persisted windows will be re-associated when the user logs in.
+    await registry.activate(miniAppId, 'admin');
   });
 
   // ─── Pending requests for action invocations brokered to the frontend ───
@@ -118,9 +138,12 @@ export async function createServer(options: ServerOptions) {
     windowManager,
     invokeWindowAction,
     sendAiCommand,
+    () => currentWsUsername ?? 'admin',
   );
 
-  // Register WebSocket support
+  // ─── Plugins ──────────────────────────────────────────────────────────────
+
+  await app.register(fastifyCookie);
   await app.register(fastifyWebsocket);
 
   if (!options.dev) {
@@ -132,8 +155,56 @@ export async function createServer(options: ServerOptions) {
     });
   }
 
-  // WebSocket endpoint for MiniApp messaging and AI events
-  app.get('/ws', { websocket: true }, (socket, _req) => {
+  // ─── Auth middleware ──────────────────────────────────────────────────────
+  // Validate session cookie on every request except public routes.
+
+  const PUBLIC_ROUTES = new Set(['/api/auth/login', '/api/preferences/public']);
+
+  app.addHook('onRequest', async (req, reply) => {
+    // Skip auth for public routes
+    if (PUBLIC_ROUTES.has(req.url)) return;
+
+    // Skip auth for static file requests (non-API, non-WS)
+    if (!req.url.startsWith('/api/') && !req.url.startsWith('/ws')) return;
+
+    const token = req.cookies[COOKIE_NAME];
+    if (!token) {
+      reply.code(401);
+      reply.send({ error: 'Authentication required.' });
+      return;
+    }
+
+    const user = validateSession(token);
+    if (!user) {
+      reply.code(401);
+      reply.send({ error: 'Session expired or invalid.' });
+      return;
+    }
+
+    req.user = user;
+  });
+
+  // ─── Auth & Admin Routes ──────────────────────────────────────────────────
+
+  await app.register(authRoutes);
+  await app.register(adminRoutes, { prefix: '/api/admin' });
+
+  // ─── WebSocket endpoint for MiniApp messaging and AI events ──────────────
+
+  app.get('/ws', { websocket: true }, (socket, req) => {
+    const user = req.user;
+    if (!user) {
+      socket.close(4001, 'Authentication required');
+      return;
+    }
+
+    const username = user.username;
+    currentWsUsername = username;
+
+    // Switch window manager and preferences to this user's persisted state
+    windowManager.switchUser(join(getUserHomeDir(username), '.storage', 'window-state.json'));
+    setPreferenceUser(username);
+
     addClient(socket);
     let activeAiRequestId: string | null = null;
 
@@ -170,8 +241,10 @@ export async function createServer(options: ServerOptions) {
 
         if (msg.type === 'command:invoke') {
           const { miniAppId, command, requestId, data } = msg;
+          // Build the process key scoped to the authenticated user
+          const processKey = `${miniAppId}:${username}`;
           try {
-            const result = await processManager.sendCommand(miniAppId, command, data);
+            const result = await processManager.sendCommand(processKey, command, data);
             socket.send(
               JSON.stringify({
                 type: 'command:response',
@@ -520,17 +593,19 @@ export async function createServer(options: ServerOptions) {
     };
   });
 
-  // REST API: Activate a MiniApp
+  // REST API: Activate a MiniApp (scoped to authenticated user)
   app.post<{ Params: { id: string } }>('/api/miniapps/:id/activate', async (req) => {
     const { id } = req.params;
-    await registry.activate(id);
+    const username = req.user!.username;
+    await registry.activate(id, username);
     return { id, activated: true };
   });
 
-  // REST API: Deactivate a MiniApp
+  // REST API: Deactivate a MiniApp (scoped to authenticated user)
   app.post<{ Params: { id: string } }>('/api/miniapps/:id/deactivate', async (req) => {
     const { id } = req.params;
-    await registry.deactivate(id);
+    const username = req.user!.username;
+    await registry.deactivate(id, username);
     return { id, deactivated: true };
   });
 

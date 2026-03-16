@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { initWorkspace } from '../services/workspace';
+import { initWorkspace, migrateToMultiUser, ensureUserHome } from '../services/workspace';
 import { registerBuiltinMiniApps } from '../services/miniapp-registry';
 import { createServer } from '../server/index';
 import { processManager } from '../services/backend-process-manager';
 import { createRootLogger, getLoggerConfig } from '../services/logger';
+import { initUserDb, closeUserDb } from '../services/user-db';
 
 const program = new Command();
 
@@ -35,6 +36,12 @@ program
       'workspace initialized',
     );
 
+    // Initialize the user database, run data migration, and ensure admin home exists
+    initUserDb(paths.data);
+    migrateToMultiUser();
+    ensureUserHome('admin');
+    log.info('user database initialized');
+
     // Initialize the process manager with logger config so child processes can recreate it
     const loggerConfig = getLoggerConfig({ dev, level: rootLogger.level, logDir: paths.log });
     processManager.init(rootLogger.child({ scope: 'process-mgr' }), loggerConfig);
@@ -60,6 +67,7 @@ program
     async function shutdown() {
       log.info('shutting down backend processes');
       await processManager.killAll();
+      closeUserDb();
       process.exit(0);
     }
 

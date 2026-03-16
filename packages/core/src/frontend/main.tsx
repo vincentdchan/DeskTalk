@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import * as ReactDOM_NS from 'react-dom';
 import { createRoot, hydrateRoot } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
 import { I18nProvider, type LocaleMessages } from '@desktalk/sdk';
 import { Shell } from './components/Shell';
+import { LoginPage } from './components/LoginPage';
+import { OnboardPage } from './components/OnboardPage';
 import { applyTheme, DEFAULT_THEME_PREFERENCES, type ThemePreferences } from './theme';
 import './styles/global.scss';
 
@@ -17,6 +19,15 @@ interface PublicPreferencesResponse {
   accentColor: string;
 }
 
+interface AuthMeResponse {
+  username: string;
+  displayName: string;
+  role: string;
+  onboarded: boolean;
+}
+
+type Page = 'loading' | 'login' | 'onboard' | 'desktop';
+
 applyTheme(DEFAULT_THEME_PREFERENCES);
 
 function App() {
@@ -24,6 +35,29 @@ function App() {
   const [messages, setMessages] = useState<LocaleMessages>({});
   const [themePreferences, setThemePreferences] =
     useState<ThemePreferences>(DEFAULT_THEME_PREFERENCES);
+  const [page, setPage] = useState<Page>('loading');
+  const [authUser, setAuthUser] = useState<AuthMeResponse | null>(null);
+
+  const checkSession = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (!res.ok) {
+        setPage('login');
+        return;
+      }
+
+      const user = (await res.json()) as AuthMeResponse;
+      setAuthUser(user);
+
+      if (!user.onboarded) {
+        setPage('onboard');
+      } else {
+        setPage('desktop');
+      }
+    } catch {
+      setPage('login');
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,6 +66,8 @@ function App() {
       const query = nextLocale ? `?locale=${encodeURIComponent(nextLocale)}` : '';
       const response = await fetch(`/api/i18n/catalog${query}`);
       if (!response.ok) {
+        // i18n catalog requires auth — if not authenticated, just use defaults
+        if (response.status === 401) return;
         throw new Error(`Failed to load i18n catalog (${response.status})`);
       }
 
@@ -57,12 +93,17 @@ function App() {
       }
     }
 
-    void loadCatalog().catch((error) => {
-      console.error('[i18n] Could not load catalog:', error);
-    });
-
+    // Load theme preferences (public, no auth needed) immediately
     void loadThemePreferences().catch((error) => {
       console.error('[theme] Could not load preferences:', error);
+    });
+
+    // Check session to determine which page to show
+    void checkSession();
+
+    // Load i18n catalog (may fail if not authenticated — that's okay)
+    void loadCatalog().catch((error) => {
+      console.error('[i18n] Could not load catalog:', error);
     });
 
     const handleEvent = (event: Event) => {
@@ -111,11 +152,30 @@ function App() {
       cancelled = true;
       window.removeEventListener('desktalk:event', handleEvent);
     };
-  }, []);
+  }, [checkSession]);
 
   useEffect(() => {
     applyTheme(themePreferences);
   }, [themePreferences]);
+
+  if (page === 'loading') {
+    // Render nothing while checking session — theme is already applied
+    return null;
+  }
+
+  if (page === 'login') {
+    return <LoginPage onLoginSuccess={checkSession} />;
+  }
+
+  if (page === 'onboard' && authUser) {
+    return (
+      <OnboardPage
+        username={authUser.username}
+        displayName={authUser.displayName}
+        onComplete={checkSession}
+      />
+    );
+  }
 
   return (
     <I18nProvider locale={locale} messages={messages}>

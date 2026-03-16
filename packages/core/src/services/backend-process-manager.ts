@@ -25,6 +25,9 @@ const __dirname = dirname(__filename);
 /** Internal bookkeeping for a running child process. */
 interface ManagedProcess {
   child: ChildProcess;
+  /** Process key used in the Map (e.g. "note:admin"). */
+  processKey: string;
+  /** Original MiniApp ID (e.g. "note"). */
   miniAppId: string;
   ready: boolean;
   readyPromise: Promise<void>;
@@ -67,19 +70,29 @@ class BackendProcessManager {
   // ─── Lifecycle ──────────────────────────────────────────────────────────
 
   /**
-   * Spawn an isolated child process for `miniAppId` and wait until it
-   * reports "ready" (i.e. the backend's activate() has returned).
+   * Spawn an isolated child process and wait until it reports "ready"
+   * (i.e. the backend's activate() has returned).
+   *
+   * @param processKey Unique key for this process instance (e.g. "note:admin").
+   * @param backendPath Import specifier for the MiniApp backend module.
+   * @param packageRoot Absolute path to the MiniApp package root.
+   * @param paths Pre-resolved MiniApp paths scoped to the current user.
+   * @param locale Locale string (e.g. "en", "zh-CN").
+   * @param miniAppId Original MiniApp ID (e.g. "note"). If omitted, uses processKey.
    */
   async spawn(
-    miniAppId: string,
+    processKey: string,
     backendPath: string,
     packageRoot: string,
     paths: MiniAppPaths,
     locale: string,
+    miniAppId?: string,
   ): Promise<void> {
-    if (this.processes.has(miniAppId)) {
+    if (this.processes.has(processKey)) {
       return; // already running
     }
+
+    const actualMiniAppId = miniAppId ?? processKey;
 
     const child = fork(this.hostPath, [], {
       stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
@@ -94,16 +107,17 @@ class BackendProcessManager {
 
     const managed: ManagedProcess = {
       child,
-      miniAppId,
+      processKey,
+      miniAppId: actualMiniAppId,
       ready: false,
       readyPromise,
     };
 
-    this.processes.set(miniAppId, managed);
+    this.processes.set(processKey, managed);
 
     // Relay messages from child
     child.on('message', (msg: ChildToMainMessage) => {
-      this.handleChildMessage(miniAppId, msg);
+      this.handleChildMessage(processKey, msg);
       if (msg.type === 'ready') {
         managed.ready = true;
         resolveReady();
@@ -111,27 +125,27 @@ class BackendProcessManager {
     });
 
     child.on('exit', (code, signal) => {
-      this.logger?.info({ miniAppId, code, signal }, 'child process exited');
-      this.processes.delete(miniAppId);
+      this.logger?.info({ processKey, code, signal }, 'child process exited');
+      this.processes.delete(processKey);
     });
 
     child.on('error', (err) => {
-      this.logger?.error({ miniAppId, err: err.message }, 'child process error');
+      this.logger?.error({ processKey, err: err.message }, 'child process error');
       rejectReady(err);
     });
 
     // Forward child stdout / stderr so operator can see backend logs
     child.stdout?.on('data', (data: Buffer) => {
-      process.stdout.write(`[${miniAppId}] ${data.toString()}`);
+      process.stdout.write(`[${processKey}] ${data.toString()}`);
     });
     child.stderr?.on('data', (data: Buffer) => {
-      process.stderr.write(`[${miniAppId}] ${data.toString()}`);
+      process.stderr.write(`[${processKey}] ${data.toString()}`);
     });
 
-    // Ask the child to activate
+    // Ask the child to activate — use the original miniAppId, not the process key
     const activateMsg: MainToChildMessage = {
       type: 'activate',
-      miniAppId,
+      miniAppId: actualMiniAppId,
       backendPath,
       packageRoot,
       paths,
@@ -146,13 +160,13 @@ class BackendProcessManager {
   // ─── Command routing ────────────────────────────────────────────────────
 
   /**
-   * Send a command to the child process that owns `miniAppId` and
+   * Send a command to the child process identified by `processKey` and
    * return the result (or throw on error / timeout).
    */
-  async sendCommand(miniAppId: string, command: string, data: unknown): Promise<unknown> {
-    const managed = this.processes.get(miniAppId);
+  async sendCommand(processKey: string, command: string, data: unknown): Promise<unknown> {
+    const managed = this.processes.get(processKey);
     if (!managed) {
-      throw new Error(`No running process for miniApp: ${miniAppId}`);
+      throw new Error(`No running process for key: ${processKey}`);
     }
 
     if (!managed.ready) {
@@ -164,7 +178,7 @@ class BackendProcessManager {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(requestId);
-        reject(new Error(`Command timed out: ${command} (miniApp: ${miniAppId})`));
+        reject(new Error(`Command timed out: ${command} (process: ${processKey})`));
       }, COMMAND_TIMEOUT_MS);
 
       this.pendingRequests.set(requestId, { resolve, reject, timeout });
@@ -182,10 +196,10 @@ class BackendProcessManager {
   // ─── Teardown ───────────────────────────────────────────────────────────
 
   /**
-   * Gracefully deactivate and stop the child process for `miniAppId`.
+   * Gracefully deactivate and stop the child process identified by `processKey`.
    */
-  async kill(miniAppId: string): Promise<void> {
-    const managed = this.processes.get(miniAppId);
+  async kill(processKey: string): Promise<void> {
+    const managed = this.processes.get(processKey);
     if (!managed) {
       return;
     }
@@ -204,12 +218,12 @@ class BackendProcessManager {
       });
     });
 
-    this.processes.delete(miniAppId);
+    this.processes.delete(processKey);
   }
 
-  /** Check whether a child process is running for `miniAppId`. */
-  isRunning(miniAppId: string): boolean {
-    return this.processes.has(miniAppId);
+  /** Check whether a child process is running for `processKey`. */
+  isRunning(processKey: string): boolean {
+    return this.processes.has(processKey);
   }
 
   /** Gracefully shut down every child process. */
@@ -220,7 +234,7 @@ class BackendProcessManager {
 
   // ─── Internal ───────────────────────────────────────────────────────────
 
-  private handleChildMessage(miniAppId: string, msg: ChildToMainMessage): void {
+  private handleChildMessage(processKey: string, msg: ChildToMainMessage): void {
     switch (msg.type) {
       case 'command:response': {
         const pending = this.pendingRequests.get(msg.requestId);
@@ -239,7 +253,7 @@ class BackendProcessManager {
         broadcastEvent(msg.miniAppId, msg.event, msg.data);
         break;
       case 'error':
-        this.logger?.error({ miniAppId, err: msg.message }, 'child process reported error');
+        this.logger?.error({ processKey, err: msg.message }, 'child process reported error');
         break;
       case 'ready':
         // Handled inline in spawn()
