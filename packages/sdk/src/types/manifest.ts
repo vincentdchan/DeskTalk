@@ -34,6 +34,8 @@ export interface MiniAppFrontendContext {
   miniAppId: string;
   /** The window's unique identifier */
   windowId: string;
+  /** Optional launch arguments passed when the window was opened (e.g. by the AI). */
+  args?: Record<string, unknown>;
 }
 
 /**

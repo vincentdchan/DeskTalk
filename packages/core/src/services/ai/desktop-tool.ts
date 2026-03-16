@@ -9,18 +9,25 @@ export type SendAiCommand = (command: {
   windowId?: string;
   miniAppId?: string;
   title?: string;
+  args?: Record<string, unknown>;
 }) => Promise<{ ok: boolean; windowId?: string; error?: string }>;
 
 const desktopSchema = Type.Object({
   action: StringEnum(['list', 'focus', 'minimize', 'maximize', 'close', 'open']),
   windowId: Type.Optional(Type.String({ description: 'Target window ID' })),
   miniAppId: Type.Optional(Type.String({ description: 'MiniApp ID to open' })),
+  args: Type.Optional(
+    Type.Record(Type.String(), Type.Unknown(), {
+      description: 'Optional launch arguments forwarded to the MiniApp frontend on open',
+    }),
+  ),
 });
 
 type DesktopParams = {
   action: 'list' | 'focus' | 'minimize' | 'maximize' | 'close' | 'open';
   windowId?: string;
   miniAppId?: string;
+  args?: Record<string, unknown>;
 };
 
 interface DesktopToolOptions {
@@ -53,7 +60,7 @@ export function createDesktopTool(options: DesktopToolOptions): ToolDefinition {
       'Manage DeskTalk desktop windows (list, open, focus, minimize, maximize, close).',
     promptGuidelines: [
       'Use action="list" to get the latest window IDs and desktop state.',
-      'Use action="open" with miniAppId to launch a MiniApp.',
+      'Use action="open" with miniAppId to launch a MiniApp. Pass args to provide initial context (e.g. { path: "photos/cat.png" } for Preview).',
     ],
     parameters: desktopSchema,
     async execute(_toolCallId, params) {
@@ -88,6 +95,7 @@ export function createDesktopTool(options: DesktopToolOptions): ToolDefinition {
             action: 'open',
             miniAppId,
             title: manifest.name,
+            args: input.args,
           });
           if (!commandResult.ok) throw new Error(commandResult.error ?? 'Failed to open window');
           const result = {

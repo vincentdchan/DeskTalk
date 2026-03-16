@@ -29,6 +29,17 @@ export function WindowIdProvider({
   return React.createElement(WindowIdContext.Provider, { value: windowId }, children);
 }
 
+/**
+ * Hook to read the current window ID from context.
+ */
+export function useWindowId(): string {
+  const id = useContext(WindowIdContext);
+  if (!id) {
+    throw new Error('useWindowId must be used inside a <WindowIdProvider>');
+  }
+  return id;
+}
+
 function emitActionsChanged(windowId: string, actions: ActionDefinition[]): void {
   window.dispatchEvent(
     new CustomEvent('desktalk:actions-changed', {

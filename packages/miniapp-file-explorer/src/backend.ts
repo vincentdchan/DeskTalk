@@ -214,6 +214,29 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
     };
   });
 
+  // ─── files.upload ────────────────────────────────────────────────────────
+
+  ctx.messaging.onCommand<{ path: string; contentBase64: string }, FileEntry>(
+    'files.upload',
+    async (req) => {
+      const targetPath = normalizePath(req.path);
+      await ctx.fs.writeFileBase64(targetPath, req.contentBase64);
+
+      const stat = await ctx.fs.stat(targetPath);
+      const name = targetPath.includes('/') ? targetPath.split('/').pop()! : targetPath;
+
+      ctx.logger.info(`Uploaded file: ${targetPath}`);
+      return {
+        name,
+        path: targetPath,
+        type: 'file',
+        size: stat.size,
+        mimeType: getMimeType(name),
+        modifiedAt: stat.modifiedAt,
+      };
+    },
+  );
+
   // ─── files.rename ────────────────────────────────────────────────────────
 
   ctx.messaging.onCommand<{ path: string; newName: string }, FileEntry>(

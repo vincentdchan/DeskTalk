@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef } from 'react';
+import { useWindowId } from '../components/Actions';
 
 // ─── MiniApp ID Context ──────────────────────────────────────────────────────
 
@@ -172,4 +173,55 @@ export function useEvent<T>(event: string, handler: (data: T) => void): void {
       }
     };
   }, [event]);
+}
+
+/**
+ * React hook that returns a function to request the shell to open another
+ * MiniApp window with optional launch arguments.
+ *
+ * Usage:
+ * ```ts
+ * const openMiniApp = useOpenMiniApp();
+ * openMiniApp('preview', { path: 'photos/cat.png' });
+ * ```
+ */
+export function useOpenMiniApp(): (miniAppId: string, args?: Record<string, unknown>) => void {
+  return useCallback((miniAppId: string, args?: Record<string, unknown>) => {
+    window.dispatchEvent(
+      new CustomEvent('desktalk:open-window', {
+        detail: { miniAppId, args },
+      }),
+    );
+  }, []);
+}
+
+/**
+ * React hook that fires a callback when the shell updates this window's
+ * launch arguments (e.g. when `openWindow` reuses an existing window
+ * with new args).
+ *
+ * Usage:
+ * ```ts
+ * useWindowArgsUpdated((args) => {
+ *   if (typeof args.path === 'string') loadFile(args.path);
+ * });
+ * ```
+ */
+export function useWindowArgsUpdated(handler: (args: Record<string, unknown>) => void): void {
+  const windowId = useWindowId();
+  const handlerRef = useRef(handler);
+  handlerRef.current = handler;
+
+  useEffect(() => {
+    const listener = (event: Event) => {
+      const detail = (event as CustomEvent<{ windowId: string; args: Record<string, unknown> }>)
+        .detail;
+      if (detail.windowId === windowId) {
+        handlerRef.current(detail.args);
+      }
+    };
+
+    window.addEventListener('desktalk:window-args-updated', listener);
+    return () => window.removeEventListener('desktalk:window-args-updated', listener);
+  }, [windowId]);
 }

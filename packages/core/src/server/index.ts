@@ -93,6 +93,7 @@ export async function createServer(options: ServerOptions) {
     windowId?: string;
     miniAppId?: string;
     title?: string;
+    args?: Record<string, unknown>;
   }): Promise<{ ok: boolean; windowId?: string; error?: string }> {
     const requestId = `ai-cmd-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 

@@ -27,7 +27,7 @@ export type { LocaleMessages, LocalizeCall, I18nRuntimeValue } from './i18n/runt
 
 // ─── React Hooks ─────────────────────────────────────────────────────────────
 
-export { useCommand, useEvent } from './hooks/messaging';
+export { useCommand, useEvent, useOpenMiniApp, useWindowArgsUpdated } from './hooks/messaging';
 export { ActionsProvider, Action } from './components/Actions';
 export {
   $localize,
@@ -43,4 +43,4 @@ export {
 // MiniApps should NOT use these directly.
 
 export { initMessaging, MiniAppIdProvider } from './hooks/messaging';
-export { WindowIdProvider } from './components/Actions';
+export { WindowIdProvider, useWindowId } from './components/Actions';

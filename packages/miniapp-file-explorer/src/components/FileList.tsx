@@ -9,6 +9,7 @@ interface FileListProps {
   selectedPath: string | null;
   renamingPath: string | null;
   renameValue: string;
+  isUploading?: boolean;
   onSort: (column: SortColumn) => void;
   onSelect: (entry: FileEntry) => void;
   onOpen: (entry: FileEntry) => void;
@@ -103,6 +104,7 @@ export function FileList({
   selectedPath,
   renamingPath,
   renameValue,
+  isUploading = false,
   onSort,
   onSelect,
   onOpen,
@@ -133,7 +135,14 @@ export function FileList({
   }
 
   if (entries.length === 0) {
-    return <div className={styles.emptyState}>This directory is empty.</div>;
+    return (
+      <div className={styles.emptyState}>
+        <div>This directory is empty.</div>
+        <div className={styles.emptyStateHint}>
+          {isUploading ? 'Uploading files...' : 'Drag files here to upload them to this folder.'}
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -1,0 +1,123 @@
+.root {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--dt-window-body);
+  color: var(--dt-text);
+  font-family: var(--font-sans);
+}
+
+/* ─── Toolbar ─────────────────────────────────────────────────────────────── */
+
+.toolbar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--dt-border);
+}
+
+.toolbarGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolBtn {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+  background: var(--dt-surface);
+  color: var(--dt-text);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.toolBtn:hover:not(:disabled) {
+  border-color: var(--dt-accent);
+  background: var(--dt-surface-hover);
+  color: var(--dt-accent);
+}
+
+.toolBtn:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.filename {
+  flex: 1;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zoomIndicator {
+  min-width: 44px;
+  color: var(--dt-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* ─── Viewport ────────────────────────────────────────────────────────────── */
+
+.viewport {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  outline: none;
+}
+
+.image {
+  max-width: none;
+  max-height: none;
+  transform-origin: center center;
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* ─── Empty / Error States ────────────────────────────────────────────────── */
+
+.emptyState {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: var(--dt-text-muted);
+  font-size: 14px;
+}
+
+.errorState {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--dt-text-muted);
+  font-size: 14px;
+}
+
+.errorIcon {
+  font-size: 32px;
+  opacity: 0.5;
+}
