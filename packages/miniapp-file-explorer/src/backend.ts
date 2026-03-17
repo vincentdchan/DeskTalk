@@ -144,35 +144,42 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
 
   // ─── files.list ──────────────────────────────────────────────────────────
 
-  ctx.messaging.onCommand<{ path: string }, FileEntry[]>('files.list', async (req) => {
-    const dirPath = normalizePath(req?.path || '.');
+  const LIST_DEFAULT_LIMIT = 50;
+  const LIST_MAX_LIMIT = 200;
 
-    const dirExists = await ctx.fs.exists(dirPath);
-    if (!dirExists) {
-      await ctx.fs.mkdir(dirPath);
-      return [];
-    }
+  ctx.messaging.onCommand<{ path: string; limit?: number }, FileEntry[]>(
+    'files.list',
+    async (req) => {
+      const dirPath = normalizePath(req?.path || '.');
+      const limit = Math.max(1, Math.min(req?.limit ?? LIST_DEFAULT_LIMIT, LIST_MAX_LIMIT));
 
-    const entries = await ctx.fs.readDir(dirPath);
-    const result: FileEntry[] = [];
-
-    for (const entry of entries) {
-      try {
-        const fileEntry = await buildFileEntry(dirPath, entry.name);
-        result.push(fileEntry);
-      } catch {
-        // Skip entries that can't be stat'd
+      const dirExists = await ctx.fs.exists(dirPath);
+      if (!dirExists) {
+        await ctx.fs.mkdir(dirPath);
+        return [];
       }
-    }
 
-    // Sort: directories first, then alphabetically
-    result.sort((a, b) => {
-      if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
+      const entries = await ctx.fs.readDir(dirPath);
+      const result: FileEntry[] = [];
 
-    return result;
-  });
+      for (const entry of entries) {
+        try {
+          const fileEntry = await buildFileEntry(dirPath, entry.name);
+          result.push(fileEntry);
+        } catch {
+          // Skip entries that can't be stat'd
+        }
+      }
+
+      // Sort: directories first, then alphabetically
+      result.sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      return result.slice(0, limit);
+    },
+  );
 
   // ─── files.read ──────────────────────────────────────────────────────────
 

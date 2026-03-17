@@ -60,13 +60,14 @@ Note: The Actions Bar is a global element managed by the core shell (see `docs/s
 
 ## Actions (AI-invokable)
 
-| Action             | Description                 | Parameters                         |
-| ------------------ | --------------------------- | ---------------------------------- |
-| `Navigate`         | Navigate to a directory.    | `path: string`                     |
-| `Create File`      | Create a new file.          | `name: string`, `content?: string` |
-| `Create Directory` | Create a new directory.     | `name: string`                     |
-| `Delete`           | Delete a file or directory. | `path: string`                     |
-| `Rename`           | Rename a file or directory. | `path: string`, `newName: string`  |
+| Action             | Description                                                                                            | Parameters                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------ | ---------------------------------- |
+| `List Files`       | List files and directories in the current folder. Returns up to `limit` entries (default 50, max 200). | `limit?: number`                   |
+| `Navigate`         | Navigate to a directory.                                                                               | `path: string`                     |
+| `Create File`      | Create a new file.                                                                                     | `name: string`, `content?: string` |
+| `Create Directory` | Create a new directory.                                                                                | `name: string`                     |
+| `Delete`           | Delete a file or directory.                                                                            | `path: string`                     |
+| `Rename`           | Rename a file or directory.                                                                            | `path: string`, `newName: string`  |
 
 ## Backend
 

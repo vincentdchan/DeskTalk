@@ -2,6 +2,9 @@ import React, { useCallback } from 'react';
 import { ActionsProvider, Action, useCommand } from '@desktalk/sdk';
 import type { FileEntry } from '../types';
 
+const LIST_FILES_DEFAULT_LIMIT = 50;
+const LIST_FILES_MAX_LIMIT = 200;
+
 interface FileActionsProps {
   children: React.ReactNode;
   currentPath: string;
@@ -29,6 +32,19 @@ export function FileActions({
   >('files.create');
   const deleteEntry = useCommand<{ path: string }, void>('files.delete');
   const renameEntry = useCommand<{ path: string; newName: string }, FileEntry>('files.rename');
+  const listFiles = useCommand<{ path: string; limit?: number }, FileEntry[]>('files.list');
+
+  // ─── List Files ─────────────────────────────────────────────────────────
+
+  const handleListFiles = useCallback(
+    async (params?: Record<string, unknown>) => {
+      const rawLimit = params?.limit != null ? Number(params.limit) : LIST_FILES_DEFAULT_LIMIT;
+      const limit = Math.max(1, Math.min(rawLimit, LIST_FILES_MAX_LIMIT));
+      const entries = await listFiles({ path: currentPath, limit });
+      return entries;
+    },
+    [listFiles, currentPath],
+  );
 
   // ─── Navigate ───────────────────────────────────────────────────────────
 
@@ -101,6 +117,18 @@ export function FileActions({
 
   return (
     <ActionsProvider>
+      <Action
+        name="List Files"
+        description="List files and directories in the current folder. Returns up to limit entries (default 50, max 200)."
+        params={{
+          limit: {
+            type: 'number',
+            description: 'Maximum number of entries to return (default 50, max 200)',
+            required: false,
+          },
+        }}
+        handler={handleListFiles}
+      />
       <Action
         name="Navigate"
         description="Navigate to a directory"
