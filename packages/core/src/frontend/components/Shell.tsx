@@ -137,7 +137,7 @@ export function Shell() {
   const { ready: wsReady, socket } = useWebSocket();
 
   const windows = useWindowManager((s) => s.windows);
-  const setFocusedWindowActions = useWindowManager((s) => s.setFocusedWindowActions);
+  const setWindowActions = useWindowManager((s) => s.setWindowActions);
 
   const [manifests, setManifests] = useState<MiniAppManifest[]>([]);
   const [dockApps, setDockApps] = useState<DockMiniApp[]>([]);
@@ -373,17 +373,17 @@ export function Shell() {
         })),
       );
 
-      const focusedWindow = useWindowManager.getState().getFocusedWindow();
-      if (focusedWindow?.id === customEvent.detail.windowId) {
-        setFocusedWindowActions(buildClientActions(customEvent.detail.windowId, actions));
-      }
+      setWindowActions(
+        customEvent.detail.windowId,
+        buildClientActions(customEvent.detail.windowId, actions),
+      );
     };
 
     window.addEventListener('desktalk:actions-changed', handleActionsChanged);
     return () => {
       window.removeEventListener('desktalk:actions-changed', handleActionsChanged);
     };
-  }, [buildClientActions, setFocusedWindowActions]);
+  }, [buildClientActions, setWindowActions]);
 
   // Listen for MiniApp requests to open another MiniApp window
   useEffect(() => {

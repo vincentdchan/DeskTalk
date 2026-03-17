@@ -1,11 +1,4 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  type ReactNode,
-} from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { ActionDefinition, ActionHandler } from '../types/actions';
 
 /**
@@ -26,7 +19,7 @@ export function WindowIdProvider({
   windowId: string;
   children: ReactNode;
 }) {
-  return React.createElement(WindowIdContext.Provider, { value: windowId }, children);
+  return <WindowIdContext.Provider value={windowId}>{children}</WindowIdContext.Provider>;
 }
 
 /**
@@ -81,7 +74,7 @@ export function ActionsProvider({ children }: { children: ReactNode }) {
     };
   }, [windowId]);
 
-  return React.createElement(ActionsContext.Provider, { value: contextValue }, children);
+  return <ActionsContext.Provider value={contextValue}>{children}</ActionsContext.Provider>;
 }
 
 /**
