@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import axios from 'axios';
 import * as ReactDOM_NS from 'react-dom';
 import { createRoot, hydrateRoot } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
@@ -6,6 +7,7 @@ import { I18nProvider, type LocaleMessages } from '@desktalk/sdk';
 import { Shell } from './components/Shell';
 import { LoginPage } from './components/LoginPage';
 import { OnboardPage } from './components/OnboardPage';
+import { httpClient } from './http-client';
 import { applyTheme, DEFAULT_THEME_PREFERENCES, type ThemePreferences } from './theme';
 import './styles/global.scss';
 
@@ -37,15 +39,7 @@ function App() {
 
   const checkSession = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/me', {
-        credentials: 'include',
-      });
-      if (!res.ok) {
-        setPage('login');
-        return;
-      }
-
-      const data = (await res.json()) as AuthMeResponse;
+      const { data } = await httpClient.get<AuthMeResponse>('/api/auth/me');
 
       if (!data.authenticated) {
         // Not logged in — check if the system needs initial setup
@@ -69,27 +63,28 @@ function App() {
 
     async function loadCatalog(nextLocale?: string): Promise<void> {
       const query = nextLocale ? `?locale=${encodeURIComponent(nextLocale)}` : '';
-      const response = await fetch(`/api/i18n/catalog${query}`);
-      if (!response.ok) {
+      try {
+        const { data: payload } = await httpClient.get<I18nCatalogResponse>(
+          `/api/i18n/catalog${query}`,
+        );
+        if (!cancelled) {
+          setLocale(payload.locale);
+          setMessages(payload.messages);
+        }
+      } catch (error) {
         // i18n catalog requires auth — if not authenticated, just use defaults
-        if (response.status === 401) return;
-        throw new Error(`Failed to load i18n catalog (${response.status})`);
-      }
-
-      const payload = (await response.json()) as I18nCatalogResponse;
-      if (!cancelled) {
-        setLocale(payload.locale);
-        setMessages(payload.messages);
+        if (axios.isAxiosError(error)) {
+          const status = error.response?.status;
+          if (status === 401) return;
+          throw new Error(`Failed to load i18n catalog (${status ?? 'unknown'})`);
+        }
+        throw error;
       }
     }
 
     async function loadThemePreferences(): Promise<void> {
-      const response = await fetch('/api/preferences/public');
-      if (!response.ok) {
-        throw new Error(`Failed to load public preferences (${response.status})`);
-      }
-
-      const payload = (await response.json()) as PublicPreferencesResponse;
+      const { data: payload } =
+        await httpClient.get<PublicPreferencesResponse>('/api/preferences/public');
       if (!cancelled) {
         setThemePreferences({
           theme: payload.theme,

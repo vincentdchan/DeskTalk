@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import styles from './LoginPage.module.scss';
+import { getErrorMessage, httpClient } from '../http-client';
 
 export interface LoginPageProps {
   onLoginSuccess: () => void;
@@ -17,22 +18,11 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (!res.ok) {
-        const body = (await res.json()) as { error?: string };
-        setError(body.error ?? 'Login failed.');
-        return;
-      }
+      await httpClient.post('/api/auth/login', { username, password });
 
       onLoginSuccess();
-    } catch {
-      setError('Network error. Please try again.');
+    } catch (error) {
+      setError(getErrorMessage(error, 'Network error. Please try again.'));
     } finally {
       setLoading(false);
     }

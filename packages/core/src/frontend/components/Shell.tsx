@@ -14,6 +14,7 @@ import { WindowChrome } from './WindowChrome';
 import { InfoPanel } from './InfoPanel';
 import { loadMiniAppModule } from '../miniapp-runtime';
 import type { MiniAppFrontendModule } from '../miniapp-runtime';
+import { httpClient } from '../http-client';
 import styles from './Shell.module.scss';
 
 /**
@@ -169,21 +170,16 @@ export function Shell() {
   useEffect(() => {
     let cancelled = false;
 
-    void fetch('/api/miniapps')
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error(`Failed to load MiniApps (${response.status})`);
-        }
-        return (await response.json()) as MiniAppManifest[];
-      })
-      .then((data) => {
+    void (async () => {
+      try {
+        const response = await httpClient.get<MiniAppManifest[]>('/api/miniapps');
         if (!cancelled) {
-          setManifests(data);
+          setManifests(response.data);
         }
-      })
-      .catch((err) => {
-        console.error('[shell] Could not load MiniApps:', err);
-      });
+      } catch (error) {
+        console.error('[shell] Could not load MiniApps:', error);
+      }
+    })();
 
     return () => {
       cancelled = true;
@@ -302,9 +298,7 @@ export function Shell() {
         case 'open': {
           if (!miniAppId || !title) break;
           // Activate the miniapp on the server
-          void fetch(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {
-            method: 'POST',
-          });
+          void httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`);
           resultWindowId = store.openWindow(miniAppId, title, args);
           break;
         }
@@ -401,9 +395,7 @@ export function Shell() {
 
       void (async () => {
         try {
-          await fetch(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {
-            method: 'POST',
-          });
+          await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`);
           const manifest = manifests.find((m) => m.id === miniAppId);
           const title = manifest?.name ?? miniAppId;
           useWindowManager.getState().openWindow(miniAppId, title, args);
@@ -441,9 +433,7 @@ export function Shell() {
         }
 
         // Activate on server
-        await fetch(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {
-          method: 'POST',
-        });
+        await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`);
         // Find the manifest to get the title
         const manifest = manifests.find((m) => m.id === miniAppId);
         const title = manifest?.name ?? miniAppId;
@@ -476,9 +466,7 @@ export function Shell() {
     });
 
     try {
-      await fetch(`/api/miniapps/${encodeURIComponent(miniAppId)}/deactivate`, {
-        method: 'POST',
-      });
+      await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/deactivate`);
     } catch (err) {
       console.error('[shell] Could not quit MiniApp:', err);
     }

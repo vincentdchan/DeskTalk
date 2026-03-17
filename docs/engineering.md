@@ -10,3 +10,4 @@
 - **Test locations**: Keep test files alongside source under `src/**/*.test.ts` or `src/**/*.test.tsx`.
 - **Build isolation**: Package build tsconfig files should exclude test files so production builds do not compile test code.
 - **CI**: GitHub Actions should run `pnpm unit:test` on both `push` and `pull_request`.
+- **Core frontend HTTP**: In `@desktalk/core`, use the shared axios instance `httpClient` for frontend API requests instead of calling `fetch` directly.

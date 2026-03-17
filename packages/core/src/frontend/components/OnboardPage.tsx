@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import styles from './OnboardPage.module.scss';
+import { getErrorMessage, httpClient } from '../http-client';
 
 export interface OnboardPageProps {
   onComplete: () => void;
@@ -65,26 +66,15 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          username: username.trim(),
-          displayName: displayName.trim(),
-          password,
-        }),
+      await httpClient.post('/api/setup', {
+        username: username.trim(),
+        displayName: displayName.trim(),
+        password,
       });
 
-      if (!res.ok) {
-        const body = (await res.json()) as { error?: string };
-        setError(body.error ?? 'Failed to complete setup.');
-        return;
-      }
-
       onComplete();
-    } catch {
-      setError('Network error. Please try again.');
+    } catch (error) {
+      setError(getErrorMessage(error, 'Network error. Please try again.'));
     } finally {
       setLoading(false);
     }
