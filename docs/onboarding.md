@@ -23,6 +23,10 @@ First launch
        ├─ Admin account exists? ─── YES ──► Show Login page
        │
        └─ Admin account missing? ── YES ──► Show Onboarding
+
+Onboarding flow:
+  Welcome ──► Create Admin ──► AI Config ──► Voice Config ──► Done
+                                (skip?)        (skip?)
 ```
 
 ## Who Is It For?
@@ -33,7 +37,9 @@ Regular users are created later by the admin through user management. They log i
 
 ## What the Admin Fills In
 
-The onboarding form collects three required fields to create the admin account:
+The onboarding form collects three required fields to create the admin account, plus two optional configuration steps:
+
+### Required — Admin Account
 
 | Field            | Description                               | Constraints              |
 | ---------------- | ----------------------------------------- | ------------------------ |
@@ -41,23 +47,45 @@ The onboarding form collects three required fields to create the admin account:
 | **Display Name** | The name shown in the UI (e.g., taskbar). | Required                 |
 | **Password**     | The admin's password.                     | Minimum 8 characters     |
 
+### Optional — AI Configuration (skippable)
+
+| Field        | Description                           | Constraints                |
+| ------------ | ------------------------------------- | -------------------------- |
+| **Provider** | AI provider to use (e.g., OpenAI).    | Dropdown selection         |
+| **API Key**  | API key for the selected provider.    | Required if not skipping   |
+| **Model**    | Model identifier (e.g., `gpt-4o`).    | Optional, provider default |
+| **Base URL** | Custom endpoint URL for the provider. | Optional                   |
+
+### Optional — Voice / STT Configuration (skippable)
+
+| Field            | Description                                       | Constraints              |
+| ---------------- | ------------------------------------------------- | ------------------------ |
+| **STT Provider** | Speech-to-text provider (e.g., Deepgram, OpenAI). | Dropdown selection       |
+| **API Key**      | API key for the selected STT provider.            | Required if not skipping |
+
 ### Onboarding Steps
 
 1. **Welcome** — Brief introduction to DeskTalk.
 2. **Create Admin Account** — The admin fills in username, display name, and password.
-3. **Done** — The system creates `users.db`, inserts the admin record, starts a session, and redirects to the Desktop.
+3. **AI Configuration** _(skippable)_ — Configure a default AI provider. The admin can select a provider (e.g., OpenAI), enter an API key, optionally set a base URL, and choose a model. This is equivalent to the AI category in the [Preference MiniApp](./miniapps/preference.md#configurable-settings) (`ai.providers.*` and `ai.defaultProvider` settings) but is surfaced here so the system is ready to use immediately.
+4. **Voice Configuration** _(skippable)_ — Configure an STT (speech-to-text) provider for voice input. The admin can select a provider (e.g., Deepgram, OpenAI) and enter the required API key. This is equivalent to configuring STT provider settings via the [Preference MiniApp](./miniapps/preference.md) but is presented during onboarding for convenience.
+5. **Done** — The system creates `users.db`, inserts the admin record, persists any provider configuration to `config.toml`, starts a session, and redirects to the Desktop.
+
+> **Skippable steps.** Steps 3 and 4 can be skipped without providing any input. If skipped, the corresponding settings remain at their defaults (unconfigured). The admin can configure them later at any time through the Preference MiniApp.
 
 ## What Happens on Completion
 
-When the admin submits the onboarding form, the backend:
+When the admin completes (or skips through) the onboarding flow, the backend:
 
 1. Creates the `users.db` SQLite database (with `users` and `sessions` tables).
 2. Inserts the admin user record with:
    - The chosen username, display name, and bcrypt-hashed password.
    - `role = 'admin'`
    - `onboarded = 1`
-3. Creates a session and sets the session cookie.
-4. Redirects to the Desktop.
+3. If the admin configured an AI provider (step 3), writes the provider settings to `config.toml` (e.g., `ai.defaultProvider`, `ai.providers.<name>.apiKey`, `ai.providers.<name>.model`, `ai.providers.<name>.baseUrl`).
+4. If the admin configured an STT provider (step 4), writes the STT provider settings to `config.toml`.
+5. Creates a session and sets the session cookie.
+6. Redirects to the Desktop.
 
 From this point forward, the system is fully initialized. The login page is shown on all subsequent visits.
 
@@ -65,13 +93,14 @@ From this point forward, the system is fully initialized. The login page is show
 
 The original design in [user-management.md](./user-management.md) seeded a default admin account (`admin` / `desktalk`) on first launch and used a per-user `onboarded` flag to show a setup wizard on first login. The revised approach here is simpler and more secure:
 
-| Aspect               | Previous design                                | Current design                           |
-| -------------------- | ---------------------------------------------- | ---------------------------------------- |
-| Admin creation       | Auto-seeded with default credentials           | Admin chooses credentials during onboard |
-| Default password     | `desktalk` (must be changed on first login)    | None — admin sets password immediately   |
-| Onboard trigger      | Per-user `onboarded` flag on every first login | System-level: no `users.db` / no admin   |
-| Onboard audience     | Every new user on first login                  | Admin only, once                         |
-| Per-user preferences | Collected during onboard wizard                | Managed later via Preference MiniApp     |
+| Aspect               | Previous design                                | Current design                                     |
+| -------------------- | ---------------------------------------------- | -------------------------------------------------- |
+| Admin creation       | Auto-seeded with default credentials           | Admin chooses credentials during onboard           |
+| Default password     | `desktalk` (must be changed on first login)    | None — admin sets password immediately             |
+| Onboard trigger      | Per-user `onboarded` flag on every first login | System-level: no `users.db` / no admin             |
+| Onboard audience     | Every new user on first login                  | Admin only, once                                   |
+| Per-user preferences | Collected during onboard wizard                | Managed later via Preference MiniApp               |
+| Provider setup       | Not included                                   | AI & STT config offered during onboard (skippable) |
 
 ## Implementation Notes
 

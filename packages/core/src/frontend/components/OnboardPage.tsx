@@ -1,92 +1,40 @@
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import styles from './OnboardPage.module.scss';
-import { getErrorMessage, httpClient } from '../http-client';
+import { useOnboarding, ONBOARD_STEPS, type OnboardStep } from '../stores/onboarding';
 
 export interface OnboardPageProps {
   onComplete: () => void;
 }
 
-type Step = 'welcome' | 'account' | 'done';
+/** AI providers shown during onboarding. */
+const AI_PROVIDERS = [
+  { id: 'openai', label: 'OpenAI', supportsBaseUrl: true },
+  { id: 'anthropic', label: 'Anthropic', supportsBaseUrl: false },
+  { id: 'google', label: 'Google Gemini', supportsBaseUrl: false },
+  { id: 'azure-openai-responses', label: 'Azure OpenAI', supportsBaseUrl: true },
+  { id: 'mistral', label: 'Mistral', supportsBaseUrl: true },
+  { id: 'groq', label: 'Groq', supportsBaseUrl: true },
+  { id: 'xai', label: 'xAI', supportsBaseUrl: true },
+  { id: 'openrouter', label: 'OpenRouter', supportsBaseUrl: true },
+  { id: 'ollama', label: 'Ollama', supportsBaseUrl: true },
+] as const;
 
-const STEPS: Step[] = ['welcome', 'account', 'done'];
+/** STT providers shown during onboarding. */
+const STT_PROVIDERS = [
+  { id: 'openai-whisper', label: 'OpenAI Whisper' },
+  { id: 'azure-openai-whisper', label: 'Azure OpenAI Whisper' },
+] as const;
 
 export function OnboardPage({ onComplete }: OnboardPageProps) {
-  const [step, setStep] = useState<Step>('welcome');
-  const [username, setUsername] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const stepIndex = STEPS.indexOf(step);
-
-  function goNext() {
-    setError('');
-    const nextIndex = stepIndex + 1;
-    if (nextIndex < STEPS.length) {
-      setStep(STEPS[nextIndex]);
-    }
-  }
-
-  function goBack() {
-    setError('');
-    const prevIndex = stepIndex - 1;
-    if (prevIndex >= 0) {
-      setStep(STEPS[prevIndex]);
-    }
-  }
-
-  function validateAccount(): boolean {
-    if (!username.trim()) {
-      setError('Username is required.');
-      return false;
-    }
-    if (!/^[a-zA-Z0-9_-]{1,32}$/.test(username)) {
-      setError('Username must be 1-32 alphanumeric characters, hyphens, or underscores.');
-      return false;
-    }
-    if (!displayName.trim()) {
-      setError('Display name is required.');
-      return false;
-    }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return false;
-    }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return false;
-    }
-    return true;
-  }
-
-  async function handleFinish() {
-    setError('');
-    setLoading(true);
-
-    try {
-      await httpClient.post('/api/setup', {
-        username: username.trim(),
-        displayName: displayName.trim(),
-        password,
-      });
-
-      onComplete();
-    } catch (error) {
-      setError(getErrorMessage(error, 'Network error. Please try again.'));
-    } finally {
-      setLoading(false);
-    }
-  }
+  const store = useOnboarding();
 
   function renderStepDots() {
     return (
       <div className={styles.stepIndicator}>
-        {STEPS.map((s, i) => {
+        {ONBOARD_STEPS.map((s, i) => {
           let className = styles.dot;
-          if (i === stepIndex) className = styles.dotActive;
-          else if (i < stepIndex) className = styles.dotCompleted;
+          if (i === store.stepIndex) className = styles.dotActive;
+          else if (i < store.stepIndex) className = styles.dotCompleted;
           return <div key={s} className={className} />;
         })}
       </div>
@@ -109,7 +57,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
         </div>
         <div className={styles.footer}>
           <span />
-          <button className={styles.buttonPrimary} type="button" onClick={goNext}>
+          <button className={styles.buttonPrimary} type="button" onClick={store.goNext}>
             Get Started
           </button>
         </div>
@@ -135,8 +83,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
               type="text"
               placeholder="e.g. admin"
               autoComplete="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={store.username}
+              onChange={(e) => store.setUsername(e.target.value)}
             />
           </div>
           <div className={styles.field}>
@@ -149,8 +97,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
               type="text"
               placeholder="Your display name"
               autoComplete="name"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
+              value={store.displayName}
+              onChange={(e) => store.setDisplayName(e.target.value)}
             />
           </div>
           <div className={styles.field}>
@@ -163,8 +111,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
               type="password"
               placeholder="At least 8 characters"
               autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={store.password}
+              onChange={(e) => store.setPassword(e.target.value)}
             />
           </div>
           <div className={styles.field}>
@@ -177,26 +125,179 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
               type="password"
               placeholder="Re-enter your password"
               autoComplete="new-password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              value={store.confirmPassword}
+              onChange={(e) => store.setConfirmPassword(e.target.value)}
             />
           </div>
-          <div className={styles.error}>{error}</div>
+          <div className={styles.error}>{store.error}</div>
         </div>
         <div className={styles.footer}>
-          <button className={styles.buttonSecondary} type="button" onClick={goBack}>
+          <button className={styles.buttonSecondary} type="button" onClick={store.goBack}>
             Back
           </button>
           <button
             className={styles.buttonPrimary}
             type="button"
             onClick={() => {
-              if (validateAccount()) goNext();
+              if (store.validateAccount()) store.goNext();
             }}
-            disabled={!username || !displayName || !password || !confirmPassword}
+            disabled={
+              !store.username || !store.displayName || !store.password || !store.confirmPassword
+            }
           >
             Next
           </button>
+        </div>
+      </>
+    );
+  }
+
+  function renderAiConfig() {
+    const selectedProvider = AI_PROVIDERS.find((p) => p.id === store.aiProvider);
+    return (
+      <>
+        <div className={styles.header}>
+          <div className={styles.title}>AI Configuration</div>
+          <div className={styles.subtitle}>Configure your AI provider (optional)</div>
+        </div>
+        <div className={styles.body}>
+          <p className={styles.hintText}>
+            Set up an AI provider so DeskTalk&apos;s assistant is ready to use. You can change these
+            settings later in Preferences.
+          </p>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="onboard-ai-provider">
+              Provider
+            </label>
+            <select
+              id="onboard-ai-provider"
+              className={styles.select}
+              value={store.aiProvider}
+              onChange={(e) => store.setAiProvider(e.target.value)}
+            >
+              {AI_PROVIDERS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="onboard-ai-apikey">
+              API Key
+            </label>
+            <input
+              id="onboard-ai-apikey"
+              className={styles.input}
+              type="password"
+              placeholder="Enter your API key"
+              autoComplete="off"
+              value={store.aiApiKey}
+              onChange={(e) => store.setAiApiKey(e.target.value)}
+            />
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="onboard-ai-model">
+              Model (optional)
+            </label>
+            <input
+              id="onboard-ai-model"
+              className={styles.input}
+              type="text"
+              placeholder="e.g. gpt-4o"
+              value={store.aiModel}
+              onChange={(e) => store.setAiModel(e.target.value)}
+            />
+          </div>
+          {selectedProvider?.supportsBaseUrl && (
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="onboard-ai-baseurl">
+                Base URL (optional)
+              </label>
+              <input
+                id="onboard-ai-baseurl"
+                className={styles.input}
+                type="text"
+                placeholder="Custom API endpoint"
+                value={store.aiBaseUrl}
+                onChange={(e) => store.setAiBaseUrl(e.target.value)}
+              />
+            </div>
+          )}
+        </div>
+        <div className={styles.footer}>
+          <button className={styles.buttonSecondary} type="button" onClick={store.goBack}>
+            Back
+          </button>
+          <div className={styles.footerActions}>
+            <button className={styles.buttonSecondary} type="button" onClick={store.goNext}>
+              Skip
+            </button>
+            <button className={styles.buttonPrimary} type="button" onClick={store.goNext}>
+              Next
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  function renderVoiceConfig() {
+    return (
+      <>
+        <div className={styles.header}>
+          <div className={styles.title}>Voice Configuration</div>
+          <div className={styles.subtitle}>Configure speech-to-text (optional)</div>
+        </div>
+        <div className={styles.body}>
+          <p className={styles.hintText}>
+            Set up a speech-to-text provider for voice input. You can change these settings later in
+            Preferences.
+          </p>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="onboard-stt-provider">
+              STT Provider
+            </label>
+            <select
+              id="onboard-stt-provider"
+              className={styles.select}
+              value={store.sttProvider}
+              onChange={(e) => store.setSttProvider(e.target.value)}
+            >
+              {STT_PROVIDERS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="onboard-stt-apikey">
+              API Key
+            </label>
+            <input
+              id="onboard-stt-apikey"
+              className={styles.input}
+              type="password"
+              placeholder="Enter your STT API key"
+              autoComplete="off"
+              value={store.sttApiKey}
+              onChange={(e) => store.setSttApiKey(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className={styles.footer}>
+          <button className={styles.buttonSecondary} type="button" onClick={store.goBack}>
+            Back
+          </button>
+          <div className={styles.footerActions}>
+            <button className={styles.buttonSecondary} type="button" onClick={store.goNext}>
+              Skip
+            </button>
+            <button className={styles.buttonPrimary} type="button" onClick={store.goNext}>
+              Next
+            </button>
+          </div>
         </div>
       </>
     );
@@ -211,30 +312,33 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
         </div>
         <div className={styles.body}>
           <p className={styles.doneText}>
-            Welcome, {displayName || username}. Click below to enter your DeskTalk desktop.
+            Welcome, {store.displayName || store.username}. Click below to enter your DeskTalk
+            desktop.
           </p>
-          <div className={styles.error}>{error}</div>
+          <div className={styles.error}>{store.error}</div>
         </div>
         <div className={styles.footer}>
-          <button className={styles.buttonSecondary} type="button" onClick={goBack}>
+          <button className={styles.buttonSecondary} type="button" onClick={store.goBack}>
             Back
           </button>
           <button
             className={styles.buttonPrimary}
             type="button"
-            onClick={handleFinish}
-            disabled={loading}
+            onClick={() => store.submit(onComplete)}
+            disabled={store.loading}
           >
-            {loading ? 'Setting up...' : 'Enter Desktop'}
+            {store.loading ? 'Setting up...' : 'Enter Desktop'}
           </button>
         </div>
       </>
     );
   }
 
-  const stepRenderers: Record<Step, () => ReactNode> = {
+  const stepRenderers: Record<OnboardStep, () => ReactNode> = {
     welcome: renderWelcome,
     account: renderAccount,
+    aiConfig: renderAiConfig,
+    voiceConfig: renderVoiceConfig,
     done: renderDone,
   };
 
@@ -242,7 +346,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
     <div className={styles.page}>
       <div className={styles.card}>
         {renderStepDots()}
-        {stepRenderers[step]()}
+        {stepRenderers[store.step]()}
       </div>
     </div>
   );
