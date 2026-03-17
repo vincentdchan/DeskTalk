@@ -1,14 +1,9 @@
 import React from 'react';
 import { Streamdown } from 'streamdown';
+import type { ChatMessage } from '../stores/chat-session';
 import styles from './ChatMessageItem.module.scss';
 
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  source?: 'text' | 'voice';
-  timestamp?: number;
-}
+export type { ChatMessage };
 
 function MarkdownMessage({ content, isStreaming }: { content: string; isStreaming: boolean }) {
   return (

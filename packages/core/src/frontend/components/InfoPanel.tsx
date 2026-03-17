@@ -1,57 +1,29 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import 'streamdown/styles.css';
 import { useVoiceSession } from '../stores/voice-session';
-import { httpClient } from '../http-client';
-import { ChatMessageItem, type ChatMessage } from './ChatMessageItem';
+import { useChatSession, type AiEventMessage } from '../stores/chat-session';
+import { ChatMessageItem } from './ChatMessageItem';
 import { CommandInput } from './CommandInput';
 import styles from './InfoPanel.module.scss';
 
-interface AiEventMessage {
-  type: 'history_sync' | 'message_start' | 'message_update' | 'message_end' | 'error';
-  requestId?: string;
-  text?: string;
-  message?: string;
-  model?: string;
-  provider?: string;
-  usage?: {
-    totalTokens?: number;
-  };
-  messages?: ChatMessage[];
-}
-
-interface AiProviderOption {
-  id: string;
-  label: string;
-  configured: boolean;
-  model: string;
-}
-
-interface AiProviderResponse {
-  defaultProvider: string;
-  providers: AiProviderOption[];
-}
-
-function getProviderStatusLabel(providerId: string, providers: AiProviderOption[]): string {
-  const provider = providers.find((entry) => entry.id === providerId);
-  if (!provider || !provider.model) {
-    return 'not configured';
-  }
-
-  return `${provider.id}/${provider.model}`;
-}
-
 export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsReady: boolean }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [isAiRunning, setIsAiRunning] = useState(false);
-  const [modelLabel, setModelLabel] = useState('not configured');
-  const [tokenCount, setTokenCount] = useState(0);
-  const [providerOptions, setProviderOptions] = useState<AiProviderOption[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const activeRequestIdRef = useRef<string | null>(null);
   const sentVoiceUtteranceIdsRef = useRef<Set<string>>(new Set());
   const pendingVoicePromptsRef = useRef<Array<{ utteranceId: string; text: string }>>([]);
+
+  // Chat session state
+  const messages = useChatSession((s) => s.messages);
+  const isAiRunning = useChatSession((s) => s.isAiRunning);
+  const activeRequestId = useChatSession((s) => s.activeRequestId);
+  const modelLabel = useChatSession((s) => s.modelLabel);
+  const tokenCount = useChatSession((s) => s.tokenCount);
+  const providerOptions = useChatSession((s) => s.providerOptions);
+  const selectedProvider = useChatSession((s) => s.selectedProvider);
+  const loadProviders = useChatSession((s) => s.loadProviders);
+  const setSelectedProvider = useChatSession((s) => s.setSelectedProvider);
+  const submitPrompt = useChatSession((s) => s.submitPrompt);
+  const handleAiEvent = useChatSession((s) => s.handleAiEvent);
 
   // Voice session state
   const voiceStatus = useVoiceSession((s) => s.status);
@@ -62,84 +34,14 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const stopVoice = useVoiceSession((s) => s.stopVoice);
 
   const isVoiceActive = voiceStatus !== 'idle' && voiceStatus !== 'error';
-  const activeAssistantMessageId = activeRequestIdRef.current
-    ? `assistant-${activeRequestIdRef.current}`
-    : null;
+  const activeAssistantMessageId = activeRequestId ? `assistant-${activeRequestId}` : null;
 
-  const submitPrompt = useCallback(
-    (text: string, source: 'text' | 'voice' = 'text') => {
-      if (!text || !socket || socket.readyState !== WebSocket.OPEN || isAiRunning) {
-        return false;
-      }
-
-      const requestId = `ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      activeRequestIdRef.current = requestId;
-
-      setMessages((prev) => [
-        ...prev,
-        { id: `user-${requestId}`, role: 'user', content: text, source },
-        { id: `assistant-${requestId}`, role: 'assistant', content: '' },
-      ]);
-      setInput('');
-      setIsAiRunning(true);
-      setTokenCount(0);
-
-      socket.send(
-        JSON.stringify({
-          type: 'ai:prompt',
-          requestId,
-          text,
-          source,
-          ...(selectedProvider ? { provider: selectedProvider } : {}),
-        }),
-      );
-
-      return true;
-    },
-    [socket, isAiRunning, selectedProvider],
-  );
-
+  // Load providers on mount
   useEffect(() => {
-    let isMounted = true;
-
-    async function loadProviders() {
-      try {
-        const { data: payload } = await httpClient.get<AiProviderResponse>('/api/ai/providers');
-        if (!isMounted) {
-          return;
-        }
-
-        setProviderOptions(payload.providers);
-        setSelectedProvider((current) => current || payload.defaultProvider);
-        setModelLabel(getProviderStatusLabel(payload.defaultProvider, payload.providers));
-      } catch {
-        if (isMounted) {
-          setProviderOptions([]);
-          setSelectedProvider('');
-          setModelLabel('not configured');
-        }
-      }
-    }
-
     void loadProviders();
+  }, [loadProviders]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const flushPendingVoicePrompts = useCallback(() => {
-    if (isAiRunning) return;
-
-    const nextPrompt = pendingVoicePromptsRef.current.shift();
-    if (!nextPrompt) return;
-
-    const didSend = submitPrompt(nextPrompt.text, 'voice');
-    if (!didSend) {
-      pendingVoicePromptsRef.current.unshift(nextPrompt);
-    }
-  }, [isAiRunning, submitPrompt]);
-
+  // Listen for AI events from the WebSocket
   useEffect(() => {
     if (!socket) return;
 
@@ -150,65 +52,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
           return;
         }
 
-        const aiEvent = msg.event;
-        if (aiEvent.type === 'history_sync') {
-          setMessages(aiEvent.messages ?? []);
-          return;
-        }
-
-        if (activeRequestIdRef.current && aiEvent.requestId !== activeRequestIdRef.current) {
-          return;
-        }
-
-        if (aiEvent.type === 'message_start') {
-          setIsAiRunning(true);
-          setModelLabel(aiEvent.model ? `${aiEvent.provider}/${aiEvent.model}` : 'not configured');
-        } else if (aiEvent.type === 'message_update') {
-          setMessages((prev) => {
-            const next = [...prev];
-            const lastIndex = next.length - 1;
-            if (lastIndex >= 0 && next[lastIndex].role === 'assistant') {
-              next[lastIndex] = { ...next[lastIndex], content: aiEvent.text ?? '' };
-            }
-            return next;
-          });
-        } else if (aiEvent.type === 'message_end') {
-          const endedRequestId = activeRequestIdRef.current;
-          setIsAiRunning(false);
-          setTokenCount(aiEvent.usage?.totalTokens ?? 0);
-          activeRequestIdRef.current = null;
-          // Remove empty assistant message bubble by matching its ID
-          if (endedRequestId) {
-            const targetId = `assistant-${endedRequestId}`;
-            setMessages((prev) => {
-              const idx = prev.findIndex((m) => m.id === targetId);
-              if (idx >= 0 && !prev[idx].content) {
-                return [...prev.slice(0, idx), ...prev.slice(idx + 1)];
-              }
-              return prev;
-            });
-          }
-        } else if (aiEvent.type === 'error') {
-          setIsAiRunning(false);
-          setMessages((prev) => {
-            const next = [...prev];
-            const lastIndex = next.length - 1;
-            if (lastIndex >= 0 && next[lastIndex].role === 'assistant') {
-              next[lastIndex] = {
-                ...next[lastIndex],
-                content: aiEvent.message ?? 'AI request failed.',
-              };
-            } else {
-              next.push({
-                id: `assistant-error-${Date.now()}`,
-                role: 'assistant',
-                content: aiEvent.message ?? 'AI request failed.',
-              });
-            }
-            return next;
-          });
-          activeRequestIdRef.current = null;
-        }
+        handleAiEvent(msg.event);
       } catch {
         // Ignore malformed AI events
       }
@@ -218,26 +62,20 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     return () => {
       socket.removeEventListener('message', handleMessage);
     };
-  }, [socket]);
+  }, [socket, handleAiEvent]);
 
-  const handleSend = useCallback(() => {
-    const text = input.trim();
-    if (!text) return;
-    void submitPrompt(text, 'text');
-  }, [input, submitPrompt]);
+  // Voice-to-chat bridge: queue final transcripts and flush as prompts
+  const flushPendingVoicePrompts = useCallback(() => {
+    if (isAiRunning || !socket || socket.readyState !== WebSocket.OPEN) return;
 
-  const handleVoiceToggle = useCallback(() => {
-    if (isVoiceActive) {
-      stopVoice();
-    } else {
-      void startVoice();
+    const nextPrompt = pendingVoicePromptsRef.current.shift();
+    if (!nextPrompt) return;
+
+    const didSend = submitPrompt(nextPrompt.text, 'voice', socket);
+    if (!didSend) {
+      pendingVoicePromptsRef.current.unshift(nextPrompt);
     }
-  }, [isVoiceActive, startVoice, stopVoice]);
-
-  // Auto-scroll messages area when new content arrives
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, transcripts, partialText]);
+  }, [isAiRunning, submitPrompt, socket]);
 
   useEffect(() => {
     for (const entry of transcripts) {
@@ -261,11 +99,27 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     }
   }, [isAiRunning, flushPendingVoicePrompts]);
 
-  useEffect(() => {
-    if (!isAiRunning && selectedProvider) {
-      setModelLabel(getProviderStatusLabel(selectedProvider, providerOptions));
+  const handleSend = useCallback(() => {
+    const text = input.trim();
+    if (!text || !socket) return;
+    const didSend = submitPrompt(text, 'text', socket);
+    if (didSend) {
+      setInput('');
     }
-  }, [isAiRunning, providerOptions, selectedProvider]);
+  }, [input, submitPrompt, socket]);
+
+  const handleVoiceToggle = useCallback(() => {
+    if (isVoiceActive) {
+      stopVoice();
+    } else {
+      void startVoice();
+    }
+  }, [isVoiceActive, startVoice, stopVoice]);
+
+  // Auto-scroll messages area when new content arrives
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, transcripts, partialText]);
 
   return (
     <div className={styles.infoPanel}>
