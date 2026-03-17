@@ -1,0 +1,95 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.dialog {
+  width: 420px;
+  max-width: 90vw;
+  padding: 24px;
+  border: 1px solid #555555;
+  border-radius: 12px;
+  background: #2d2d2d;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  color: #cccccc;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.warningIcon {
+  color: #e0a30b;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.title {
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.commandBlock {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #1e1e1e;
+  font-family: var(--font-mono, 'Menlo', 'Monaco', 'Courier New', monospace);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+.riskText {
+  margin-bottom: 20px;
+  color: #bbbbbb;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cancelBtn {
+  padding: 6px 18px;
+  border: 1px solid #555555;
+  border-radius: 6px;
+  background: transparent;
+  color: #cccccc;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.cancelBtn:hover {
+  background: #3c3c3c;
+  border-color: #777777;
+}
+
+.confirmBtn {
+  padding: 6px 18px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: #cc6633;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.confirmBtn:hover {
+  background: #dd7744;
+}

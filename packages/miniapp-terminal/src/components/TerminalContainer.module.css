@@ -1,0 +1,17 @@
+.container {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+
+.terminalWrapper {
+  position: absolute;
+  inset: 0;
+  padding: 4px;
+}
+
+.terminalHidden {
+  composes: terminalWrapper;
+  visibility: hidden;
+  pointer-events: none;
+}

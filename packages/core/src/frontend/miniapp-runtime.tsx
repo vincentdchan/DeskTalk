@@ -18,6 +18,7 @@ const builtinLoaders: Record<string, () => Promise<MiniAppFrontendModule>> = {
   preference: () =>
     import('@desktalk/miniapp-preference/frontend') as Promise<MiniAppFrontendModule>,
   preview: () => import('@desktalk/miniapp-preview/frontend') as Promise<MiniAppFrontendModule>,
+  terminal: () => import('@desktalk/miniapp-terminal/frontend') as Promise<MiniAppFrontendModule>,
 };
 
 const moduleCache = new Map<string, MiniAppFrontendModule>();
