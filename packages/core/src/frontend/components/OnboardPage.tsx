@@ -68,6 +68,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
       const res = await fetch('/api/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           username: username.trim(),
           displayName: displayName.trim(),

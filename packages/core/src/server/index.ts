@@ -13,7 +13,7 @@ import { processManager } from '../services/backend-process-manager';
 import { PiSessionService } from '../services/ai/pi-session-service';
 import { getStoredPreference, setPreferenceUser } from '../services/preferences';
 import { loadMergedLocaleMessages } from '../services/i18n';
-import { getWorkspacePaths, getUserHomeDir } from '../services/workspace';
+import { getWorkspacePaths, getUserHomeDir, ensureUserHome } from '../services/workspace';
 import { VoiceSession } from '../services/voice/voice-session';
 import { AzureOpenAIWhisperAdapter } from '../services/voice/azure-openai-whisper-adapter';
 import { OpenAIWhisperAdapter } from '../services/voice/openai-whisper-adapter';
@@ -208,6 +208,7 @@ export async function createServer(options: ServerOptions) {
     currentWsUsername = username;
 
     // Switch window manager and preferences to this user's persisted state
+    ensureUserHome(username);
     windowManager.switchUser(join(getUserHomeDir(username), '.storage', 'window-state.json'));
     setPreferenceUser(username);
 

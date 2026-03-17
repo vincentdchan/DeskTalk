@@ -22,6 +22,7 @@ import {
   updateUserPassword,
   hasAdmin,
   findUser,
+  validateSession,
   type PublicUser,
 } from '../services/user-db';
 import { ensureUserHome } from '../services/workspace';
@@ -57,6 +58,8 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       return { error: 'Invalid username or password.' };
     }
 
+    ensureUserHome(user.username);
+
     const token = createSession(username);
     reply.setCookie(COOKIE_NAME, token, cookieOptions(isSecure));
     return {
@@ -81,13 +84,19 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   // When unauthenticated: returns { authenticated: false, needsSetup }
   // so the frontend can decide between login vs onboard page.
   app.get('/api/auth/me', async (req) => {
-    const user = (req as FastifyRequest & { user?: PublicUser }).user;
+    const requestUser = (req as FastifyRequest & { user?: PublicUser }).user;
+    const token = req.cookies[COOKIE_NAME];
+    const user = requestUser ?? (token ? validateSession(token) : undefined);
+
     if (!user) {
       return {
         authenticated: false,
         needsSetup: !hasAdmin(),
       };
     }
+
+    ensureUserHome(user.username);
+
     return {
       authenticated: true,
       username: user.username,

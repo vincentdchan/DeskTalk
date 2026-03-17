@@ -37,7 +37,9 @@ function App() {
 
   const checkSession = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch('/api/auth/me', {
+        credentials: 'include',
+      });
       if (!res.ok) {
         setPage('login');
         return;
