@@ -7,6 +7,7 @@ import { createServer } from '../server/index';
 import { processManager } from '../services/backend-process-manager';
 import { createRootLogger, getLoggerConfig } from '../services/logger';
 import { initUserDb, closeUserDb } from '../services/user-db';
+import { initGlobalProxyDispatcher } from '../services/proxy-dispatcher';
 
 const program = new Command();
 
@@ -22,6 +23,9 @@ program
   .option('-p, --port <port>', 'Port to listen on', '3000')
   .option('-d, --dev', 'Enable development mode (pretty stdout logging)', false)
   .action(async (opts: { host: string; port: string; dev: boolean }) => {
+    // Install proxy dispatcher before any outbound HTTP traffic
+    initGlobalProxyDispatcher();
+
     const host = opts.host;
     const port = parseInt(opts.port, 10);
     const dev = opts.dev || process.env.NODE_ENV !== 'production';

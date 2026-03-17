@@ -101,6 +101,9 @@ importers:
       sharp:
         specifier: ^0.34.5
         version: 0.34.5
+      undici:
+        specifier: ^7.24.1
+        version: 7.24.1
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.13
