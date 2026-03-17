@@ -1,18 +1,10 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Streamdown } from 'streamdown';
 import 'streamdown/styles.css';
 import { useVoiceSession } from '../stores/voice-session';
 import { httpClient } from '../http-client';
+import { ChatMessageItem, type ChatMessage } from './ChatMessageItem';
 import { CommandInput } from './CommandInput';
 import styles from './InfoPanel.module.scss';
-
-interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  source?: 'text' | 'voice';
-  timestamp?: number;
-}
 
 interface AiEventMessage {
   type: 'history_sync' | 'message_start' | 'message_update' | 'message_end' | 'error';
@@ -48,14 +40,6 @@ function getProviderStatusLabel(providerId: string, providers: AiProviderOption[
   return `${provider.id}/${provider.model}`;
 }
 
-function MarkdownMessage({ content, isStreaming }: { content: string; isStreaming: boolean }) {
-  return (
-    <Streamdown className={styles.markdownContent} isAnimating={isStreaming} animated>
-      {content}
-    </Streamdown>
-  );
-}
-
 export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsReady: boolean }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -78,6 +62,9 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const stopVoice = useVoiceSession((s) => s.stopVoice);
 
   const isVoiceActive = voiceStatus !== 'idle' && voiceStatus !== 'error';
+  const activeAssistantMessageId = activeRequestIdRef.current
+    ? `assistant-${activeRequestIdRef.current}`
+    : null;
 
   const submitPrompt = useCallback(
     (text: string, source: 'text' | 'voice' = 'text') => {
@@ -317,37 +304,16 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
           <>
             {messages.map((msg) => {
               const isEmptyAssistant = msg.role === 'assistant' && !msg.content;
-              const isThinking = isEmptyAssistant && isAiRunning;
-
-              // Don't render empty assistant bubbles when not thinking
-              if (isEmptyAssistant && !isAiRunning) return null;
+              const isActiveAssistantMessage = msg.id === activeAssistantMessageId;
+              const isThinking = isEmptyAssistant && isAiRunning && isActiveAssistantMessage;
 
               return (
-                <div
+                <ChatMessageItem
                   key={msg.id}
-                  className={msg.role === 'user' ? styles.messageUser : styles.messageAssistant}
-                >
-                  <div className={styles.messageHeader}>
-                    <span className={styles.messageSpeaker}>
-                      {msg.role === 'user' ? 'ME' : 'AI'}
-                    </span>
-                    {msg.role === 'user' && msg.source === 'voice' && (
-                      <span className={styles.voiceSourceBadge}>voice</span>
-                    )}
-                  </div>
-                  {isThinking ? (
-                    <div className={styles.thinkingIndicator}>
-                      <span className={styles.thinkingDot} />
-                      <span className={styles.thinkingDot} />
-                      <span className={styles.thinkingDot} />
-                    </div>
-                  ) : (
-                    <MarkdownMessage
-                      content={msg.content}
-                      isStreaming={msg.role === 'assistant' && isAiRunning}
-                    />
-                  )}
-                </div>
+                  message={msg}
+                  isThinking={isThinking}
+                  isStreaming={msg.role === 'assistant' && isAiRunning && isActiveAssistantMessage}
+                />
               );
             })}
           </>

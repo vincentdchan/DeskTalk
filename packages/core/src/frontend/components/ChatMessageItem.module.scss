@@ -1,0 +1,180 @@
+.message {
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.3;
+  color: color-mix(in oklab, var(--dt-text) 85%, var(--dt-text-secondary));
+}
+
+.messageUser {
+  composes: message;
+  background: color-mix(in oklab, var(--dt-accent) 8%, var(--dt-bg));
+  border-left: 3px solid color-mix(in oklab, var(--dt-accent) 75%, var(--dt-border));
+}
+
+.messageAssistant {
+  composes: message;
+  background: color-mix(in oklab, var(--dt-info) 6%, var(--dt-bg));
+  border-left: 3px solid color-mix(in oklab, var(--dt-info) 75%, var(--dt-border));
+}
+
+.messageHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.messageSpeaker {
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+}
+
+.messageUser .messageSpeaker {
+  color: color-mix(in oklab, var(--dt-accent) 70%, var(--dt-text));
+}
+
+.messageAssistant .messageSpeaker {
+  color: color-mix(in oklab, var(--dt-info) 70%, var(--dt-text));
+}
+
+.voiceSourceBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--dt-surface);
+  color: var(--dt-text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: lowercase;
+  font-family: var(--font-mono);
+}
+
+.markdownContent {
+  word-break: break-word;
+
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+
+  p,
+  ul,
+  ol,
+  pre,
+  blockquote,
+  table,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 0 0 0.75em;
+  }
+
+  ul,
+  ol {
+    padding-left: 1.25em;
+  }
+
+  li + li {
+    margin-top: 0.25em;
+  }
+
+  code {
+    padding: 0.15em 0.4em;
+    border-radius: 6px;
+    background: color-mix(in oklab, var(--dt-bg) 85%, transparent);
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+  }
+
+  pre {
+    overflow-x: auto;
+    padding: 0.8em 0.95em;
+    border: 1px solid var(--dt-border-subtle);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--dt-bg) 92%, transparent);
+
+    code {
+      padding: 0;
+      background: transparent;
+    }
+  }
+
+  blockquote {
+    padding-left: 0.9em;
+    border-left: 3px solid var(--dt-accent-subtle);
+    color: var(--dt-text-secondary);
+  }
+
+  a {
+    color: var(--dt-accent);
+    text-decoration: underline;
+    text-underline-offset: 0.16em;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  th,
+  td {
+    padding: 0.45em 0.55em;
+    border: 1px solid var(--dt-border-subtle);
+    text-align: left;
+  }
+
+  hr {
+    margin: 0.9em 0;
+    border: 0;
+    border-top: 1px solid var(--dt-border-subtle);
+  }
+}
+
+.thinkingIndicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.thinkingDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dt-text-muted);
+  animation: thinkingBounce 1.4s ease-in-out infinite;
+
+  &:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  &:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+}
+
+@keyframes thinkingBounce {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
