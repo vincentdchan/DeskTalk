@@ -6,6 +6,7 @@ import type pino from 'pino';
 import { resolveMiniAppPaths } from './workspace';
 import { getStoredPreference } from './preferences';
 import { processManager } from './backend-process-manager';
+import { buildMiniAppIconUrl } from './miniapp-icon';
 
 /**
  * MiniApp backend module — what a MiniApp's backend entry exports.
@@ -80,9 +81,7 @@ class MiniAppRegistry {
     this.entries.set(manifest.id, {
       manifest: {
         ...manifest,
-        ...(iconFilePath
-          ? { iconPng: `/api/miniapps/${encodeURIComponent(manifest.id)}/icon` }
-          : {}),
+        ...(iconFilePath ? { iconPng: buildMiniAppIconUrl(manifest.id) } : {}),
       },
       packageRoot,
       backendPath,

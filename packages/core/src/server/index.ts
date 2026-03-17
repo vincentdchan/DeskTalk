@@ -6,6 +6,7 @@ import { createReadStream } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
+import sharp from 'sharp';
 import type pino from 'pino';
 import { addClient, broadcastRaw } from '../services/messaging';
 import { registry } from '../services/miniapp-registry';
@@ -22,6 +23,11 @@ import {
   WindowManagerService,
   type SerializableActionDefinition,
 } from '../services/window-manager';
+import {
+  MINIAPP_ICON_CACHE_CONTROL,
+  MINIAPP_ICON_SIZES,
+  parseMiniAppIconSize,
+} from '../services/miniapp-icon';
 import { validateSession, type PublicUser } from '../services/user-db';
 import { COOKIE_NAME, authRoutes } from './auth-routes';
 import { adminRoutes } from './admin-routes';
@@ -555,16 +561,43 @@ export async function createServer(options: ServerOptions) {
     return registry.getManifests();
   });
 
-  app.get<{ Params: { id: string } }>('/api/miniapps/:id/icon', async (req, reply) => {
-    const entry = registry.getEntry(req.params.id);
-    if (!entry?.iconFilePath) {
-      reply.code(404);
-      return { error: 'MiniApp icon not found' };
-    }
+  app.get<{ Params: { id: string }; Querystring: { size?: string } }>(
+    '/api/miniapps/:id/icon',
+    async (req, reply) => {
+      const entry = registry.getEntry(req.params.id);
+      if (!entry?.iconFilePath) {
+        reply.code(404);
+        return { error: 'MiniApp icon not found' };
+      }
 
-    reply.type('image/png');
-    return reply.send(createReadStream(entry.iconFilePath));
-  });
+      const size = parseMiniAppIconSize(req.query.size);
+      if (req.query.size !== undefined && size === undefined) {
+        reply.code(400);
+        return {
+          error: `Invalid icon size. Supported sizes: ${MINIAPP_ICON_SIZES.join(', ')}`,
+        };
+      }
+
+      reply.header('Cache-Control', MINIAPP_ICON_CACHE_CONTROL);
+      reply.type('image/png');
+
+      if (size === undefined) {
+        return reply.send(createReadStream(entry.iconFilePath));
+      }
+
+      const image = await sharp(entry.iconFilePath)
+        .resize({
+          width: size,
+          height: size,
+          fit: 'cover',
+          withoutEnlargement: true,
+        })
+        .png()
+        .toBuffer();
+
+      return reply.send(image);
+    },
+  );
 
   app.get('/api/preferences/public', async () => {
     return {
