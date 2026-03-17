@@ -224,9 +224,23 @@
   text-align: center;
 }
 
+.hintText {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--dt-text-secondary);
+  text-align: center;
+  margin: 0;
+}
+
 .doneText {
   font-size: 15px;
   line-height: 1.6;
   color: var(--dt-text);
   text-align: center;
+}
+
+.footerActions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
 }

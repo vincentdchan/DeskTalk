@@ -26,6 +26,7 @@ import {
   type PublicUser,
 } from '../services/user-db';
 import { ensureUserHome } from '../services/workspace';
+import { saveOnboardingConfig } from '../services/onboarding-config';
 
 const COOKIE_NAME = 'desktalk_session';
 
@@ -147,7 +148,21 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   // Creates the initial admin account during onboarding.
   // Only succeeds when no admin account exists yet.
   app.post<{
-    Body: { username: string; displayName: string; password: string };
+    Body: {
+      username: string;
+      displayName: string;
+      password: string;
+      aiConfig?: {
+        provider: string;
+        apiKey: string;
+        model?: string;
+        baseUrl?: string;
+      };
+      voiceConfig?: {
+        provider: string;
+        apiKey: string;
+      };
+    };
   }>('/api/setup', async (req, reply) => {
     // Guard: only allow setup when no admin exists
     if (hasAdmin()) {
@@ -155,7 +170,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       return { error: 'System is already set up. An admin account exists.' };
     }
 
-    const { username, displayName, password } = req.body ?? {};
+    const { username, displayName, password, aiConfig, voiceConfig } = req.body ?? {};
 
     if (!username || !displayName || !password) {
       reply.code(400);
@@ -180,6 +195,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     // Create the admin account and their home directory
     const user = createUser(username, password, 'admin', displayName);
     ensureUserHome(username);
+
+    // Persist optional provider configuration from onboarding
+    saveOnboardingConfig(username, aiConfig, voiceConfig);
 
     // Automatically log the admin in
     const token = createSession(username);
