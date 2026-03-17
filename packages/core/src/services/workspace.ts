@@ -105,7 +105,11 @@ export function resolveMiniAppPaths(miniAppId: string, username: string): MiniAp
  *
  * Detects legacy layout (`<data>/data/`, `<data>/storage/`) and moves
  * everything into `<data>/home/admin/.data/` and `<data>/home/admin/.storage/`.
- * This is a one-time, non-destructive migration.
+ * This is a one-time, non-destructive migration for installations that
+ * previously used the hardcoded 'admin' account.
+ *
+ * New installations (that go through the onboarding flow) will never have
+ * these legacy directories, so this function is a no-op for them.
  */
 export function migrateToMultiUser(): void {
   const ws = getWorkspacePaths();

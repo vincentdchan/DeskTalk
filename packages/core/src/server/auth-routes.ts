@@ -1,27 +1,30 @@
 /**
- * Fastify plugin that registers all authentication-related routes.
+ * Fastify plugin that registers authentication and setup routes.
  *
  * Public routes (no session required):
  *   POST /api/auth/login
+ *   GET  /api/auth/me
+ *   GET  /api/setup/status
+ *   POST /api/setup
  *
  * Authenticated routes:
  *   POST /api/auth/logout
- *   GET  /api/auth/me
  *   PUT  /api/auth/me/password
- *   PUT  /api/auth/me/onboard
  */
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import '@fastify/cookie';
 import {
   verifyPassword,
+  createUser,
   createSession,
   deleteSession,
   updateUserPassword,
-  completeOnboarding,
-  hasOnboardedAdmin,
+  hasAdmin,
+  findUser,
   type PublicUser,
 } from '../services/user-db';
+import { ensureUserHome } from '../services/workspace';
 
 const COOKIE_NAME = 'desktalk_session';
 
@@ -60,7 +63,6 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       username: user.username,
       displayName: user.displayName,
       role: user.role,
-      onboarded: user.onboarded,
     };
   });
 
@@ -76,14 +78,14 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
   // ─── GET /api/auth/me (public) ───────────────────────────────────────
   // When authenticated: returns the current user info.
-  // When unauthenticated: returns { authenticated: false, needsOnboarding }
+  // When unauthenticated: returns { authenticated: false, needsSetup }
   // so the frontend can decide between login vs onboard page.
   app.get('/api/auth/me', async (req) => {
     const user = (req as FastifyRequest & { user?: PublicUser }).user;
     if (!user) {
       return {
         authenticated: false,
-        needsOnboarding: !hasOnboardedAdmin(),
+        needsSetup: !hasAdmin(),
       };
     }
     return {
@@ -91,7 +93,6 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       username: user.username,
       displayName: user.displayName,
       role: user.role,
-      onboarded: user.onboarded,
     };
   });
 
@@ -127,37 +128,60 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true };
   });
 
-  // ─── PUT /api/auth/me/onboard ──────────────────────────────────────
-  app.put<{
-    Body: {
-      displayName?: string;
-      newPassword?: string;
-    };
-  }>('/api/auth/me/onboard', async (req, reply) => {
-    const user = (req as FastifyRequest & { user?: PublicUser }).user;
-    if (!user) {
-      reply.code(401);
-      return { error: 'Not authenticated.' };
+  // ─── GET /api/setup/status (public) ─────────────────────────────────
+  // Returns whether the system needs initial setup (no admin account).
+  app.get('/api/setup/status', async () => {
+    return { needsSetup: !hasAdmin() };
+  });
+
+  // ─── POST /api/setup (public) ───────────────────────────────────────
+  // Creates the initial admin account during onboarding.
+  // Only succeeds when no admin account exists yet.
+  app.post<{
+    Body: { username: string; displayName: string; password: string };
+  }>('/api/setup', async (req, reply) => {
+    // Guard: only allow setup when no admin exists
+    if (hasAdmin()) {
+      reply.code(403);
+      return { error: 'System is already set up. An admin account exists.' };
     }
 
-    if (user.onboarded) {
+    const { username, displayName, password } = req.body ?? {};
+
+    if (!username || !displayName || !password) {
+      reply.code(400);
+      return { error: 'Username, displayName, and password are required.' };
+    }
+
+    if (!/^[a-zA-Z0-9_-]{1,32}$/.test(username)) {
+      reply.code(400);
+      return { error: 'Username must be 1-32 alphanumeric characters, hyphens, or underscores.' };
+    }
+
+    if (password.length < 8) {
+      reply.code(400);
+      return { error: 'Password must be at least 8 characters.' };
+    }
+
+    if (findUser(username)) {
       reply.code(409);
-      return { error: 'User has already completed onboarding.' };
+      return { error: `User "${username}" already exists.` };
     }
 
-    const { displayName, newPassword } = req.body ?? {};
+    // Create the admin account and their home directory
+    const user = createUser(username, password, 'admin', displayName);
+    ensureUserHome(username);
 
-    // If a new password is provided, update it
-    if (newPassword) {
-      if (newPassword.length < 8) {
-        reply.code(400);
-        return { error: 'Password must be at least 8 characters.' };
-      }
-      updateUserPassword(user.username, newPassword);
-    }
+    // Automatically log the admin in
+    const token = createSession(username);
+    reply.setCookie(COOKIE_NAME, token, cookieOptions(isSecure));
 
-    completeOnboarding(user.username, displayName);
-    return { ok: true };
+    return {
+      ok: true,
+      username: user.username,
+      displayName: user.displayName,
+      role: user.role,
+    };
   });
 }
 

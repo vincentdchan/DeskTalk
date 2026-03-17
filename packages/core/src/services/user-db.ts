@@ -20,7 +20,6 @@ export interface UserRecord {
   display_name: string;
   password: string; // bcrypt hash
   role: UserRole;
-  onboarded: number; // 0 | 1
   created_at: string; // ISO 8601
   updated_at: string; // ISO 8601
 }
@@ -37,7 +36,6 @@ export interface PublicUser {
   username: string;
   displayName: string;
   role: UserRole;
-  onboarded: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -47,7 +45,6 @@ export interface PublicUser {
 const BCRYPT_ROUNDS = 12;
 const SESSION_TOKEN_BYTES = 32;
 const SESSION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const DEFAULT_ADMIN_PASSWORD = 'desktalk';
 
 // ─── Database ────────────────────────────────────────────────────────────────
 
@@ -55,8 +52,8 @@ let db: Database.Database | null = null;
 
 /**
  * Open (or create) the users database at `<dataDir>/users.db`.
- * Creates tables and seeds the default admin account if the users table
- * is empty.
+ * Creates tables if they don't exist. No default accounts are seeded —
+ * the admin account is created during the onboarding flow.
  */
 export function initUserDb(dataDir: string): void {
   const dbPath = join(dataDir, 'users.db');
@@ -72,7 +69,6 @@ export function initUserDb(dataDir: string): void {
       display_name TEXT NOT NULL,
       password     TEXT NOT NULL,
       role         TEXT NOT NULL DEFAULT 'user',
-      onboarded    INTEGER NOT NULL DEFAULT 0,
       created_at   TEXT NOT NULL,
       updated_at   TEXT NOT NULL
     );
@@ -88,16 +84,8 @@ export function initUserDb(dataDir: string): void {
     CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
   `);
 
-  // Seed default admin account if the users table is empty
-  const count = db.prepare('SELECT COUNT(*) AS cnt FROM users').get() as { cnt: number };
-  if (count.cnt === 0) {
-    const now = new Date().toISOString();
-    const hash = bcrypt.hashSync(DEFAULT_ADMIN_PASSWORD, BCRYPT_ROUNDS);
-    db.prepare(
-      `INSERT INTO users (username, display_name, password, role, onboarded, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ).run('admin', 'Administrator', hash, 'admin', 0, now, now);
-  }
+  // No default admin account is seeded. The admin is created during
+  // the onboarding flow (POST /api/setup).
 }
 
 /** Get the raw database instance. Throws if not initialized. */
@@ -123,7 +111,6 @@ function toPublicUser(row: UserRecord): PublicUser {
     username: row.username,
     displayName: row.display_name,
     role: row.role as UserRole,
-    onboarded: row.onboarded === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -154,10 +141,10 @@ export function createUser(
   const hash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
   getDb()
     .prepare(
-      `INSERT INTO users (username, display_name, password, role, onboarded, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (username, display_name, password, role, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
     )
-    .run(username, displayName ?? username, hash, role, 0, now, now);
+    .run(username, displayName ?? username, hash, role, now, now);
   return findUser(username)!;
 }
 
@@ -186,32 +173,14 @@ export function updateUserPassword(username: string, newPassword: string): boole
   return result.changes > 0;
 }
 
-/** Mark onboarding complete and update display name / preferences. */
-export function completeOnboarding(username: string, displayName?: string): boolean {
-  const now = new Date().toISOString();
-  if (displayName) {
-    const result = getDb()
-      .prepare(
-        'UPDATE users SET onboarded = 1, display_name = ?, updated_at = ? WHERE username = ?',
-      )
-      .run(displayName, now, username);
-    return result.changes > 0;
-  }
-  const result = getDb()
-    .prepare('UPDATE users SET onboarded = 1, updated_at = ? WHERE username = ?')
-    .run(now, username);
-  return result.changes > 0;
-}
-
 /**
- * Check whether any admin user has completed onboarding.
- * Used to decide if a fresh install should show the onboarding flow
- * even before authentication.
+ * Check whether any admin user exists in the database.
+ * Used to decide if the system needs the onboarding flow (first-time setup).
  */
-export function hasOnboardedAdmin(): boolean {
-  const row = getDb()
-    .prepare("SELECT COUNT(*) AS cnt FROM users WHERE role = 'admin' AND onboarded = 1")
-    .get() as { cnt: number };
+export function hasAdmin(): boolean {
+  const row = getDb().prepare("SELECT COUNT(*) AS cnt FROM users WHERE role = 'admin'").get() as {
+    cnt: number;
+  };
   return row.cnt > 0;
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { initWorkspace, migrateToMultiUser, ensureUserHome } from '../services/workspace';
+import { initWorkspace, migrateToMultiUser } from '../services/workspace';
 import { registerBuiltinMiniApps } from '../services/miniapp-registry';
 import { createServer } from '../server/index';
 import { processManager } from '../services/backend-process-manager';
@@ -36,10 +36,9 @@ program
       'workspace initialized',
     );
 
-    // Initialize the user database, run data migration, and ensure admin home exists
+    // Initialize the user database and run legacy data migration
     initUserDb(paths.data);
     migrateToMultiUser();
-    ensureUserHome('admin');
     log.info('user database initialized');
 
     // Initialize the process manager with logger config so child processes can recreate it

@@ -19,20 +19,10 @@ interface PublicPreferencesResponse {
   accentColor: string;
 }
 
-interface AuthMeAuthenticated {
-  authenticated: true;
-  username: string;
-  displayName: string;
-  role: string;
-  onboarded: boolean;
+interface AuthMeResponse {
+  authenticated: boolean;
+  needsSetup?: boolean;
 }
-
-interface AuthMeUnauthenticated {
-  authenticated: false;
-  needsOnboarding: boolean;
-}
-
-type AuthMeResponse = AuthMeAuthenticated | AuthMeUnauthenticated;
 
 type Page = 'loading' | 'login' | 'onboard' | 'desktop';
 
@@ -44,7 +34,6 @@ function App() {
   const [themePreferences, setThemePreferences] =
     useState<ThemePreferences>(DEFAULT_THEME_PREFERENCES);
   const [page, setPage] = useState<Page>('loading');
-  const [authUser, setAuthUser] = useState<AuthMeAuthenticated | null>(null);
 
   const checkSession = useCallback(async () => {
     try {
@@ -57,24 +46,17 @@ function App() {
       const data = (await res.json()) as AuthMeResponse;
 
       if (!data.authenticated) {
-        // Not logged in — check if the system needs initial onboarding
-        if (data.needsOnboarding) {
+        // Not logged in — check if the system needs initial setup
+        if (data.needsSetup) {
           setPage('onboard');
-          setAuthUser(null);
         } else {
           setPage('login');
         }
         return;
       }
 
-      // Authenticated
-      setAuthUser(data);
-
-      if (!data.onboarded) {
-        setPage('onboard');
-      } else {
-        setPage('desktop');
-      }
+      // Authenticated — go to desktop
+      setPage('desktop');
     } catch {
       setPage('login');
     }
@@ -189,14 +171,7 @@ function App() {
   }
 
   if (page === 'onboard') {
-    return (
-      <OnboardPage
-        username={authUser?.username ?? 'admin'}
-        displayName={authUser?.displayName ?? 'Administrator'}
-        authenticated={authUser !== null}
-        onComplete={checkSession}
-      />
-    );
+    return <OnboardPage onComplete={checkSession} />;
   }
 
   return (

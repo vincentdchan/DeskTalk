@@ -6,29 +6,29 @@ DeskTalk currently has no concept of users — a single anonymous session owns a
 
 ## Page Routing
 
-With user management, the frontend has three top-level pages. The core router decides which one to render based on session state.
+With user management, the frontend has three top-level pages. The core router decides which one to render based on system and session state.
 
-| Page        | When shown                                                 |
-| ----------- | ---------------------------------------------------------- |
-| **Login**   | No valid session cookie, or cookie expired.                |
-| **Onboard** | Valid session, but the user's `onboarded` flag is `false`. |
-| **Desktop** | Valid session and user has completed onboarding.           |
+| Page        | When shown                                                          |
+| ----------- | ------------------------------------------------------------------- |
+| **Onboard** | No `users.db` or no admin account exists (first-time system setup). |
+| **Login**   | System is initialized, but no valid session cookie.                 |
+| **Desktop** | Valid session.                                                      |
 
 ### Flow
 
 ```
 Browser request
   │
+  ├─ No users.db / no admin ─────────────► Onboard page (admin setup)
+  │
   ├─ No session cookie ──────────────────► Login page
   │
   ├─ Cookie present, invalid/expired ────► Login page
   │
-  ├─ Cookie valid, user.onboarded=false ─► Onboard page
-  │
-  └─ Cookie valid, user.onboarded=true ──► Desktop
+  └─ Cookie valid ───────────────────────► Desktop
 ```
 
-The Login page is a standalone form (username + password). After successful authentication the server sets an HTTP-only session cookie and redirects. The Onboard page is shown only once per user on first login — it collects initial preferences (display name, theme, language, etc.) and sets `onboarded = true` on completion. From that point on the user always goes directly to the Desktop.
+The Onboard page is shown only once — on the very first launch — to create the admin account. See [onboarding.md](./onboarding.md) for full details. The Login page is a standalone form (username + password). After successful authentication the server sets an HTTP-only session cookie and redirects to the Desktop.
 
 ## Authentication
 
@@ -69,7 +69,6 @@ CREATE TABLE users (
   display_name TEXT NOT NULL,
   password     TEXT NOT NULL,          -- bcrypt hash
   role         TEXT NOT NULL DEFAULT 'user',  -- 'admin' | 'user'
-  onboarded    INTEGER NOT NULL DEFAULT 0,    -- 0 = false, 1 = true
   created_at   TEXT NOT NULL,          -- ISO 8601
   updated_at   TEXT NOT NULL           -- ISO 8601
 );
@@ -85,19 +84,9 @@ CREATE INDEX idx_sessions_username ON sessions(username);
 CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
 ```
 
-#### Default Admin Account
+#### Admin Account Creation
 
-On first launch, if the `users` table is empty, the core seeds it with a default admin account:
-
-| Field        | Value                       |
-| ------------ | --------------------------- |
-| username     | `admin`                     |
-| display_name | `Administrator`             |
-| password     | bcrypt hash of `"desktalk"` |
-| role         | `admin`                     |
-| onboarded    | `0`                         |
-
-The onboard page prompts the admin to change the default password on first login.
+The admin account is **not** auto-seeded. On first launch, if `users.db` does not exist (or contains no admin), the system shows the onboarding page, which lets the administrator choose their own username, display name, and password. See [onboarding.md](./onboarding.md) for the full onboarding flow.
 
 #### Roles
 
@@ -232,17 +221,7 @@ This is the same structure as before, just nested under the user's home with dot
 
 ## Onboard Page
 
-### Purpose
-
-Collect essential setup information on first login. Shown when `user.onboarded === false`.
-
-### Steps
-
-1. **Welcome** — Greeting and brief intro to DeskTalk.
-2. **Change Password** (if default) — Force the admin (or any user created with a temporary password) to set a personal password.
-3. **Profile Setup** — Display name, avatar (optional, stretch goal).
-4. **Preferences** — Theme (light/dark), language.
-5. **Done** — Mark `onboarded = true` in the database, redirect to Desktop.
+The onboarding flow is documented in [onboarding.md](./onboarding.md). In summary: it triggers on first launch when no admin account exists, collects the admin's username, display name, and password, and bootstraps the system. It is shown only once and only to the admin.
 
 The onboard page is a simple multi-step wizard rendered by the core frontend — it is not a MiniApp.
 
@@ -252,18 +231,19 @@ New Fastify routes for authentication and user management:
 
 ### Public (no auth required)
 
-| Method | Path              | Description                                                          |
-| ------ | ----------------- | -------------------------------------------------------------------- |
-| POST   | `/api/auth/login` | Authenticate and set session cookie. Body: `{ username, password }`. |
+| Method | Path                | Description                                                                                                                  |
+| ------ | ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/auth/login`   | Authenticate and set session cookie. Body: `{ username, password }`.                                                         |
+| GET    | `/api/setup/status` | Check if the system needs onboarding (no admin exists).                                                                      |
+| POST   | `/api/setup`        | Create the admin account during onboarding. Body: `{ username, displayName, password }`. Only succeeds when no admin exists. |
 
 ### Authenticated
 
 | Method | Path                    | Description                                                |
 | ------ | ----------------------- | ---------------------------------------------------------- |
 | POST   | `/api/auth/logout`      | Clear session cookie and delete session.                   |
-| GET    | `/api/auth/me`          | Return current user info (username, role, onboarded).      |
+| GET    | `/api/auth/me`          | Return current user info (username, role).                 |
 | PUT    | `/api/auth/me/password` | Change own password. Body: `{ oldPassword, newPassword }`. |
-| PUT    | `/api/auth/me/onboard`  | Mark onboarding complete + save preferences.               |
 
 ### Admin only
 
@@ -283,7 +263,8 @@ New Fastify routes for authentication and user management:
 - **Password requirements** — minimum 8 characters. Additional complexity rules are optional.
 - **Home directory isolation** — the core enforces that authenticated requests can only access their own `<data>/home/<username>/` subtree. This is enforced at the path-resolution layer, not by convention.
 - **Admin operations** — all `/api/admin/*` routes check `role === 'admin'` before processing.
-- **Default password** — the seeded admin password (`desktalk`) is intentionally weak. The onboard flow forces a password change before the user can proceed to the Desktop.
+- **No default credentials** — the admin sets their own password during onboarding. There is no hardcoded default password in the system.
+- **Setup endpoint protection** — `POST /api/setup` only succeeds when no admin account exists, preventing abuse after initial setup.
 
 ## Dependencies
 
@@ -299,8 +280,7 @@ Both are well-maintained, widely-used packages with no additional native compila
 For existing single-user deployments:
 
 1. On first launch after upgrade, the core detects that `<data>/users.db` does not exist.
-2. It creates the database and seeds the default admin account.
-3. It moves existing data from `<data>/data/` and `<data>/storage/` into `<data>/home/admin/.data/` and `<data>/home/admin/.storage/`, preserving all existing MiniApp data.
-4. The admin user's `onboarded` flag is set to `false` so they go through the onboard flow to set a real password.
+2. It shows the onboarding page so the admin can create their account with a username and password of their choice.
+3. On completion, it moves existing data from `<data>/data/` and `<data>/storage/` into `<data>/home/<admin-username>/.data/` and `<data>/home/<admin-username>/.storage/`, preserving all existing MiniApp data.
 
 This is a one-time, non-destructive migration.
