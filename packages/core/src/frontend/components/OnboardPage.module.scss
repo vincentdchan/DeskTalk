@@ -1,0 +1,232 @@
+.page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  background: var(--dt-wallpaper) center / cover no-repeat;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 40px 36px 36px;
+  background: var(--dt-glass);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--dt-glass-border);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px var(--dt-shadow-color);
+  width: 420px;
+  max-width: 90vw;
+}
+
+.header {
+  text-align: center;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--dt-text);
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--dt-text-secondary);
+}
+
+.stepIndicator {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dt-border);
+  transition: background 0.2s ease;
+}
+
+.dotActive {
+  composes: dot;
+  background: var(--dt-accent);
+}
+
+.dotCompleted {
+  composes: dot;
+  background: var(--dt-accent-subtle);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dt-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.input {
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  color: var(--dt-text);
+  background: var(--dt-surface);
+  border: 1px solid var(--dt-border);
+  border-radius: var(--border-radius);
+  outline: none;
+  transition: border-color 0.15s ease;
+
+  &:focus {
+    border-color: var(--dt-accent);
+  }
+
+  &::placeholder {
+    color: var(--dt-text-muted);
+  }
+}
+
+.select {
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  color: var(--dt-text);
+  background: var(--dt-surface);
+  border: 1px solid var(--dt-border);
+  border-radius: var(--border-radius);
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  transition: border-color 0.15s ease;
+
+  &:focus {
+    border-color: var(--dt-accent);
+  }
+}
+
+.themeToggle {
+  display: flex;
+  gap: 8px;
+}
+
+.themeOption {
+  flex: 1;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  color: var(--dt-text-secondary);
+  background: var(--dt-surface);
+  border: 1px solid var(--dt-border);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  text-align: center;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+
+  &:hover {
+    border-color: var(--dt-border-strong);
+  }
+}
+
+.themeOptionActive {
+  composes: themeOption;
+  color: var(--dt-text);
+  border-color: var(--dt-accent);
+  background: var(--dt-accent-ghost);
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.buttonSecondary {
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  color: var(--dt-text-secondary);
+  background: transparent;
+  border: 1px solid var(--dt-border);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--dt-surface-hover);
+    color: var(--dt-text);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.buttonPrimary {
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  color: var(--dt-text-on-accent);
+  background: var(--dt-accent);
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  margin-left: auto;
+
+  &:hover:not(:disabled) {
+    background: var(--dt-accent-hover);
+  }
+
+  &:active:not(:disabled) {
+    background: var(--dt-accent-active);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.error {
+  font-size: 13px;
+  color: var(--dt-danger);
+  text-align: center;
+  min-height: 1.4em;
+}
+
+.welcomeText {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--dt-text-secondary);
+  text-align: center;
+}
+
+.doneText {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--dt-text);
+  text-align: center;
+}

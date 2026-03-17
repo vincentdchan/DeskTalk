@@ -2,7 +2,7 @@
 
 ## Overview
 
-The File Explorer MiniApp is a simple filesystem browser that lets users navigate directories, view files, and perform basic file operations. It operates exclusively within the MiniApp's scoped data directory (`ctx.paths.data`) — it cannot access the host OS filesystem or any path outside this sandbox.
+The File Explorer MiniApp is a system-level filesystem browser that lets users navigate directories, view files, and perform basic file operations within their home directory (`<data>/home/<username>/`). It cannot access the host OS filesystem, other users' home directories, or any path outside this sandbox. Core-managed dot-prefixed directories (`.data`, `.storage`, `.cache`, `.ai-sessions`) are hidden from listings by default. See [user-management.md](../user-management.md) for the full data directory layout.
 
 ## Features
 
@@ -33,13 +33,13 @@ The File Explorer MiniApp is a simple filesystem browser that lets users navigat
 |-------------------------------------|
 ```
 
-The breadcrumb root `~` represents the MiniApp's scoped data directory (`ctx.paths.data`). Users never see or interact with absolute OS paths.
+The breadcrumb root `~` represents the user's home directory (`<data>/home/<username>/`). Users never see or interact with absolute OS paths. Dot-prefixed directories (`.data`, `.storage`, etc.) are hidden from listings.
 
 Note: The Actions Bar is a global element managed by the core shell (see `docs/spec.md`). MiniApps register their actions via `<ActionsProvider>`, but the bar itself is not part of the MiniApp window.
 
 | Element    | Description                                                                                                  |
 | ---------- | ------------------------------------------------------------------------------------------------------------ |
-| Navigation | Back/forward buttons and a breadcrumb path bar. The root `~` represents the scoped data directory.           |
+| Navigation | Back/forward buttons and a breadcrumb path bar. The root `~` represents the user's home directory.           |
 | File List  | Table of directory contents with name, size, and last-modified columns. Sortable by clicking column headers. |
 
 ### Interactions
@@ -53,7 +53,7 @@ Note: The Actions Bar is a global element managed by the core shell (see `docs/s
 
 | Component        | Responsibility                                                                                                                 |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `FileBreadcrumb` | Displays the current path as clickable breadcrumb segments. The root segment shows `~` to represent the scoped data directory. |
+| `FileBreadcrumb` | Displays the current path as clickable breadcrumb segments. The root segment shows `~` to represent the user's home directory. |
 | `FileList`       | Table of files and directories with sorting.                                                                                   |
 | `FilePreview`    | Displays file content or metadata.                                                                                             |
 | `FileActions`    | Provides actions via `<ActionsProvider>`.                                                                                      |
@@ -74,7 +74,7 @@ The File Explorer MiniApp does not implement its own HTTP server. All backend lo
 
 ### Root Directory
 
-The file explorer operates exclusively within its scoped data directory (`ctx.paths.data`) via `ctx.fs`. All paths in commands and UI are relative to this root — `"."` means the data directory itself, `"docs"` means `<data>/data/file-explorer/docs`, etc. The core's `FileSystemHook` enforces this scoping and prevents directory traversal. The MiniApp never sees or exposes absolute OS paths.
+The file explorer operates within the authenticated user's home directory (`<data>/home/<username>/`) via `ctx.fs`. All paths in commands and UI are relative to this root — `"."` means the home directory itself, `"documents"` means `<data>/home/<username>/documents`, etc. Core-managed dot-prefixed directories (`.data`, `.storage`, `.cache`, `.ai-sessions`) are excluded from directory listings by default. The core's `FileSystemHook` enforces scoping to the home directory and prevents directory traversal. The MiniApp never sees or exposes absolute OS paths.
 
 ### Commands (via MessagingHook)
 
@@ -103,5 +103,7 @@ interface FileEntry {
 
 ### Security
 
-- All paths are resolved by the core's `FileSystemHook`, which scopes access to the MiniApp's data directory and prevents directory traversal.
-- Symlinks pointing outside the root are not followed.
+- All paths are resolved by the core's `FileSystemHook`, which scopes access to the authenticated user's home directory and prevents directory traversal.
+- Core-managed dot-prefixed directories (`.data`, `.storage`, `.cache`, `.ai-sessions`) are hidden from listings.
+- Symlinks pointing outside the home directory are not followed.
+- Users cannot access other users' home directories or any system-level paths. See [user-management.md](../user-management.md) for the isolation model.

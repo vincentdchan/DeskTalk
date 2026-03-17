@@ -206,6 +206,7 @@ export class PiSessionService {
       actionParams?: Record<string, unknown>,
     ) => Promise<unknown>,
     sendAiCommand: SendAiCommand,
+    getCurrentUsername: () => string,
   ): Promise<PiSessionService> {
     const authStorage = AuthStorage.create(join(workspacePaths.config, 'pi-auth.json'));
     const modelRegistry = new ModelRegistry(authStorage);
@@ -249,7 +250,7 @@ export class PiSessionService {
         windowManager,
         getMiniApps: () => registry.getManifests(),
         activateMiniApp: (miniAppId: string) => {
-          registry.activate(miniAppId);
+          registry.activate(miniAppId, getCurrentUsername());
         },
         sendAiCommand,
       }),

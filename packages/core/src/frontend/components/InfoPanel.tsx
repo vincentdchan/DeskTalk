@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Streamdown } from 'streamdown';
 import 'streamdown/styles.css';
 import { useVoiceSession } from '../stores/voice-session';
+import { httpClient } from '../http-client';
 import { CommandInput } from './CommandInput';
 import styles from './InfoPanel.module.scss';
 
@@ -116,12 +117,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
 
     async function loadProviders() {
       try {
-        const response = await fetch('/api/ai/providers');
-        if (!response.ok) {
-          throw new Error('Failed to load AI providers');
-        }
-
-        const payload = (await response.json()) as AiProviderResponse;
+        const { data: payload } = await httpClient.get<AiProviderResponse>('/api/ai/providers');
         if (!isMounted) {
           return;
         }

@@ -1,9 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import axios from 'axios';
 import * as ReactDOM_NS from 'react-dom';
 import { createRoot, hydrateRoot } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
 import { I18nProvider, type LocaleMessages } from '@desktalk/sdk';
 import { Shell } from './components/Shell';
+import { LoginPage } from './components/LoginPage';
+import { OnboardPage } from './components/OnboardPage';
+import { httpClient } from './http-client';
 import { applyTheme, DEFAULT_THEME_PREFERENCES, type ThemePreferences } from './theme';
 import './styles/global.scss';
 
@@ -17,6 +21,13 @@ interface PublicPreferencesResponse {
   accentColor: string;
 }
 
+interface AuthMeResponse {
+  authenticated: boolean;
+  needsSetup?: boolean;
+}
+
+type Page = 'loading' | 'login' | 'onboard' | 'desktop';
+
 applyTheme(DEFAULT_THEME_PREFERENCES);
 
 function App() {
@@ -24,31 +35,56 @@ function App() {
   const [messages, setMessages] = useState<LocaleMessages>({});
   const [themePreferences, setThemePreferences] =
     useState<ThemePreferences>(DEFAULT_THEME_PREFERENCES);
+  const [page, setPage] = useState<Page>('loading');
+
+  const checkSession = useCallback(async () => {
+    try {
+      const { data } = await httpClient.get<AuthMeResponse>('/api/auth/me');
+
+      if (!data.authenticated) {
+        // Not logged in — check if the system needs initial setup
+        if (data.needsSetup) {
+          setPage('onboard');
+        } else {
+          setPage('login');
+        }
+        return;
+      }
+
+      // Authenticated — go to desktop
+      setPage('desktop');
+    } catch {
+      setPage('login');
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadCatalog(nextLocale?: string): Promise<void> {
       const query = nextLocale ? `?locale=${encodeURIComponent(nextLocale)}` : '';
-      const response = await fetch(`/api/i18n/catalog${query}`);
-      if (!response.ok) {
-        throw new Error(`Failed to load i18n catalog (${response.status})`);
-      }
-
-      const payload = (await response.json()) as I18nCatalogResponse;
-      if (!cancelled) {
-        setLocale(payload.locale);
-        setMessages(payload.messages);
+      try {
+        const { data: payload } = await httpClient.get<I18nCatalogResponse>(
+          `/api/i18n/catalog${query}`,
+        );
+        if (!cancelled) {
+          setLocale(payload.locale);
+          setMessages(payload.messages);
+        }
+      } catch (error) {
+        // i18n catalog requires auth — if not authenticated, just use defaults
+        if (axios.isAxiosError(error)) {
+          const status = error.response?.status;
+          if (status === 401) return;
+          throw new Error(`Failed to load i18n catalog (${status ?? 'unknown'})`);
+        }
+        throw error;
       }
     }
 
     async function loadThemePreferences(): Promise<void> {
-      const response = await fetch('/api/preferences/public');
-      if (!response.ok) {
-        throw new Error(`Failed to load public preferences (${response.status})`);
-      }
-
-      const payload = (await response.json()) as PublicPreferencesResponse;
+      const { data: payload } =
+        await httpClient.get<PublicPreferencesResponse>('/api/preferences/public');
       if (!cancelled) {
         setThemePreferences({
           theme: payload.theme,
@@ -57,12 +93,17 @@ function App() {
       }
     }
 
-    void loadCatalog().catch((error) => {
-      console.error('[i18n] Could not load catalog:', error);
-    });
-
+    // Load theme preferences (public, no auth needed) immediately
     void loadThemePreferences().catch((error) => {
       console.error('[theme] Could not load preferences:', error);
+    });
+
+    // Check session to determine which page to show
+    void checkSession();
+
+    // Load i18n catalog (may fail if not authenticated — that's okay)
+    void loadCatalog().catch((error) => {
+      console.error('[i18n] Could not load catalog:', error);
     });
 
     const handleEvent = (event: Event) => {
@@ -111,11 +152,24 @@ function App() {
       cancelled = true;
       window.removeEventListener('desktalk:event', handleEvent);
     };
-  }, []);
+  }, [checkSession]);
 
   useEffect(() => {
     applyTheme(themePreferences);
   }, [themePreferences]);
+
+  if (page === 'loading') {
+    // Render nothing while checking session — theme is already applied
+    return null;
+  }
+
+  if (page === 'login') {
+    return <LoginPage onLoginSuccess={checkSession} />;
+  }
+
+  if (page === 'onboard') {
+    return <OnboardPage onComplete={checkSession} />;
+  }
 
   return (
     <I18nProvider locale={locale} messages={messages}>

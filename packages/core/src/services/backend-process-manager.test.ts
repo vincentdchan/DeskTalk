@@ -20,9 +20,7 @@ function createMockChild() {
 }
 
 // We'll dynamically import the module after mocking
-let processManager: Awaited<
-  typeof import('./backend-process-manager')
->['processManager'];
+let processManager: Awaited<typeof import('./backend-process-manager')>['processManager'];
 
 let mockChild: ReturnType<typeof createMockChild>;
 
@@ -135,9 +133,9 @@ describe('BackendProcessManager', () => {
   });
 
   it('sendCommand() throws when no process is running', async () => {
-    await expect(
-      processManager.sendCommand('nonexistent', 'cmd', {}),
-    ).rejects.toThrow('No running process for miniApp: nonexistent');
+    await expect(processManager.sendCommand('nonexistent', 'cmd', {})).rejects.toThrow(
+      'No running process for key: nonexistent',
+    );
   });
 
   it('relays event broadcasts from child to broadcastEvent', async () => {

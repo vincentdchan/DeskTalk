@@ -194,7 +194,11 @@ function PreviewApp({ initialPath }: { initialPath?: string }) {
               onPrevious={handlePrevious}
               onNext={handleNext}
             />
-            <div ref={viewportRef} data-preview-viewport="" style={{ flex: 1, overflow: 'hidden' }}>
+            <div
+              ref={viewportRef}
+              data-preview-viewport=""
+              style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}
+            >
               <ImageViewport
                 dataUrl={currentFile.dataUrl}
                 zoom={zoom}

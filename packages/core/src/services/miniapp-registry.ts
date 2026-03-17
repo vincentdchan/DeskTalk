@@ -91,35 +91,41 @@ class MiniAppRegistry {
   }
 
   /**
-   * Activate a MiniApp — spawns an isolated child process.
+   * Activate a MiniApp for a specific user — spawns an isolated child process.
+   * The process is keyed by `miniAppId:username` so each user gets their own
+   * backend instance with isolated data paths.
    */
-  async activate(id: string): Promise<void> {
+  async activate(id: string, username: string): Promise<void> {
     const entry = this.entries.get(id);
     if (!entry) {
       throw new Error(`MiniApp not found: ${id}`);
     }
-    if (processManager.isRunning(id)) {
+
+    const processKey = `${id}:${username}`;
+    if (processManager.isRunning(processKey)) {
       return;
     }
 
-    const paths = resolveMiniAppPaths(id);
+    const paths = resolveMiniAppPaths(id, username);
     const locale = String(getStoredPreference('general.language') ?? 'en');
 
-    await processManager.spawn(id, entry.backendPath, entry.packageRoot, paths, locale);
+    await processManager.spawn(processKey, entry.backendPath, entry.packageRoot, paths, locale, id);
   }
 
   /**
-   * Deactivate a MiniApp — stops its child process.
+   * Deactivate a MiniApp for a specific user — stops its child process.
    */
-  async deactivate(id: string): Promise<void> {
-    await processManager.kill(id);
+  async deactivate(id: string, username: string): Promise<void> {
+    const processKey = `${id}:${username}`;
+    await processManager.kill(processKey);
   }
 
   /**
-   * Check if a MiniApp is activated (child process running).
+   * Check if a MiniApp is activated for a specific user.
    */
-  isActivated(id: string): boolean {
-    return processManager.isRunning(id);
+  isActivated(id: string, username: string): boolean {
+    const processKey = `${id}:${username}`;
+    return processManager.isRunning(processKey);
   }
 
   /**

@@ -40,24 +40,24 @@ Toolbar (zoom controls, navigation) | Image viewport (zoomable, pannable)
 
 ## Frontend Components
 
-| Component | Responsibility |
-|-----------|----------------|
+| Component      | Responsibility                                                                         |
+| -------------- | -------------------------------------------------------------------------------------- |
 | PreviewToolbar | Renders zoom controls, fit/actual-size buttons, prev/next navigation, filename display |
-| ImageViewport | Displays the image with zoom and pan support, handles mouse/wheel/keyboard events |
-| PreviewActions | Provides actions via `<ActionsProvider>` |
+| ImageViewport  | Displays the image with zoom and pan support, handles mouse/wheel/keyboard events      |
+| PreviewActions | Provides actions via `<ActionsProvider>`                                               |
 
 ## Actions (AI-invokable)
 
-| Action | Description | Parameters |
-|--------|-------------|------------|
-| Open File | Open an image file for preview | path |
-| Zoom In | Increase zoom level by one step | -- |
-| Zoom Out | Decrease zoom level by one step | -- |
-| Fit to Window | Scale image to fit the viewport | -- |
-| Actual Size | Display image at 1:1 pixel ratio | -- |
-| Pan | Pan the viewport in a direction | direction: "up" \| "down" \| "left" \| "right" |
-| Previous File | Navigate to previous image in directory | -- |
-| Next File | Navigate to next image in directory | -- |
+| Action        | Description                             | Parameters                                     |
+| ------------- | --------------------------------------- | ---------------------------------------------- |
+| Open File     | Open an image file for preview          | path                                           |
+| Zoom In       | Increase zoom level by one step         | --                                             |
+| Zoom Out      | Decrease zoom level by one step         | --                                             |
+| Fit to Window | Scale image to fit the viewport         | --                                             |
+| Actual Size   | Display image at 1:1 pixel ratio        | --                                             |
+| Pan           | Pan the viewport in a direction         | direction: "up" \| "down" \| "left" \| "right" |
+| Previous File | Navigate to previous image in directory | --                                             |
+| Next File     | Navigate to next image in directory     | --                                             |
 
 ## Backend
 
@@ -65,27 +65,27 @@ No HTTP server. All logic in `activate` function via core hooks.
 
 ### Root Directory
 
-Operates within the scoped data directory via `ctx.fs`. The backend reads image files and lists sibling images in the same directory. Core's FileSystemHook enforces scoping and prevents traversal.
+Operates within the authenticated user's home directory via `ctx.fs` (`<data>/home/<username>/`). The backend reads image files and lists sibling images in the same directory. Core's FileSystemHook enforces scoping and prevents traversal outside that home directory.
 
 ### Commands (MessagingHook)
 
-| Command | Request | Response | Description |
-|---------|---------|----------|-------------|
-| preview.open | { path } | PreviewFile | Open an image file and return its data |
-| preview.siblings | { path } | SiblingList | List supported image files in the same directory |
-| preview.next | { currentPath } | PreviewFile | Open the next image in the directory |
-| preview.previous | { currentPath } | PreviewFile | Open the previous image in the directory |
+| Command          | Request         | Response    | Description                                      |
+| ---------------- | --------------- | ----------- | ------------------------------------------------ |
+| preview.open     | { path }        | PreviewFile | Open an image file and return its data           |
+| preview.siblings | { path }        | SiblingList | List supported image files in the same directory |
+| preview.next     | { currentPath } | PreviewFile | Open the next image in the directory             |
+| preview.previous | { currentPath } | PreviewFile | Open the previous image in the directory         |
 
 ### Data Model
 
 ```ts
 interface PreviewFile {
   name: string;
-  path: string;        // Relative to root
-  mimeType: string;    // e.g. "image/png"
-  dataUrl: string;     // Base64-encoded data URL for rendering
-  width: number;       // Image intrinsic width in pixels
-  height: number;      // Image intrinsic height in pixels
+  path: string; // Relative to root
+  mimeType: string; // e.g. "image/png"
+  dataUrl: string; // Base64-encoded data URL for rendering
+  width: number; // Image intrinsic width in pixels
+  height: number; // Image intrinsic height in pixels
 }
 
 interface SiblingList {
@@ -101,8 +101,8 @@ interface SiblingEntry {
 
 ### Supported MIME Types
 
-| Extension | MIME Type |
-|-----------|-----------|
+| Extension       | MIME Type    |
+| --------------- | ------------ |
 | `.jpg`, `.jpeg` | `image/jpeg` |
-| `.png` | `image/png` |
-| `.webp` | `image/webp` |
+| `.png`          | `image/png`  |
+| `.webp`         | `image/webp` |

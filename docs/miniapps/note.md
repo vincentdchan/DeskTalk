@@ -281,7 +281,7 @@ The Note MiniApp does not implement its own HTTP server. All backend logic runs 
 
 ### Storage
 
-Notes are persisted using `ctx.fs` (rooted at `ctx.paths.data`) as Markdown files organized in directories. The filesystem is the single source of truth — no separate index. Listing and searching scan all `.md` files recursively.
+Notes are persisted as Markdown files under the MiniApp-private data directory (`ctx.paths.data`, typically `<data>/home/<username>/.data/note/`). The backend accesses that directory through `ctx.fs` using paths under `.data/note/`. The filesystem is the single source of truth — no separate index. Listing and searching scan all `.md` files recursively.
 
 ### Commands (via MessagingHook)
 

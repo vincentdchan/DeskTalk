@@ -7,7 +7,7 @@ export interface MiniAppContext {
   paths: MiniAppPaths;
   /** Scoped key-value storage */
   storage: StorageHook;
-  /** Filesystem access scoped to this MiniApp's data directory */
+  /** Filesystem access scoped to the authenticated user's home directory */
   fs: FileSystemHook;
   /** Message passing between frontend and backend */
   messaging: MessagingHook;
@@ -30,13 +30,13 @@ export type LocalizeParam = string | number | boolean | null | undefined;
  * Platform-resolved paths for a MiniApp, provided by the core.
  */
 export interface MiniAppPaths {
-  /** Scoped data directory (e.g., <data>/data/note/) */
+  /** Scoped data directory (e.g., <data>/home/alice/.data/note/) */
   data: string;
-  /** Scoped storage file (e.g., <data>/storage/note.json) */
+  /** Scoped storage file (e.g., <data>/home/alice/.storage/note.json) */
   storage: string;
-  /** Scoped log file (e.g., <logs>/note.log) */
+  /** Scoped log file (e.g., <logs>/alice/note.log) */
   log: string;
-  /** Scoped cache directory (e.g., <cache>/note/) */
+  /** Scoped cache directory (e.g., <data>/home/alice/.cache/note/) */
   cache: string;
 }
 
@@ -54,7 +54,7 @@ export interface StorageHook {
 }
 
 /**
- * Scoped filesystem access rooted at ctx.paths.data.
+ * Scoped filesystem access rooted at the authenticated user's home directory.
  * All paths resolved relative to that root.
  */
 export interface FileSystemHook {

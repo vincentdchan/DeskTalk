@@ -25,7 +25,7 @@ export function ImageViewport({ dataUrl, zoom, onZoomChange }: ImageViewportProp
   // ─── Wheel zoom ──────────────────────────────────────────────────────────
 
   const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
+    (e: WheelEvent) => {
       e.preventDefault();
       const delta = e.deltaY > 0 ? -0.1 : 0.1;
       const newZoom = Math.max(0.1, Math.min(10, zoom + delta));
@@ -33,6 +33,14 @@ export function ImageViewport({ dataUrl, zoom, onZoomChange }: ImageViewportProp
     },
     [zoom, onZoomChange],
   );
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [handleWheel]);
 
   // ─── Click-and-drag panning ──────────────────────────────────────────────
 
@@ -122,7 +130,6 @@ export function ImageViewport({ dataUrl, zoom, onZoomChange }: ImageViewportProp
     <div
       ref={containerRef}
       className={styles.viewport}
-      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}

@@ -90,38 +90,47 @@ Using `<config>`, `<data>`, `<logs>`, `<cache>` as shorthand for the platform-re
 
 <data>/
   miniapps/                    # Installed third-party MiniApp packages
-  data/
-    note/                      # @desktalk/miniapp-note file storage (ctx.fs root)
-    todo/                      # @desktalk/miniapp-todo file storage
-    file-explorer/             # @desktalk/miniapp-file-explorer file storage
-    preference/                # @desktalk/miniapp-preference file storage
-    <third-party-id>/          # Any installed MiniApp gets its own directory
-  storage/
-    note.json                  # @desktalk/miniapp-note key-value store (ctx.storage)
-    todo.json                  # @desktalk/miniapp-todo key-value store
-    file-explorer.json         # @desktalk/miniapp-file-explorer key-value store
-    preference.json            # @desktalk/miniapp-preference key-value store
-    <third-party-id>.json      # Any installed MiniApp gets its own store
+  home/
+    admin/
+      .data/
+        note/                  # @desktalk/miniapp-note private files
+        todo/
+        preference/
+        <third-party-id>/
+      .storage/
+        note.json              # @desktalk/miniapp-note key-value store (ctx.storage)
+        todo.json
+        preference.json
+        <third-party-id>.json
+      .cache/
+        note/
+        todo/
+        preference/
+        <third-party-id>/
+      documents/               # User-visible files exposed through ctx.fs
+      pictures/
 
 <logs>/
   core.log
-  note.log
-  todo.log
-  ...
+  admin/
+    note.log
+    todo.log
+    ...
 
 <cache>/
   ...                          # Temporary/regenerable data
 ```
 
-| Path                       | Purpose                                                                                                                                                                                                   | Accessed via                                              |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `<data>/data/<id>/`        | Scoped filesystem for the MiniApp. Files the MiniApp reads/writes live here.                                                                                                                              | `ctx.fs`                                                  |
-| `<data>/storage/<id>.json` | Scoped key-value store persisted as JSON.                                                                                                                                                                 | `ctx.storage`                                             |
-| `<logs>/<id>.log`          | Scoped log output.                                                                                                                                                                                        | `ctx.logger`                                              |
-| `<data>/miniapps/`         | Installed third-party MiniApp npm packages.                                                                                                                                                               | Core only                                                 |
-| `<config>/config.toml`     | Global app configuration (TOML). Managed by the core. **Only** the Preference MiniApp has write access via `ctx.config` (enforced by the core; see [Privileged Access](#privileged-access--permissions)). | Core (read/write) / Preference MiniApp (via `ctx.config`) |
+| Path                                        | Purpose                                                                                                                                                                                                   | Accessed via                                              |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `<data>/home/<username>/`                   | Scoped filesystem root for MiniApps. Paths passed to `ctx.fs` resolve relative to the authenticated user's home directory.                                                                                | `ctx.fs`                                                  |
+| `<data>/home/<username>/.data/<id>/`        | MiniApp-private data directory. The core exposes the absolute path as `ctx.paths.data`.                                                                                                                   | `ctx.paths.data`                                          |
+| `<data>/home/<username>/.storage/<id>.json` | Scoped key-value store persisted as JSON.                                                                                                                                                                 | `ctx.storage`                                             |
+| `<logs>/<username>/<id>.log`                | Scoped log output.                                                                                                                                                                                        | `ctx.logger`                                              |
+| `<data>/miniapps/`                          | Installed third-party MiniApp npm packages.                                                                                                                                                               | Core only                                                 |
+| `<config>/config.toml`                      | Global app configuration (TOML). Managed by the core. **Only** the Preference MiniApp has write access via `ctx.config` (enforced by the core; see [Privileged Access](#privileged-access--permissions)). | Core (read/write) / Preference MiniApp (via `ctx.config`) |
 
-MiniApps never know or control their absolute paths. The core creates these directories automatically when a MiniApp is first activated, and all `ctx.fs` paths are resolved relative to `<data>/data/<id>/`. This is analogous to VSCode where extensions access `context.storageUri` without knowing the underlying filesystem location.
+MiniApps never know or control other users' absolute paths. The core creates each user's home structure automatically, resolves all `ctx.fs` paths relative to `<data>/home/<username>/`, and still provides `ctx.paths.data` for the MiniApp's private directory inside that home.
 
 ### Installation
 

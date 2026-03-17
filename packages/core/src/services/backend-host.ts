@@ -8,6 +8,7 @@
  */
 
 import type { MiniAppContext, MessagingHook, Disposable } from '@desktalk/sdk';
+import { dirname } from 'node:path';
 import type { MainToChildMessage, ChildToMainMessage, ActivateMessage } from './backend-ipc';
 import { createStorageHook } from './storage';
 import { createFileSystemHook } from './filesystem';
@@ -50,6 +51,10 @@ function createChildMessagingHook(miniAppId: string): MessagingHook {
   };
 }
 
+function resolveUserHomeDir(miniAppDataDir: string): string {
+  return dirname(dirname(miniAppDataDir));
+}
+
 // ─── Message handlers ───────────────────────────────────────────────────────
 
 async function handleActivate(msg: ActivateMessage): Promise<void> {
@@ -58,7 +63,7 @@ async function handleActivate(msg: ActivateMessage): Promise<void> {
   const context: MiniAppContext = {
     paths: msg.paths,
     storage: createStorageHook(msg.paths.storage),
-    fs: createFileSystemHook(msg.paths.data),
+    fs: createFileSystemHook(resolveUserHomeDir(msg.paths.data)),
     messaging: createChildMessagingHook(msg.miniAppId),
     subscriptions: [],
     logger: createChildLogger(msg.loggerConfig, msg.miniAppId),
