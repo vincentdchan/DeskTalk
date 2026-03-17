@@ -12,7 +12,7 @@ import type { FileSystemHook, FileEntry, FileStat } from '@desktalk/sdk';
 
 /**
  * Creates a scoped filesystem hook for a MiniApp.
- * All paths are resolved relative to the MiniApp's data directory.
+ * All paths are resolved relative to the authenticated user's home directory.
  * Path traversal outside the root is prevented.
  */
 export function createFileSystemHook(rootDir: string): FileSystemHook {

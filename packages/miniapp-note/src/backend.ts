@@ -18,21 +18,32 @@ export const manifest: MiniAppManifest = {
 export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
   ctx.logger.info('Note MiniApp activated');
 
+  function joinPath(...parts: string[]): string {
+    return parts.filter(Boolean).join('/').replace(/\/+/g, '/');
+  }
+
+  function appPath(relPath = '.'): string {
+    return relPath === '.'
+      ? joinPath('.data', manifest.id)
+      : joinPath('.data', manifest.id, relPath);
+  }
+
   /**
    * Recursively collect all .md files under the given directory.
    * Returns relative paths (e.g. "work/meeting.md", "readme.md").
    */
   async function walkMarkdown(dir: string): Promise<string[]> {
-    const exists = await ctx.fs.exists(dir);
+    const exists = await ctx.fs.exists(appPath(dir));
     if (!exists) return [];
 
-    const entries = await ctx.fs.readDir(dir);
+    const entries = await ctx.fs.readDir(appPath(dir));
     const paths: string[] = [];
     for (const entry of entries) {
+      const entryPath = dir === '.' ? entry.name : joinPath(dir, entry.name);
       if (entry.type === 'directory') {
-        paths.push(...(await walkMarkdown(entry.path)));
+        paths.push(...(await walkMarkdown(entryPath)));
       } else if (entry.type === 'file' && entry.name.endsWith('.md')) {
-        paths.push(entry.path);
+        paths.push(entryPath);
       }
     }
     return paths;
@@ -53,9 +64,9 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
    * Note IDs are relative paths without the .md extension (e.g. "work/meeting").
    */
   async function scanNotes(tagFilter?: string): Promise<NoteMeta[]> {
-    const dirExists = await ctx.fs.exists('.');
+    const dirExists = await ctx.fs.exists(appPath('.'));
     if (!dirExists) {
-      await ctx.fs.mkdir('.');
+      await ctx.fs.mkdir(appPath('.'));
       return [];
     }
 
@@ -64,8 +75,8 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
 
     for (const relPath of mdPaths) {
       try {
-        const raw = await ctx.fs.readFile(relPath);
-        const stat = await ctx.fs.stat(relPath);
+        const raw = await ctx.fs.readFile(appPath(relPath));
+        const stat = await ctx.fs.stat(appPath(relPath));
         const fm = parseFrontMatter(raw);
 
         if (tagFilter && !fm.tags.includes(tagFilter)) continue;
@@ -97,8 +108,8 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
 
   ctx.messaging.onCommand<{ id: string }, Note>('notes.get', async (req) => {
     const filename = `${req.id}.md`;
-    const raw = await ctx.fs.readFile(filename);
-    const stat = await ctx.fs.stat(filename);
+    const raw = await ctx.fs.readFile(appPath(filename));
+    const stat = await ctx.fs.stat(appPath(filename));
     const fm = parseFrontMatter(raw);
     return {
       id: req.id,
@@ -126,9 +137,9 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
     const filename = `${id}.md`;
 
     const content = serializeFrontMatter(title, tags, now, body);
-    await ctx.fs.writeFile(filename, content);
+    await ctx.fs.writeFile(appPath(filename), content);
 
-    const stat = await ctx.fs.stat(filename);
+    const stat = await ctx.fs.stat(appPath(filename));
     ctx.logger.info(`Created note: ${id}`);
     return { id, title, tags, content, createdAt: now, updatedAt: stat.modifiedAt };
   });
@@ -139,9 +150,9 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
     'notes.update',
     async (req) => {
       const filename = `${req.id}.md`;
-      const existing = await ctx.fs.readFile(filename);
+      const existing = await ctx.fs.readFile(appPath(filename));
       const oldFm = parseFrontMatter(existing);
-      const stat = await ctx.fs.stat(filename);
+      const stat = await ctx.fs.stat(appPath(filename));
 
       let title: string;
       let tags: string[];
@@ -162,9 +173,9 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
 
       const created = oldFm.created ?? stat.createdAt;
       const content = serializeFrontMatter(title, tags, created, body);
-      await ctx.fs.writeFile(filename, content);
+      await ctx.fs.writeFile(appPath(filename), content);
 
-      const newStat = await ctx.fs.stat(filename);
+      const newStat = await ctx.fs.stat(appPath(filename));
       ctx.logger.info(`Updated note: ${req.id}`);
       return {
         id: req.id,
@@ -180,7 +191,7 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
   // ─── notes.delete ────────────────────────────────────────────────────────
 
   ctx.messaging.onCommand<{ id: string }, void>('notes.delete', async (req) => {
-    await ctx.fs.deleteFile(`${req.id}.md`);
+    await ctx.fs.deleteFile(appPath(`${req.id}.md`));
     ctx.logger.info(`Deleted note: ${req.id}`);
   });
 
@@ -195,10 +206,10 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
 
     for (const relPath of mdPaths) {
       try {
-        const raw = await ctx.fs.readFile(relPath);
+        const raw = await ctx.fs.readFile(appPath(relPath));
         if (!raw.toLowerCase().includes(q)) continue;
 
-        const stat = await ctx.fs.stat(relPath);
+        const stat = await ctx.fs.stat(appPath(relPath));
         const fm = parseFrontMatter(raw);
         results.push({
           id: pathToId(relPath),

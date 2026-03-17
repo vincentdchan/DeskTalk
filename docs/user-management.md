@@ -119,7 +119,7 @@ Using `<data>` as the resolved platform data path (same as current spec):
   home/                              # Per-user home directories
     admin/                           # Admin's home
       .data/
-        note/                        # MiniApp scoped filesystem (ctx.fs root)
+        note/                        # MiniApp private data (ctx.paths.data)
         todo/
         file-explorer/
         preference/
@@ -189,7 +189,7 @@ ctx.paths.data = '<data>/home/alice/.data/note/';
 ctx.paths.storage = '<data>/home/alice/.storage/note.json';
 ```
 
-MiniApps are completely unaware of multi-user — they still receive opaque absolute paths from the core. This is a core-only change.
+MiniApps are completely unaware of other users — they still receive opaque absolute paths from the core. `ctx.fs` is rooted at `<data>/home/<username>/`, while `ctx.paths.data` continues to point at the MiniApp-private directory inside that home. This is a core-only change.
 
 ### AI Sessions
 
@@ -212,12 +212,12 @@ Each MiniApp gets its own subdirectory under the user's home:
 
 ```
 <data>/home/<username>/
-  .data/<miniapp-id>/       # Scoped filesystem (ctx.fs)
+  .data/<miniapp-id>/       # MiniApp-private files (ctx.paths.data)
   .storage/<miniapp-id>.json  # Key-value store (ctx.storage)
   .cache/<miniapp-id>/      # Cache (if needed)
 ```
 
-This is the same structure as before, just nested under the user's home with dot-prefixed directory names. The dot prefix hides these core-managed directories from the File Explorer MiniApp, keeping the user's home clean. The File Explorer MiniApp's `~` root resolves to `<data>/home/<username>/` (the home directory itself, not a MiniApp-specific subfolder).
+This is the same structure as before, just nested under the user's home with dot-prefixed directory names. The dot prefix hides these core-managed directories from the File Explorer MiniApp, keeping the user's home clean. The File Explorer MiniApp's `~` root resolves to `<data>/home/<username>/` (the home directory itself, not a MiniApp-specific subfolder), and all `ctx.fs` paths are resolved relative to that home root.
 
 ## Onboard Page
 

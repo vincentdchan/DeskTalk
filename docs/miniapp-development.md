@@ -320,8 +320,8 @@ export interface MiniAppContext {
   storage: StorageHook;
 
   /**
-   * Filesystem access scoped to this MiniApp's data directory (paths.data).
-   * Analogous to VSCode's `ExtensionContext.storageUri`.
+   * Filesystem access scoped to the authenticated user's home directory.
+   * Analogous to a sandboxed home folder view.
    */
   fs: FileSystemHook;
 
@@ -360,13 +360,13 @@ The core resolves all platform-specific directories and passes them to the MiniA
 
 ```ts
 export interface MiniAppPaths {
-  /** Scoped data directory for this MiniApp (e.g., <data>/data/note/) */
+  /** Scoped data directory for this MiniApp (e.g., <data>/home/alice/.data/note/) */
   data: string;
-  /** Scoped storage file for this MiniApp (e.g., <data>/storage/note.json) */
+  /** Scoped storage file for this MiniApp (e.g., <data>/home/alice/.storage/note.json) */
   storage: string;
-  /** Scoped log file for this MiniApp (e.g., <logs>/note.log) */
+  /** Scoped log file for this MiniApp (e.g., <logs>/alice/note.log) */
   log: string;
-  /** Scoped cache directory for this MiniApp (e.g., <cache>/note/) */
+  /** Scoped cache directory for this MiniApp (e.g., <data>/home/alice/.cache/note/) */
   cache: string;
 }
 ```
@@ -388,7 +388,7 @@ interface StorageHook {
 
 ### FileSystemHook
 
-Scoped filesystem access rooted at `ctx.paths.data`. All paths passed to these methods are resolved relative to that root. The core creates the directory on first activation and prevents traversal outside it. Analogous to VSCode's `ExtensionContext.storageUri` combined with `vscode.workspace.fs`.
+Scoped filesystem access rooted at the authenticated user's home directory (`<data>/home/<username>/`). All paths passed to these methods are resolved relative to that root. The core prevents traversal outside it. Use `ctx.paths.data` when you need the absolute MiniApp-private directory (`<data>/home/<username>/.data/<miniapp-id>/`). Analogous to a sandboxed `vscode.workspace.fs` rooted at the user's DeskTalk home.
 
 ```ts
 interface FileSystemHook {
