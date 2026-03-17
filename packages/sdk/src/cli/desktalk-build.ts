@@ -43,6 +43,7 @@ interface PackageI18nManifest {
 
 interface MiniAppBuildMetadata {
   iconFile?: string;
+  settingsSchemaFile?: string;
 }
 
 function sanitizeForDomId(value: string): string {
@@ -515,13 +516,21 @@ function emitMiniAppMetadata(packageRoot: string, metadata: MiniAppBuildMetadata
 
 const packageJsonPath = join(cwd, 'package.json');
 const packageJson = existsSync(packageJsonPath)
-  ? (JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { name?: string; icon?: string })
+  ? (JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
+      name?: string;
+      icon?: string;
+      settingsSchema?: string;
+    })
   : {};
 const packageName = packageJson.name ?? 'miniapp';
 const packageScope = inferPackageScope(packageName);
 const packageIconPath =
   typeof packageJson.icon === 'string' && packageJson.icon.endsWith('.png')
     ? join(cwd, packageJson.icon)
+    : null;
+const packageSettingsSchemaPath =
+  typeof packageJson.settingsSchema === 'string' && packageJson.settingsSchema.endsWith('.json')
+    ? join(cwd, packageJson.settingsSchema)
     : null;
 
 const backendEntry = findEntry('src', ['backend.ts', 'backend.js', 'backend.mjs']);
@@ -645,10 +654,23 @@ emitI18nAssets({
   localeFiles: i18nAssets.localeFiles,
 });
 
+// Copy settings schema to dist if declared
+const settingsSchemaDistPath = 'settings-schema.json';
+if (packageSettingsSchemaPath && existsSync(packageSettingsSchemaPath)) {
+  const outDir = join(cwd, 'dist');
+  mkdirSync(outDir, { recursive: true });
+  copyFileSync(packageSettingsSchemaPath, join(outDir, settingsSchemaDistPath));
+  console.log('[desktalk-build] Copied settings schema to dist/settings-schema.json');
+}
+
 emitMiniAppMetadata(cwd, {
   iconFile:
     typeof packageJson.icon === 'string' && packageIconPath && existsSync(packageIconPath)
       ? normalizeIconPath(packageJson.icon)
+      : undefined,
+  settingsSchemaFile:
+    packageSettingsSchemaPath && existsSync(packageSettingsSchemaPath)
+      ? settingsSchemaDistPath
       : undefined,
 });
 

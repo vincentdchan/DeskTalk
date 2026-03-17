@@ -11,7 +11,13 @@ import { addClient, broadcastRaw } from '../services/messaging';
 import { registry } from '../services/miniapp-registry';
 import { processManager } from '../services/backend-process-manager';
 import { PiSessionService } from '../services/ai/pi-session-service';
-import { getStoredPreference, setPreferenceUser } from '../services/preferences';
+import {
+  getStoredPreference,
+  setPreferenceUser,
+  getMiniAppSettingsValues,
+  setStoredPreference,
+  deleteStoredPreference,
+} from '../services/preferences';
 import { loadMergedLocaleMessages } from '../services/i18n';
 import { getWorkspacePaths, getUserHomeDir, ensureUserHome } from '../services/workspace';
 import { VoiceSession } from '../services/voice/voice-session';
@@ -248,6 +254,147 @@ export async function createServer(options: ServerOptions) {
 
         if (msg.type === 'command:invoke') {
           const { miniAppId, command, requestId, data } = msg;
+
+          // ─── Intercept preferences.miniapp.* commands ────────────────────
+          // These commands operate on the registry and preference store in the
+          // main process. They cannot be handled by a child process because the
+          // registry and write-path live here.
+          if (command === 'preferences.miniapp.listSchemas') {
+            try {
+              const schemas = registry.getSettingsSchemas();
+              socket.send(JSON.stringify({ type: 'command:response', requestId, data: schemas }));
+            } catch (err) {
+              socket.send(
+                JSON.stringify({
+                  type: 'command:response',
+                  requestId,
+                  error: (err as Error).message,
+                }),
+              );
+            }
+            return;
+          }
+
+          if (command === 'preferences.miniapp.getAll') {
+            try {
+              const targetId = (data as { miniAppId?: string })?.miniAppId;
+              if (!targetId) throw new Error('Missing miniAppId');
+              const values = getMiniAppSettingsValues(targetId);
+              socket.send(JSON.stringify({ type: 'command:response', requestId, data: values }));
+            } catch (err) {
+              socket.send(
+                JSON.stringify({
+                  type: 'command:response',
+                  requestId,
+                  error: (err as Error).message,
+                }),
+              );
+            }
+            return;
+          }
+
+          if (command === 'preferences.miniapp.set') {
+            try {
+              const {
+                miniAppId: targetId,
+                key,
+                value,
+              } = data as {
+                miniAppId?: string;
+                key?: string;
+                value?: string | number | boolean;
+              };
+              if (!targetId || !key || value === undefined) {
+                throw new Error('Missing miniAppId, key, or value');
+              }
+
+              // Validate the key exists in the schema
+              const entry = registry.getEntry(targetId);
+              if (!entry?.settingsSchema?.settings[key]) {
+                throw new Error(`Unknown setting key "${key}" for MiniApp "${targetId}"`);
+              }
+
+              // Validate type
+              const def = entry.settingsSchema.settings[key];
+              if (typeof value !== def.type) {
+                throw new Error(`Expected ${def.type} for ${key}, got ${typeof value}`);
+              }
+
+              // Range validation for numbers
+              if (def.type === 'number' && typeof value === 'number') {
+                if (def.minimum !== undefined && value < def.minimum) {
+                  throw new Error(`${key} must be >= ${def.minimum}`);
+                }
+                if (def.maximum !== undefined && value > def.maximum) {
+                  throw new Error(`${key} must be <= ${def.maximum}`);
+                }
+              }
+
+              // Enum validation for strings
+              if (def.type === 'string' && def.enum && typeof value === 'string') {
+                if (!def.enum.includes(value)) {
+                  throw new Error(`${key} must be one of: ${def.enum.join(', ')}`);
+                }
+              }
+
+              // Write to the preference store under the namespaced key
+              const storeKey = `miniapps.${targetId}.${key}`;
+              setStoredPreference(storeKey, value);
+
+              // Notify the target MiniApp process about the setting change
+              const processKey = `${targetId}:${username}`;
+              processManager.sendSettingsChanged(processKey, key, value);
+
+              socket.send(JSON.stringify({ type: 'command:response', requestId, data: undefined }));
+            } catch (err) {
+              socket.send(
+                JSON.stringify({
+                  type: 'command:response',
+                  requestId,
+                  error: (err as Error).message,
+                }),
+              );
+            }
+            return;
+          }
+
+          if (command === 'preferences.miniapp.reset') {
+            try {
+              const { miniAppId: targetId, key } = data as {
+                miniAppId?: string;
+                key?: string;
+              };
+              if (!targetId || !key) {
+                throw new Error('Missing miniAppId or key');
+              }
+
+              const entry = registry.getEntry(targetId);
+              if (!entry?.settingsSchema?.settings[key]) {
+                throw new Error(`Unknown setting key "${key}" for MiniApp "${targetId}"`);
+              }
+
+              const def = entry.settingsSchema.settings[key];
+              const storeKey = `miniapps.${targetId}.${key}`;
+              deleteStoredPreference(storeKey);
+
+              // Notify the target MiniApp process with the default value
+              const processKey = `${targetId}:${username}`;
+              processManager.sendSettingsChanged(processKey, key, def.default);
+
+              socket.send(JSON.stringify({ type: 'command:response', requestId, data: undefined }));
+            } catch (err) {
+              socket.send(
+                JSON.stringify({
+                  type: 'command:response',
+                  requestId,
+                  error: (err as Error).message,
+                }),
+              );
+            }
+            return;
+          }
+
+          // ─── Generic command dispatch to child process ───────────────────
           // Build the process key scoped to the authenticated user
           const processKey = `${miniAppId}:${username}`;
           try {

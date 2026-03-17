@@ -1,0 +1,13 @@
+{
+  "$schema": "https://desktalk.dev/schemas/settings-schema-v1.json",
+  "version": 1,
+  "settings": {
+    "geminiApiKey": {
+      "type": "string",
+      "title": "Gemini API Key",
+      "description": "Google Gemini API key for AI-powered image modification features.",
+      "default": "",
+      "sensitive": true
+    }
+  }
+}

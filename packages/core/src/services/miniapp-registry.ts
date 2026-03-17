@@ -1,10 +1,14 @@
-import type { MiniAppManifest, MiniAppBackendActivation } from '@desktalk/sdk';
+import type {
+  MiniAppManifest,
+  MiniAppBackendActivation,
+  SettingsSchemaDocument,
+} from '@desktalk/sdk';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, normalize } from 'node:path';
 import type pino from 'pino';
 import { resolveMiniAppPaths } from './workspace';
-import { getStoredPreference } from './preferences';
+import { getStoredPreference, getMiniAppSettingsValues } from './preferences';
 import { processManager } from './backend-process-manager';
 
 /**
@@ -26,10 +30,13 @@ export interface MiniAppEntry {
   /** Resolved import specifier the child process can use to load the module. */
   backendPath: string;
   iconFilePath?: string;
+  /** Parsed settings schema from settings-schema.json, if declared. */
+  settingsSchema?: SettingsSchemaDocument;
 }
 
 interface MiniAppBuildMetadata {
   iconFile?: string;
+  settingsSchemaFile?: string;
 }
 
 function resolveMetadataIconPath(packageRoot: string, iconFile: string): string | undefined {
@@ -56,6 +63,26 @@ function readMiniAppMetadata(packageRoot: string): MiniAppBuildMetadata {
   }
 }
 
+function readSettingsSchema(
+  packageRoot: string,
+  schemaFile: string,
+): SettingsSchemaDocument | undefined {
+  const schemaPath = join(packageRoot, 'dist', schemaFile);
+  if (!existsSync(schemaPath)) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(schemaPath, 'utf8')) as SettingsSchemaDocument;
+    if (parsed.version !== 1 || typeof parsed.settings !== 'object') {
+      return undefined;
+    }
+    return parsed;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Registry that manages MiniApp discovery, activation, and deactivation.
  *
@@ -77,6 +104,10 @@ class MiniAppRegistry {
       typeof metadata.iconFile === 'string'
         ? resolveMetadataIconPath(packageRoot, metadata.iconFile)
         : undefined;
+    const settingsSchema =
+      typeof metadata.settingsSchemaFile === 'string'
+        ? readSettingsSchema(packageRoot, metadata.settingsSchemaFile)
+        : undefined;
     this.entries.set(manifest.id, {
       manifest: {
         ...manifest,
@@ -87,6 +118,7 @@ class MiniAppRegistry {
       packageRoot,
       backendPath,
       iconFilePath,
+      settingsSchema,
     });
   }
 
@@ -109,7 +141,19 @@ class MiniAppRegistry {
     const paths = resolveMiniAppPaths(id, username);
     const locale = String(getStoredPreference('general.language') ?? 'en');
 
-    await processManager.spawn(processKey, entry.backendPath, entry.packageRoot, paths, locale, id);
+    // Load current settings values for this MiniApp from the preference store
+    const settingsValues = entry.settingsSchema ? getMiniAppSettingsValues(id) : undefined;
+
+    await processManager.spawn(
+      processKey,
+      entry.backendPath,
+      entry.packageRoot,
+      paths,
+      locale,
+      id,
+      entry.settingsSchema,
+      settingsValues,
+    );
   }
 
   /**
@@ -147,6 +191,32 @@ class MiniAppRegistry {
    */
   getIds(): string[] {
     return Array.from(this.entries.keys());
+  }
+
+  /**
+   * Get all registered settings schemas (for the Preference MiniApp).
+   * Returns entries for MiniApps that declare a settingsSchema.
+   */
+  getSettingsSchemas(): Array<{
+    miniAppId: string;
+    miniAppName: string;
+    schema: SettingsSchemaDocument;
+  }> {
+    const result: Array<{
+      miniAppId: string;
+      miniAppName: string;
+      schema: SettingsSchemaDocument;
+    }> = [];
+    for (const [id, entry] of this.entries) {
+      if (entry.settingsSchema) {
+        result.push({
+          miniAppId: id,
+          miniAppName: entry.manifest.name,
+          schema: entry.settingsSchema,
+        });
+      }
+    }
+    return result;
   }
 }
 

@@ -13,7 +13,7 @@ import { fork, type ChildProcess } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import type { MiniAppPaths } from '@desktalk/sdk';
+import type { MiniAppPaths, SettingsSchemaDocument } from '@desktalk/sdk';
 import type pino from 'pino';
 import type { MainToChildMessage, ChildToMainMessage } from './backend-ipc';
 import type { LoggerConfig } from './logger';
@@ -87,6 +87,8 @@ class BackendProcessManager {
     paths: MiniAppPaths,
     locale: string,
     miniAppId?: string,
+    settingsSchema?: SettingsSchemaDocument,
+    settingsValues?: Record<string, string | number | boolean>,
   ): Promise<void> {
     if (this.processes.has(processKey)) {
       return; // already running
@@ -151,6 +153,8 @@ class BackendProcessManager {
       paths,
       locale,
       loggerConfig: this.loggerConfig!,
+      settingsSchema,
+      settingsValues,
     };
     child.send(activateMsg);
 
@@ -224,6 +228,22 @@ class BackendProcessManager {
   /** Check whether a child process is running for `processKey`. */
   isRunning(processKey: string): boolean {
     return this.processes.has(processKey);
+  }
+
+  /**
+   * Notify a running child process that one of its settings has changed.
+   */
+  sendSettingsChanged(processKey: string, key: string, value: string | number | boolean): void {
+    const managed = this.processes.get(processKey);
+    if (!managed || !managed.ready) {
+      return;
+    }
+    const msg: MainToChildMessage = {
+      type: 'settings:changed',
+      key,
+      value,
+    };
+    managed.child.send(msg);
   }
 
   /** Gracefully shut down every child process. */

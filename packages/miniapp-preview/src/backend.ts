@@ -123,6 +123,24 @@ function parseImageDimensions(base64: string, mimeType: string): { width: number
 export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
   ctx.logger.info('Preview MiniApp activated');
 
+  // Log whether settings are available (Gemini API key configured)
+  if (ctx.settings) {
+    ctx.settings.get<string>('geminiApiKey').then((key) => {
+      if (key) {
+        ctx.logger.info('Gemini API key is configured — image modification features available');
+      } else {
+        ctx.logger.info('No Gemini API key configured — image modification features disabled');
+      }
+    });
+
+    // React to settings changes at runtime
+    ctx.settings.onChange((change) => {
+      if (change.key === 'geminiApiKey') {
+        ctx.logger.info(change.value ? 'Gemini API key updated' : 'Gemini API key removed');
+      }
+    });
+  }
+
   /**
    * Build a PreviewFile from a file path.
    */

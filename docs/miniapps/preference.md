@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Preference MiniApp provides a settings UI for configuring DeskTalk and its window manager. It is modeled after a typical preferences/settings panel with categorized sections.
+The Preference MiniApp provides a settings UI for configuring DeskTalk and its window manager. It is modeled after a typical preferences/settings panel with categorized sections. It also serves as a **unified settings center** for all MiniApp-declared user settings.
 
 > **Privileged MiniApp.** The Preference MiniApp is the **only** MiniApp authorized to read and write the global configuration (`<config>/config.toml`). The core owns the file and handles all TOML parsing/serialization — the Preference MiniApp accesses it through the privileged `ctx.config` hook. See [`docs/spec.md` — Privileged Access & Permissions](../spec.md#privileged-access--permissions) for the full access-control model.
 
@@ -59,14 +59,22 @@ interface ConfigHook {
 ## UI Layout
 
 ```
-|-----------------------------------------|
-| Category  |                              |
-|           |  Setting Label    [Control]  |
-| General   |  Setting Label    [Control]  |
-| Server    |  Setting Label    [Control]  |
-| AI        |         ...                  |
-|-----------------------------------------|
+|--------------------------------------------|
+| Category     |                              |
+|              |  Setting Label    [Control]  |
+| General      |  Setting Label    [Control]  |
+| Server       |  Setting Label    [Control]  |
+| AI           |         ...                  |
+| Voice        |         ...                  |
+|──────────────|──────────────────────────────|
+| Mini-Apps    |                              |
+|   Note       |  Auto-save        [Toggle]   |
+|   Preview    |  API Key          [••••••]   |
+|   ...        |         ...                  |
+|--------------------------------------------|
 ```
+
+The sidebar lists global setting categories first, then a "Mini-Apps" group with a sub-entry for each MiniApp that declares a settings schema. Selecting a MiniApp shows its settings grouped by the schema's `category` field.
 
 Note: The Actions Bar is a global element managed by the core shell (see `docs/spec.md`). MiniApps register their actions via `<ActionsProvider>`, but the bar itself is not part of the MiniApp window.
 
@@ -115,6 +123,18 @@ The Preference MiniApp does not implement its own HTTP server. All backend logic
 | `preferences.reset`    | `{ key: string }`                                     | `void`                                   | Reset a single setting to its default.                                                     |
 | `preferences.resetAll` | `void`                                                | `void`                                   | Reset all settings to defaults.                                                            |
 
+#### MiniApp Settings Commands
+
+These commands manage per-MiniApp user settings. The schemas are discovered by the core from each MiniApp's `settings-schema.json` file (see [miniapp-development.md — User Settings Schema](../miniapp-development.md#user-settings-schema)).
+
+| Command                           | Request                                                                  | Response                                                                            | Description                                                          |
+| --------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `preferences.miniapp.listSchemas` | `void`                                                                   | `Array<{ miniAppId: string; miniAppName: string; schema: SettingsSchemaDocument }>` | List all registered MiniApp settings schemas.                        |
+| `preferences.miniapp.getAll`      | `{ miniAppId: string }`                                                  | `Record<string, string \| number \| boolean>`                                       | Get all settings for a MiniApp (merged with schema defaults).        |
+| `preferences.miniapp.get`         | `{ miniAppId: string, key: string }`                                     | `{ value: string \| number \| boolean }`                                            | Get a single MiniApp setting value.                                  |
+| `preferences.miniapp.set`         | `{ miniAppId: string, key: string, value: string \| number \| boolean }` | `void`                                                                              | Set a MiniApp setting. Core writes to TOML and notifies the MiniApp. |
+| `preferences.miniapp.reset`       | `{ miniAppId: string, key: string }`                                     | `void`                                                                              | Reset a MiniApp setting to its schema default.                       |
+
 ### Data Model
 
 ```ts
@@ -133,6 +153,17 @@ interface PreferenceSchema {
 
 // Runtime config is a flat key-value map
 type Config = Record<string, string | number | boolean>;
+```
+
+For MiniApp settings, the schema format is `SettingsSchemaDocument` — see [miniapp-development.md — Schema Type Definitions](../miniapp-development.md#schema-type-definitions). MiniApp settings are stored under `[miniapps.<id>]` in `config.toml`:
+
+```toml
+[miniapps.preview]
+geminiApiKey = "AIza..."
+
+[miniapps.note]
+autoSave = true
+fontSize = 16
 ```
 
 ### Security

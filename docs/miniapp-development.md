@@ -29,6 +29,7 @@ miniapp-note/
   "version": "0.1.0",
   "type": "module",
   "icon": "./icons/miniapp-note-icon.png",
+  "settingsSchema": "./settings-schema.json",
   "exports": {
     "./backend": {
       "types": "./dist/backend.d.ts",
@@ -61,6 +62,8 @@ import { activate, deactivate } from '@desktalk/miniapp-note/frontend';
 ```
 
 If `package.json` includes a top-level `icon` field pointing to a PNG file, `desktalk-build` records that file in `dist/meta.json` and the core exposes it as `manifest.iconPng` through a backend-served URL for the Dock. Keep `manifest.icon` as a text fallback for cases where the packaged image is missing.
+
+If `package.json` includes a top-level `settingsSchema` field pointing to a JSON file, the core reads and validates the schema at registration time and makes it available to the Preference MiniApp for rendering a settings UI. See [User Settings Schema](#user-settings-schema) for the full format.
 
 ### Icon config
 
@@ -420,6 +423,231 @@ function useCommand<TReq, TRes>(command: string): (data: TReq) => Promise<TRes>;
 function useEvent<T>(event: string, handler: (data: T) => void): void;
 ```
 
+## User Settings Schema
+
+MiniApps can declare user-configurable settings by providing a **settings schema** — a standalone JSON file referenced from `package.json`. The core discovers the schema at registration time, and the Preference MiniApp renders all MiniApp settings in a unified settings center. Values are stored as TOML under `[miniapps.<id>]` in the global `config.toml`.
+
+### Declaring a Schema
+
+Add a `settingsSchema` field to `package.json` pointing to a JSON file:
+
+```json
+{
+  "name": "@desktalk/miniapp-note",
+  "settingsSchema": "./settings-schema.json"
+}
+```
+
+`desktalk-build` copies the file to `dist/settings-schema.json` and records its path in `dist/meta.json`.
+
+### Schema File Format (`settings-schema.json`)
+
+```json
+{
+  "$schema": "https://desktalk.dev/schemas/settings-schema.json",
+  "version": 1,
+  "settings": {
+    "autoSave": {
+      "type": "boolean",
+      "default": true,
+      "title": "Auto-save",
+      "description": "Automatically save notes after editing.",
+      "category": "Editor",
+      "order": 1
+    },
+    "fontSize": {
+      "type": "number",
+      "default": 14,
+      "title": "Font size",
+      "description": "Editor font size in pixels.",
+      "category": "Editor",
+      "minimum": 8,
+      "maximum": 72,
+      "order": 2
+    },
+    "dateFormat": {
+      "type": "string",
+      "default": "YYYY-MM-DD",
+      "title": "Date format",
+      "description": "Display format for note dates.",
+      "category": "Display",
+      "enum": ["YYYY-MM-DD", "MM/DD/YYYY", "DD.MM.YYYY"],
+      "enumDescriptions": ["ISO format", "US format", "European format"],
+      "order": 1
+    }
+  }
+}
+```
+
+### Schema Type Definitions
+
+The `@desktalk/sdk` package exports full TypeScript types for the schema:
+
+```ts
+/** Root schema document (the JSON file contents) */
+interface SettingsSchemaDocument {
+  /** Optional JSON Schema URI for IDE validation */
+  $schema?: string;
+  /** Schema format version — always 1 for now */
+  version: 1;
+  /** Map of setting key to definition */
+  settings: Record<string, SettingDefinition>;
+}
+
+type SettingDefinition =
+  | StringSettingDefinition
+  | NumberSettingDefinition
+  | BooleanSettingDefinition;
+
+interface BaseSettingDefinition {
+  /** Human-readable label shown in Preference UI */
+  title: string;
+  /** Longer description shown below the label */
+  description: string;
+  /** Grouping category within this MiniApp's settings panel */
+  category?: string;
+  /** Sort order within the category (ascending, default 0) */
+  order?: number;
+  /** If true, value is masked in UI and omitted from broadcasts */
+  sensitive?: boolean;
+  /** If true, changing this setting requires an app restart */
+  requiresRestart?: boolean;
+  /** Deprecation notice — setting may be hidden from main view */
+  deprecationMessage?: string;
+}
+
+interface StringSettingDefinition extends BaseSettingDefinition {
+  type: 'string';
+  default: string;
+  /** Renders a dropdown instead of free-text input */
+  enum?: string[];
+  /** Human-readable labels for each enum value (parallel array) */
+  enumDescriptions?: string[];
+  /** Regex pattern for validation */
+  pattern?: string;
+  /** Maximum string length */
+  maxLength?: number;
+}
+
+interface NumberSettingDefinition extends BaseSettingDefinition {
+  type: 'number';
+  default: number;
+  minimum?: number;
+  maximum?: number;
+}
+
+interface BooleanSettingDefinition extends BaseSettingDefinition {
+  type: 'boolean';
+  default: boolean;
+}
+```
+
+### TOML Storage Layout
+
+MiniApp settings are stored under `[miniapps.<id>]` in the global `<config>/config.toml`:
+
+```toml
+# Global settings (existing)
+[general]
+theme = "dark"
+
+# MiniApp-specific settings
+[miniapps.note]
+autoSave = true
+fontSize = 16
+dateFormat = "YYYY-MM-DD"
+
+[miniapps.todo]
+showCompleted = false
+```
+
+### SettingsHook (`ctx.settings`)
+
+Each MiniApp receives a **scoped, read-only** `SettingsHook` on `ctx.settings` that can only access its own `[miniapps.<id>]` section. All writes go through the Preference MiniApp.
+
+```ts
+interface SettingsHook {
+  /** Get a single setting value. Falls back to schema default if not set. */
+  get<T extends string | number | boolean>(key: string): Promise<T>;
+  /** Get all settings for this MiniApp as a flat key-value map. */
+  getAll(): Promise<Record<string, string | number | boolean>>;
+  /**
+   * Subscribe to changes for this MiniApp's settings.
+   * Called when the Preference MiniApp writes a new value.
+   */
+  onChange(
+    handler: (change: { key: string; value: string | number | boolean }) => void,
+  ): Disposable;
+}
+```
+
+The hook is added to `MiniAppContext`:
+
+```ts
+interface MiniAppContext {
+  paths: MiniAppPaths;
+  storage: StorageHook;
+  fs: FileSystemHook;
+  messaging: MessagingHook;
+  subscriptions: Disposable[];
+  logger: Logger;
+  i18n: Localizer;
+  /** Scoped read-only access to this MiniApp's settings. Undefined if no schema declared. */
+  settings?: SettingsHook;
+  config?: ConfigHook;
+}
+```
+
+### Usage Example
+
+`settings-schema.json`:
+
+```json
+{
+  "version": 1,
+  "settings": {
+    "autoSave": {
+      "type": "boolean",
+      "default": true,
+      "title": "Auto-save",
+      "description": "Automatically save notes after editing."
+    }
+  }
+}
+```
+
+`src/backend.ts`:
+
+```ts
+export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
+  if (ctx.settings) {
+    // Read current value (falls back to schema default)
+    ctx.settings.get<boolean>('autoSave').then((autoSave) => {
+      // configure behavior
+    });
+
+    // React to changes from Preference UI
+    const sub = ctx.settings.onChange(({ key, value }) => {
+      if (key === 'autoSave') {
+        ctx.messaging.emit('settings:updated', { key, value });
+      }
+    });
+    ctx.subscriptions.push(sub);
+  }
+
+  // ... register commands, etc.
+  return {};
+}
+```
+
+### Discovery Flow
+
+1. Core reads the MiniApp's `package.json` at registration time.
+2. If `settingsSchema` is present, core resolves the JSON file path relative to the package root.
+3. Core parses and validates the schema (version check, type checks).
+4. The schema is stored alongside the `MiniAppEntry` and made available to the Preference MiniApp via `settings.listSchemas`.
+5. At activation, the core creates a scoped `SettingsHook` and injects it as `ctx.settings`.
+
 ## Build Toolchain
 
 The `@desktalk/sdk` package provides a standard build CLI: **`desktalk-build`**. MiniApp authors do not need to configure esbuild, Vite, or TypeScript output settings themselves.
@@ -445,11 +673,12 @@ Or in `package.json`:
 
 `desktalk-build` performs two code builds from the MiniApp's package root and also emits MiniApp metadata:
 
-| Output             | Source              | Target           | Format | Notes                                                                                                                                                                                                                                             |
-| ------------------ | ------------------- | ---------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/backend.js`  | `src/backend.ts`    | Node.js (es2022) | ESM    | No bundling of `node_modules` -- external dependencies are resolved at runtime.                                                                                                                                                                   |
-| `dist/frontend.js` | `src/frontend.tsx`  | Browser (es2022) | ESM    | Bundled with all non-`@desktalk/sdk` imports inlined. React/ReactDOM imports are resolved to window globals provided by the core shell. Imported CSS is compiled and injected automatically from the JS bundle. `@desktalk/sdk` remains external. |
-| `dist/meta.json`   | `package.json#icon` | N/A              | JSON   | Optional build metadata. When `package.json.icon` points to a PNG, the relative file path is recorded here so the core can serve it to the Dock UI.                                                                                               |
+| Output                      | Source                                 | Target           | Format | Notes                                                                                                                                                                                                                                             |
+| --------------------------- | -------------------------------------- | ---------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/backend.js`           | `src/backend.ts`                       | Node.js (es2022) | ESM    | No bundling of `node_modules` -- external dependencies are resolved at runtime.                                                                                                                                                                   |
+| `dist/frontend.js`          | `src/frontend.tsx`                     | Browser (es2022) | ESM    | Bundled with all non-`@desktalk/sdk` imports inlined. React/ReactDOM imports are resolved to window globals provided by the core shell. Imported CSS is compiled and injected automatically from the JS bundle. `@desktalk/sdk` remains external. |
+| `dist/meta.json`            | `package.json#icon`, `#settingsSchema` | N/A              | JSON   | Build metadata. Records the icon file path and settings schema file path so the core can discover them at registration time.                                                                                                                      |
+| `dist/settings-schema.json` | `package.json#settingsSchema`          | N/A              | JSON   | Optional. Copied from the path declared in `package.json.settingsSchema`. The core reads this at registration time to discover MiniApp settings.                                                                                                  |
 
 Both outputs include TypeScript declaration files (`*.d.ts`) and source maps.
 
@@ -458,6 +687,7 @@ Both outputs include TypeScript declaration files (`*.d.ts`) and source maps.
 - Backend source must be at `src/backend.ts` (or `.js`, `.mjs`).
 - Frontend source must be at `src/frontend.tsx` (or `.ts`, `.jsx`, `.js`).
 - Dock PNG icons are declared with the top-level `icon` field in `package.json`.
+- User settings schemas are declared with the top-level `settingsSchema` field in `package.json`.
 - CSS Modules (`*.module.css`) are supported in frontend builds and auto-injected into `dist/frontend.js`.
 - The tool reads `tsconfig.build.json` if present, otherwise uses sensible defaults.
 

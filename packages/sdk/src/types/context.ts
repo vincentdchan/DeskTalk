@@ -17,6 +17,12 @@ export interface MiniAppContext {
   logger: Logger;
   /** Localizer scoped to this MiniApp */
   i18n: Localizer;
+  /**
+   * Scoped read-only access to this MiniApp's user settings.
+   * Undefined if the MiniApp does not declare a settingsSchema in package.json.
+   * See docs/miniapp-development.md — User Settings Schema.
+   */
+  settings?: import('./settings').SettingsHook;
 }
 
 export interface Localizer {

@@ -1,4 +1,4 @@
-import type { MiniAppPaths } from '@desktalk/sdk';
+import type { MiniAppPaths, SettingsSchemaDocument } from '@desktalk/sdk';
 import type { LoggerConfig } from './logger';
 
 // ─── Main → Child Messages ──────────────────────────────────────────────────
@@ -17,6 +17,10 @@ export interface ActivateMessage {
   locale: string;
   /** Logger configuration so the child can recreate an equivalent pino instance. */
   loggerConfig: LoggerConfig;
+  /** Parsed settings schema, if the MiniApp declares one. */
+  settingsSchema?: SettingsSchemaDocument;
+  /** Current MiniApp settings values from config store. */
+  settingsValues?: Record<string, string | number | boolean>;
 }
 
 /** Forward a command:invoke from the renderer to the child. */
@@ -32,7 +36,18 @@ export interface DeactivateMessage {
   type: 'deactivate';
 }
 
-export type MainToChildMessage = ActivateMessage | CommandInvokeMessage | DeactivateMessage;
+/** Notify the child process that a setting has changed. */
+export interface SettingsChangedMessage {
+  type: 'settings:changed';
+  key: string;
+  value: string | number | boolean;
+}
+
+export type MainToChildMessage =
+  | ActivateMessage
+  | CommandInvokeMessage
+  | DeactivateMessage
+  | SettingsChangedMessage;
 
 // ─── Child → Main Messages ──────────────────────────────────────────────────
 

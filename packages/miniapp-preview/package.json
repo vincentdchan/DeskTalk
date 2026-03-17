@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "icon": "./icons/miniapp-preview-icon.png",
+  "settingsSchema": "./settings-schema.json",
   "exports": {
     "./backend": {
       "types": "./dist/backend.d.ts",

@@ -21,6 +21,15 @@ export type {
   Localizer,
   LocalizeParam,
 } from './types/context';
+export type {
+  SettingsSchemaDocument,
+  SettingDefinition,
+  BaseSettingDefinition,
+  StringSettingDefinition,
+  NumberSettingDefinition,
+  BooleanSettingDefinition,
+  SettingsHook,
+} from './types/settings';
 export type { ActionDefinition, ActionHandler, ActionParam } from './types/actions';
 export type { WindowState, WindowPosition, WindowSize } from './types/window';
 export type { LocaleMessages, LocalizeCall, I18nRuntimeValue } from './i18n/runtime';

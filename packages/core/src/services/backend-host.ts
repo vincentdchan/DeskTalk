@@ -7,7 +7,13 @@
  * then signals "ready" back to the main process.
  */
 
-import type { MiniAppContext, MessagingHook, Disposable } from '@desktalk/sdk';
+import type {
+  MiniAppContext,
+  MessagingHook,
+  Disposable,
+  SettingsHook,
+  SettingsSchemaDocument,
+} from '@desktalk/sdk';
 import { dirname } from 'node:path';
 import type { MainToChildMessage, ChildToMainMessage, ActivateMessage } from './backend-ipc';
 import { createStorageHook } from './storage';
@@ -20,6 +26,11 @@ import { createPackageLocalizer } from './i18n';
 const commandHandlers = new Map<string, (data: unknown) => Promise<unknown>>();
 let deactivateFn: (() => void) | null = null;
 let subscriptions: Disposable[] = [];
+
+/** Registered settings onChange listeners for this process. */
+const settingsChangeListeners: Array<
+  (change: { key: string; value: string | number | boolean }) => void
+> = [];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -55,10 +66,92 @@ function resolveUserHomeDir(miniAppDataDir: string): string {
   return dirname(dirname(miniAppDataDir));
 }
 
+/**
+ * Creates a scoped, read-only SettingsHook for the MiniApp.
+ * Falls back to schema defaults for unset keys.
+ */
+function createSettingsHook(
+  schema: SettingsSchemaDocument,
+  initialValues: Record<string, string | number | boolean>,
+): SettingsHook {
+  // Mutable copy — updated when settings:changed messages arrive
+  const currentValues = { ...initialValues };
+
+  return {
+    async get<T extends string | number | boolean>(key: string): Promise<T> {
+      if (key in currentValues) {
+        return currentValues[key] as T;
+      }
+      const def = schema.settings[key];
+      if (def) {
+        return def.default as T;
+      }
+      return undefined as unknown as T;
+    },
+
+    async getAll(): Promise<Record<string, string | number | boolean>> {
+      const result: Record<string, string | number | boolean> = {};
+      // Start with schema defaults
+      for (const [key, def] of Object.entries(schema.settings) as Array<
+        [string, { default: string | number | boolean }]
+      >) {
+        result[key] = def.default;
+      }
+      // Override with stored values
+      Object.assign(result, currentValues);
+      return result;
+    },
+
+    onChange(
+      handler: (change: { key: string; value: string | number | boolean }) => void,
+    ): Disposable {
+      settingsChangeListeners.push(handler);
+      return {
+        dispose() {
+          const idx = settingsChangeListeners.indexOf(handler);
+          if (idx >= 0) {
+            settingsChangeListeners.splice(idx, 1);
+          }
+        },
+      };
+    },
+  };
+}
+
+/**
+ * Handle a settings:changed message from the main process.
+ * Updates the local cache and notifies listeners.
+ */
+function handleSettingsChanged(key: string, value: string | number | boolean): void {
+  // Update is handled via closure in the SettingsHook — we need a reference
+  // to the currentValues object. We solve this by keeping a module-level ref.
+  if (settingsCurrentValues) {
+    settingsCurrentValues[key] = value;
+  }
+  for (const listener of settingsChangeListeners) {
+    try {
+      listener({ key, value });
+    } catch {
+      // Swallow listener errors
+    }
+  }
+}
+
+/** Module-level reference to the current settings values for mutation. */
+let settingsCurrentValues: Record<string, string | number | boolean> | null = null;
+
 // ─── Message handlers ───────────────────────────────────────────────────────
 
 async function handleActivate(msg: ActivateMessage): Promise<void> {
   const mod = await import(msg.backendPath);
+
+  // Create the settings hook if this MiniApp declares a schema
+  let settingsHook: SettingsHook | undefined;
+  if (msg.settingsSchema) {
+    const initialValues = msg.settingsValues ?? {};
+    settingsCurrentValues = initialValues;
+    settingsHook = createSettingsHook(msg.settingsSchema, initialValues);
+  }
 
   const context: MiniAppContext = {
     paths: msg.paths,
@@ -72,6 +165,7 @@ async function handleActivate(msg: ActivateMessage): Promise<void> {
       defaultScope: msg.miniAppId,
       locale: msg.locale,
     }),
+    settings: settingsHook,
   };
 
   subscriptions = context.subscriptions;
@@ -129,6 +223,9 @@ process.on('message', async (msg: MainToChildMessage) => {
         break;
       case 'deactivate':
         handleDeactivate();
+        break;
+      case 'settings:changed':
+        handleSettingsChanged(msg.key, msg.value);
         break;
     }
   } catch (err) {
