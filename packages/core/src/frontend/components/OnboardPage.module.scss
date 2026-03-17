@@ -1,10 +1,55 @@
+/* Isolated color system for Onboarding - derived from #4682da */
+/* OKLCH values: L=0.6091, C=0.1481, H=258.01 */
+
 .page {
+  /* Layer 1 - Primitives */
+  --onb-accent-h: 258.01;
+  --onb-accent-c: 0.1481;
+  --onb-accent-l: 0.6091;
+
+  /* Page background is exactly #4682da */
+  --onb-bg: #4682da;
+
+  /* Card uses bright/white background - light mode scale */
+  --onb-card-bg: oklch(0.98 0.005 var(--onb-accent-h));
+  --onb-card-bg-subtle: oklch(0.94 0.01 var(--onb-accent-h));
+  --onb-card-bg-hover: oklch(0.88 0.015 var(--onb-accent-h));
+
+  /* Text on bright card (dark colors for readability) */
+  --onb-text: oklch(0.12 0.05 var(--onb-accent-h));
+  --onb-text-secondary: oklch(0.4 0.03 var(--onb-accent-h));
+  --onb-text-muted: oklch(0.5 0.025 var(--onb-accent-h));
+  --onb-text-on-accent: oklch(0.98 0.005 var(--onb-accent-h));
+
+  /* Accent (the main color #4682da and its variants) */
+  --onb-accent: oklch(var(--onb-accent-l) var(--onb-accent-c) var(--onb-accent-h));
+  --onb-accent-hover: oklch(
+    calc(var(--onb-accent-l) - 0.05) var(--onb-accent-c) var(--onb-accent-h)
+  );
+  --onb-accent-active: oklch(
+    calc(var(--onb-accent-l) - 0.1) var(--onb-accent-c) var(--onb-accent-h)
+  );
+  --onb-accent-subtle: oklch(var(--onb-accent-l) var(--onb-accent-c) var(--onb-accent-h) / 0.15);
+  --onb-accent-ghost: oklch(var(--onb-accent-l) var(--onb-accent-c) var(--onb-accent-h) / 0.08);
+
+  /* Border colors for the card */
+  --onb-border: oklch(0.8 0.02 var(--onb-accent-h));
+  --onb-border-subtle: oklch(0.88 0.015 var(--onb-accent-h) / 0.6);
+  --onb-border-strong: oklch(0.7 0.025 var(--onb-accent-h));
+
+  /* Status */
+  --onb-danger: oklch(0.55 0.2 25);
+
+  /* Card shadow using the page background color */
+  --onb-shadow-color: oklch(0.12 0.05 var(--onb-accent-h) / 0.25);
+
+  /* Page layout */
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100vw;
   height: 100vh;
-  background: var(--dt-wallpaper) center / cover no-repeat;
+  background: var(--onb-bg);
 }
 
 .card {
@@ -12,11 +57,10 @@
   flex-direction: column;
   gap: 24px;
   padding: 40px 36px 36px;
-  background: var(--dt-glass);
-  backdrop-filter: blur(24px);
-  border: 1px solid var(--dt-glass-border);
+  background: var(--onb-card-bg);
+  border: 1px solid var(--onb-border-subtle);
   border-radius: 16px;
-  box-shadow: 0 8px 32px var(--dt-shadow-color);
+  box-shadow: 0 12px 48px var(--onb-shadow-color);
   width: 420px;
   max-width: 90vw;
 }
@@ -28,13 +72,13 @@
 .title {
   font-size: 22px;
   font-weight: 700;
-  color: var(--dt-text);
+  color: var(--onb-text);
   margin-bottom: 4px;
 }
 
 .subtitle {
   font-size: 14px;
-  color: var(--dt-text-secondary);
+  color: var(--onb-text-secondary);
 }
 
 .stepIndicator {
@@ -47,18 +91,18 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--dt-border);
+  background: var(--onb-border);
   transition: background 0.2s ease;
 }
 
 .dotActive {
   composes: dot;
-  background: var(--dt-accent);
+  background: var(--onb-accent);
 }
 
 .dotCompleted {
   composes: dot;
-  background: var(--dt-accent-subtle);
+  background: var(--onb-accent-subtle);
 }
 
 .body {
@@ -76,7 +120,7 @@
 .label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--dt-text-secondary);
+  color: var(--onb-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -85,19 +129,22 @@
   padding: 10px 12px;
   font-size: 14px;
   font-family: var(--font-sans);
-  color: var(--dt-text);
-  background: var(--dt-surface);
-  border: 1px solid var(--dt-border);
+  color: var(--onb-text);
+  background: var(--onb-card-bg-subtle);
+  border: 1px solid var(--onb-border);
   border-radius: var(--border-radius);
   outline: none;
-  transition: border-color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 
   &:focus {
-    border-color: var(--dt-accent);
+    border-color: var(--onb-accent);
+    background: oklch(1 0 var(--onb-accent-h));
   }
 
   &::placeholder {
-    color: var(--dt-text-muted);
+    color: var(--onb-text-muted);
   }
 }
 
@@ -105,17 +152,20 @@
   padding: 10px 12px;
   font-size: 14px;
   font-family: var(--font-sans);
-  color: var(--dt-text);
-  background: var(--dt-surface);
-  border: 1px solid var(--dt-border);
+  color: var(--onb-text);
+  background: var(--onb-card-bg-subtle);
+  border: 1px solid var(--onb-border);
   border-radius: var(--border-radius);
   outline: none;
   cursor: pointer;
   appearance: none;
-  transition: border-color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 
   &:focus {
-    border-color: var(--dt-accent);
+    border-color: var(--onb-accent);
+    background: oklch(1 0 var(--onb-accent-h));
   }
 }
 
@@ -130,26 +180,28 @@
   font-size: 14px;
   font-weight: 500;
   font-family: var(--font-sans);
-  color: var(--dt-text-secondary);
-  background: var(--dt-surface);
-  border: 1px solid var(--dt-border);
+  color: var(--onb-text-secondary);
+  background: var(--onb-card-bg-subtle);
+  border: 1px solid var(--onb-border);
   border-radius: var(--border-radius);
   cursor: pointer;
   text-align: center;
   transition:
     border-color 0.15s ease,
-    color 0.15s ease;
+    color 0.15s ease,
+    background 0.15s ease;
 
   &:hover {
-    border-color: var(--dt-border-strong);
+    border-color: var(--onb-border-strong);
+    background: var(--onb-card-bg-hover);
   }
 }
 
 .themeOptionActive {
   composes: themeOption;
-  color: var(--dt-text);
-  border-color: var(--dt-accent);
-  background: var(--dt-accent-ghost);
+  color: var(--onb-accent);
+  border-color: var(--onb-accent);
+  background: var(--onb-accent-ghost);
 }
 
 .footer {
@@ -163,9 +215,9 @@
   font-size: 14px;
   font-weight: 500;
   font-family: var(--font-sans);
-  color: var(--dt-text-secondary);
+  color: var(--onb-text-secondary);
   background: transparent;
-  border: 1px solid var(--dt-border);
+  border: 1px solid var(--onb-border);
   border-radius: var(--border-radius);
   cursor: pointer;
   transition:
@@ -173,8 +225,9 @@
     color 0.15s ease;
 
   &:hover:not(:disabled) {
-    background: var(--dt-surface-hover);
-    color: var(--dt-text);
+    background: var(--onb-card-bg-hover);
+    color: var(--onb-text);
+    border-color: var(--onb-border-strong);
   }
 
   &:disabled {
@@ -188,8 +241,8 @@
   font-size: 14px;
   font-weight: 600;
   font-family: var(--font-sans);
-  color: var(--dt-text-on-accent);
-  background: var(--dt-accent);
+  color: var(--onb-text-on-accent);
+  background: var(--onb-accent);
   border: none;
   border-radius: var(--border-radius);
   cursor: pointer;
@@ -197,11 +250,11 @@
   margin-left: auto;
 
   &:hover:not(:disabled) {
-    background: var(--dt-accent-hover);
+    background: var(--onb-accent-hover);
   }
 
   &:active:not(:disabled) {
-    background: var(--dt-accent-active);
+    background: var(--onb-accent-active);
   }
 
   &:disabled {
@@ -212,7 +265,7 @@
 
 .error {
   font-size: 13px;
-  color: var(--dt-danger);
+  color: var(--onb-danger);
   text-align: center;
   min-height: 1.4em;
 }
@@ -220,14 +273,14 @@
 .welcomeText {
   font-size: 14px;
   line-height: 1.6;
-  color: var(--dt-text-secondary);
+  color: var(--onb-text-secondary);
   text-align: center;
 }
 
 .hintText {
   font-size: 13px;
   line-height: 1.5;
-  color: var(--dt-text-secondary);
+  color: var(--onb-text-secondary);
   text-align: center;
   margin: 0;
 }
@@ -235,7 +288,7 @@
 .doneText {
   font-size: 15px;
   line-height: 1.6;
-  color: var(--dt-text);
+  color: var(--onb-text);
   text-align: center;
 }
 
