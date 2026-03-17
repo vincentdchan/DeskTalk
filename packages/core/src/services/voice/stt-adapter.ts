@@ -22,9 +22,10 @@ export interface SttAdapter {
    *
    * @param audioBuffer - Raw PCM s16le audio at 16kHz mono
    * @param sampleRate - Sample rate (always 16000 for v1)
+   * @param language - Optional ISO-639-1 language code (e.g. 'en', 'zh') to hint the STT engine
    * @returns Transcript result
    */
-  transcribe(audioBuffer: Buffer, sampleRate: number): Promise<SttTranscript>;
+  transcribe(audioBuffer: Buffer, sampleRate: number, language?: string): Promise<SttTranscript>;
 
   /**
    * Clean up any resources held by the adapter.

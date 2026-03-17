@@ -21,7 +21,11 @@ export class OpenAIWhisperAdapter implements SttAdapter {
     this.baseUrl = options.baseUrl ?? 'https://api.openai.com/v1';
   }
 
-  async transcribe(audioBuffer: Buffer, sampleRate: number): Promise<SttTranscript> {
+  async transcribe(
+    audioBuffer: Buffer,
+    sampleRate: number,
+    language?: string,
+  ): Promise<SttTranscript> {
     const wavBuffer = createWavBuffer(audioBuffer, sampleRate);
     const durationMs = Math.round((audioBuffer.length / 2 / sampleRate) * 1000);
 
@@ -42,6 +46,16 @@ export class OpenAIWhisperAdapter implements SttAdapter {
         `--${boundary}\r\nContent-Disposition: form-data; name="response_format"\r\n\r\njson\r\n`,
       ),
     );
+    console.log("Language:", language);
+
+    // language field (ISO-639-1 code, e.g. 'en', 'zh')
+    if (language) {
+      parts.push(
+        Buffer.from(
+          `--${boundary}\r\nContent-Disposition: form-data; name="language"\r\n\r\n${language}\r\n`,
+        ),
+      );
+    }
 
     // file field
     parts.push(

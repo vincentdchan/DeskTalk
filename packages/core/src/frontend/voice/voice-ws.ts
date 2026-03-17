@@ -88,7 +88,7 @@ export class VoiceWebSocketClient {
   /**
    * Start a voice session.
    */
-  startSession(sessionId: string, sampleRate = 16000): void {
+  startSession(sessionId: string, sampleRate = 16000, language?: string): void {
     this.sessionId = sessionId;
     this.sendControl({
       type: 'session.start',
@@ -96,6 +96,7 @@ export class VoiceWebSocketClient {
       format: 'pcm_s16le',
       sampleRate,
       channels: 1,
+      ...(language ? { language } : {}),
     });
   }
 

@@ -24,6 +24,8 @@ export interface VoiceSessionConfig {
   channels: number;
   format: string;
   vad?: Partial<VadConfig>;
+  /** ISO-639-1 language code (e.g. 'en', 'zh') to hint the STT engine */
+  language?: string;
 }
 
 export interface TranscriptEntry {
@@ -119,6 +121,7 @@ export class VoiceSession {
         const transcript = await this.sttAdapter.transcribe(
           finalizedUtterance,
           this.config.sampleRate,
+          this.config.language,
         );
 
         const entry: TranscriptEntry = {

@@ -493,6 +493,10 @@ export async function createServer(options: ServerOptions) {
         const channels = (msg.channels as number) ?? 1;
         const format = (msg.format as string) ?? 'pcm_s16le';
 
+        // Language: prefer client-provided value, fall back to general.language preference
+        const prefLanguage = (await getPreference('general.language')) as string | undefined;
+        const language = (msg.language as string | undefined) ?? prefLanguage;
+
         const adapter = await createSttAdapter();
         if (!adapter) {
           socket.send(
@@ -518,12 +522,16 @@ export async function createServer(options: ServerOptions) {
             channels,
             format,
             vad: vadConfig,
+            language,
           },
           voiceLog.child({ sessionId }),
         );
         voiceSessions.set(sessionId, session);
 
-        voiceLog.info({ sessionId, format, sampleRate, channels }, 'voice session started');
+        voiceLog.info(
+          { sessionId, format, sampleRate, channels, language },
+          'voice session started',
+        );
 
         socket.send(
           JSON.stringify({

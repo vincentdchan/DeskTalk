@@ -31,7 +31,11 @@ export class AzureOpenAIWhisperAdapter implements SttAdapter {
     this.apiVersion = options.apiVersion ?? '2024-06-01';
   }
 
-  async transcribe(audioBuffer: Buffer, sampleRate: number): Promise<SttTranscript> {
+  async transcribe(
+    audioBuffer: Buffer,
+    sampleRate: number,
+    language?: string,
+  ): Promise<SttTranscript> {
     const wavBuffer = createWavBuffer(audioBuffer, sampleRate);
     const durationMs = Math.round((audioBuffer.length / 2 / sampleRate) * 1000);
     const boundary = `----DeskTalkBoundary${Date.now()}`;
@@ -42,6 +46,16 @@ export class AzureOpenAIWhisperAdapter implements SttAdapter {
         `--${boundary}\r\nContent-Disposition: form-data; name="response_format"\r\n\r\njson\r\n`,
       ),
     );
+
+    // language field (ISO-639-1 code, e.g. 'en', 'zh')
+    if (language) {
+      parts.push(
+        Buffer.from(
+          `--${boundary}\r\nContent-Disposition: form-data; name="language"\r\n\r\n${language}\r\n`,
+        ),
+      );
+    }
+
     parts.push(
       Buffer.from(
         `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="audio.wav"\r\nContent-Type: audio/wav\r\n\r\n`,
