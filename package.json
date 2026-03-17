@@ -32,7 +32,8 @@
     "onlyBuiltDependencies": [
       "esbuild",
       "better-sqlite3",
-      "node-pty"
+      "node-pty",
+      "sharp"
     ],
     "ignoredBuiltDependencies": [
       "@parcel/watcher",
