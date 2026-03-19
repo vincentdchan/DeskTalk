@@ -10,7 +10,7 @@ import { FileActions } from './components/FileActions';
 import { ContextMenu, type ContextMenuAction } from './components/ContextMenu';
 import styles from './FileExplorerApp.module.css';
 
-const PREVIEW_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const PREVIEW_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'text/html']);
 
 function isPreviewable(entry: FileEntry): boolean {
   return entry.type === 'file' && entry.mimeType !== null && PREVIEW_MIME_TYPES.has(entry.mimeType);

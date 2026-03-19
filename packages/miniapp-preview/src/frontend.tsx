@@ -1,37 +1,140 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { MiniAppFrontendContext } from '@desktalk/sdk';
-import {
-  useCommand,
-  useWindowArgsUpdated,
-  MiniAppIdProvider,
-  WindowIdProvider,
-} from '@desktalk/sdk';
-import type { PreviewFile, SiblingList } from './types';
+import { useCommand, useEvent, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
+import { useWindowId } from '@desktalk/sdk';
+import type {
+  PreviewFile,
+  HtmlPreviewFile,
+  PreviewMode,
+  SiblingList,
+  PreviewBridgeExecPayload,
+  PreviewBridgeExecResponse,
+  PreviewBridgeGetStatePayload,
+  PreviewBridgeRequestMessage,
+  PreviewBridgeResponseMessage,
+} from './types';
 import { PreviewToolbar } from './components/PreviewToolbar';
 import { ImageViewport } from './components/ImageViewport';
+import { HtmlViewport } from './components/HtmlViewport';
 import { PreviewActions } from './components/PreviewActions';
+import { BridgeConfirmDialog } from './components/BridgeConfirmDialog';
 import styles from './PreviewApp.module.css';
+
+function requestCoreBridgeState(selector: PreviewBridgeGetStatePayload['selector']): unknown {
+  let result: unknown;
+  let error: Error | null = null;
+  let resolved = false;
+
+  window.dispatchEvent(
+    new CustomEvent('desktalk:bridge:get-state', {
+      detail: {
+        selector,
+        resolve: (value: unknown) => {
+          resolved = true;
+          result = value;
+        },
+        reject: (message: string) => {
+          error = new Error(message);
+        },
+      },
+    }),
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  if (!resolved) {
+    throw new Error('DeskTalk core state bridge is unavailable.');
+  }
+
+  return result;
+}
 
 const ZOOM_STEP = 0.25;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 10;
 
-function PreviewApp({ initialPath }: { initialPath?: string }) {
-  // ─── State ───────────────────────────────────────────────────────────────
+// ─── Mode detection ──────────────────────────────────────────────────────────
+
+function detectMode(args?: Record<string, unknown>): PreviewMode {
+  if (args?.streamId && typeof args.streamId === 'string') return 'stream';
+  if (typeof args?.path === 'string') {
+    const ext = args.path.toLowerCase();
+    if (ext.endsWith('.html') || ext.endsWith('.htm')) return 'html';
+  }
+  return 'image';
+}
+
+// ─── Main component ──────────────────────────────────────────────────────────
+
+function PreviewApp({
+  initialPath,
+  mode,
+  streamId,
+  streamTitle,
+  bridgeToken,
+}: {
+  initialPath?: string;
+  mode: PreviewMode;
+  streamId?: string;
+  streamTitle?: string;
+  bridgeToken?: string;
+}) {
+  const windowId = useWindowId();
+  // ─── Image-mode state ───────────────────────────────────────────────────
   const [currentFile, setCurrentFile] = useState<PreviewFile | null>(null);
   const [siblings, setSiblings] = useState<SiblingList | null>(null);
   const [zoom, setZoom] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  // ─── Backend commands ────────────────────────────────────────────────────
+  // ─── HTML-file mode state ───────────────────────────────────────────────
+  const [htmlFile, setHtmlFile] = useState<HtmlPreviewFile | null>(null);
+
+  // ─── Stream mode state ──────────────────────────────────────────────────
+  const [streamHtml, setStreamHtml] = useState('');
+  const [streaming, setStreaming] = useState(mode === 'stream');
+  const [pendingBridgeConfirm, setPendingBridgeConfirm] = useState<{
+    confirmationRequestId: string;
+    bridgeRequestId: string;
+    commandPreview: string;
+    cwd: string;
+    reason: string;
+    respond: (response: PreviewBridgeResponseMessage) => void;
+  } | null>(null);
+
+  // ─── Backend commands ───────────────────────────────────────────────────
   const openFile = useCommand<{ path: string }, PreviewFile>('preview.open');
+  const openHtmlFile = useCommand<{ path: string }, HtmlPreviewFile>('preview.open-html');
   const getSiblings = useCommand<{ path: string }, SiblingList>('preview.siblings');
   const nextFile = useCommand<{ currentPath: string }, PreviewFile>('preview.next');
   const previousFile = useCommand<{ currentPath: string }, PreviewFile>('preview.previous');
+  const registerBridgeSession = useCommand<{ streamId: string; token: string }, void>(
+    'preview.bridge.registerSession',
+  );
+  const execBridgeCommand = useCommand<PreviewBridgeExecPayload, PreviewBridgeExecResponse>(
+    'preview.bridge.exec',
+  );
+  const confirmBridgeCommand = useCommand<
+    { requestId: string; confirmed: boolean },
+    PreviewBridgeExecResponse
+  >('preview.bridge.exec.confirm');
 
-  // ─── Load file and siblings ──────────────────────────────────────────────
+  // ─── Stream event listeners ─────────────────────────────────────────────
+
+  useEvent<{ streamId: string; chunk: string }>('preview.html-chunk', (data) => {
+    if (mode !== 'stream' || data.streamId !== streamId) return;
+    setStreamHtml((prev) => prev + data.chunk);
+  });
+
+  useEvent<{ streamId: string }>('preview.html-done', (data) => {
+    if (mode !== 'stream' || data.streamId !== streamId) return;
+    setStreaming(false);
+  });
+
+  // ─── Load file on mount ─────────────────────────────────────────────────
 
   const handleFileOpened = useCallback(
     (file: PreviewFile) => {
@@ -43,26 +146,30 @@ function PreviewApp({ initialPath }: { initialPath?: string }) {
     [getSiblings],
   );
 
-  // Auto-open the file specified by launch arguments
   useEffect(() => {
     if (!initialPath) return;
-    openFile({ path: initialPath }).then(handleFileOpened).catch(console.error);
+
+    if (mode === 'html') {
+      openHtmlFile({ path: initialPath })
+        .then(setHtmlFile)
+        .catch((err) => setError(String(err)));
+    } else if (mode === 'image') {
+      openFile({ path: initialPath }).then(handleFileOpened).catch(console.error);
+    }
+    // Stream mode doesn't load a file — it waits for events
   }, []);
 
-  // Handle updated args when the shell reuses this window with a new file
-  useWindowArgsUpdated(
-    useCallback(
-      (args: Record<string, unknown>) => {
-        const path = typeof args.path === 'string' ? args.path : undefined;
-        if (path) {
-          openFile({ path }).then(handleFileOpened).catch(console.error);
-        }
-      },
-      [openFile, handleFileOpened],
-    ),
-  );
+  useEffect(() => {
+    if (mode !== 'stream' || !streamId || !bridgeToken) {
+      return;
+    }
 
-  // ─── Zoom controls ──────────────────────────────────────────────────────
+    void registerBridgeSession({ streamId, token: bridgeToken }).catch((error) => {
+      console.error('Failed to register preview bridge session:', error);
+    });
+  }, [bridgeToken, mode, registerBridgeSession, streamId]);
+
+  // ─── Zoom controls (image mode only) ───────────────────────────────────
 
   const handleZoomIn = useCallback(() => {
     setZoom((z) => Math.min(MAX_ZOOM, z + ZOOM_STEP));
@@ -92,10 +199,9 @@ function PreviewApp({ initialPath }: { initialPath?: string }) {
     setZoom(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom)));
   }, []);
 
-  // ─── Pan (from actions) ──────────────────────────────────────────────────
+  // ─── Pan (from actions) ─────────────────────────────────────────────────
 
   const handlePan = useCallback((direction: string) => {
-    // Delegate to the viewport's panInDirection method
     const container = document.querySelector('[data-preview-viewport]');
     if (container) {
       const el = container as HTMLDivElement & { panInDirection?: (d: string) => void };
@@ -103,7 +209,7 @@ function PreviewApp({ initialPath }: { initialPath?: string }) {
     }
   }, []);
 
-  // ─── Navigation ──────────────────────────────────────────────────────────
+  // ─── Navigation (image mode) ────────────────────────────────────────────
 
   const handleNext = useCallback(async () => {
     if (!currentFile) return;
@@ -131,11 +237,12 @@ function PreviewApp({ initialPath }: { initialPath?: string }) {
     }
   }, [currentFile, previousFile, getSiblings]);
 
-  // ─── Keyboard shortcuts ──────────────────────────────────────────────────
+  // ─── Keyboard shortcuts (image mode only) ──────────────────────────────
 
   useEffect(() => {
+    if (mode !== 'image') return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       switch (e.key) {
@@ -157,19 +264,176 @@ function PreviewApp({ initialPath }: { initialPath?: string }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleZoomIn, handleZoomOut, handleFitToWindow]);
+  }, [mode, handleZoomIn, handleZoomOut, handleFitToWindow]);
 
-  // ─── Derived state ──────────────────────────────────────────────────────
+  // ─── Derived state ─────────────────────────────────────────────────────
 
   const canGoPrev = siblings !== null && siblings.files.length > 1;
   const canGoNext = siblings !== null && siblings.files.length > 1;
   const zoomPercent = Math.round(zoom * 100);
 
-  // ─── Render ──────────────────────────────────────────────────────────────
+  // ─── Determine display title ───────────────────────────────────────────
+
+  const displayTitle =
+    mode === 'stream'
+      ? (streamTitle ?? 'HTML Preview')
+      : mode === 'html'
+        ? (htmlFile?.name ?? 'Loading...')
+        : (currentFile?.name ?? '');
+
+  const resolveBridgeState = useCallback(
+    (payload: PreviewBridgeGetStatePayload): unknown => {
+      switch (payload.selector) {
+        case 'desktop.summary':
+        case 'desktop.windows':
+        case 'desktop.focusedWindow':
+        case 'theme.current':
+          return requestCoreBridgeState(payload.selector);
+        case 'preview.context':
+          return {
+            windowId,
+            mode,
+            streamId: streamId ?? null,
+            title: displayTitle,
+            path: initialPath ?? null,
+          };
+        default:
+          throw new Error(`Unsupported DeskTalk bridge selector: ${String(payload.selector)}`);
+      }
+    },
+    [displayTitle, initialPath, mode, streamId, windowId],
+  );
+
+  const respondToBridgeRequest = useCallback(
+    (
+      request: PreviewBridgeRequestMessage,
+      respond: (response: PreviewBridgeResponseMessage) => void,
+    ) => {
+      const reply = (
+        payload: Omit<PreviewBridgeResponseMessage, 'type' | 'streamId' | 'token' | 'requestId'>,
+      ) => {
+        respond({
+          type: 'desktalk:bridge-response',
+          streamId: request.streamId,
+          token: request.token,
+          requestId: request.requestId,
+          ...payload,
+        });
+      };
+
+      if (mode !== 'stream' || !streamId || !bridgeToken) {
+        reply({
+          ok: false,
+          error: 'DeskTalk bridge is only available for generated HTML previews.',
+        });
+        return;
+      }
+
+      if (request.streamId !== streamId || request.token !== bridgeToken) {
+        reply({ ok: false, error: 'DeskTalk bridge token mismatch.' });
+        return;
+      }
+
+      if (request.kind === 'getState') {
+        try {
+          reply({
+            ok: true,
+            result: resolveBridgeState(request.payload as PreviewBridgeGetStatePayload),
+          });
+        } catch (error) {
+          reply({ ok: false, error: (error as Error).message });
+        }
+        return;
+      }
+
+      if (request.kind !== 'exec') {
+        reply({ ok: false, error: `Unsupported DeskTalk bridge request: ${request.kind}` });
+        return;
+      }
+
+      if (pendingBridgeConfirm) {
+        reply({ ok: false, error: 'A command confirmation is already waiting for user input.' });
+        return;
+      }
+
+      void execBridgeCommand({
+        ...(request.payload as Omit<PreviewBridgeExecPayload, 'streamId' | 'token'>),
+        streamId,
+        token: bridgeToken,
+      })
+        .then((result) => {
+          if (result.status === 'completed') {
+            reply({ ok: true, result: result.result });
+            return;
+          }
+
+          if (result.status === 'requires_confirmation') {
+            setPendingBridgeConfirm({
+              confirmationRequestId: result.requestId,
+              bridgeRequestId: request.requestId,
+              commandPreview: result.commandPreview,
+              cwd: result.cwd,
+              reason: result.reason,
+              respond,
+            });
+            return;
+          }
+
+          reply({ ok: false, error: result.reason });
+        })
+        .catch((error) => {
+          reply({ ok: false, error: (error as Error).message });
+        });
+    },
+    [bridgeToken, execBridgeCommand, mode, pendingBridgeConfirm, resolveBridgeState, streamId],
+  );
+
+  const handleBridgeConfirmation = useCallback(
+    async (confirmed: boolean) => {
+      if (!pendingBridgeConfirm || !streamId || !bridgeToken) return;
+
+      const respond = pendingBridgeConfirm.respond;
+      const requestId = pendingBridgeConfirm.bridgeRequestId;
+      const token = bridgeToken;
+      const currentStreamId = streamId;
+      const confirmationRequestId = pendingBridgeConfirm.confirmationRequestId;
+      setPendingBridgeConfirm(null);
+
+      try {
+        const result = await confirmBridgeCommand({
+          requestId: confirmationRequestId,
+          confirmed,
+        });
+
+        respond({
+          type: 'desktalk:bridge-response',
+          streamId: currentStreamId,
+          token,
+          requestId,
+          ok: result.status === 'completed',
+          result: result.status === 'completed' ? result.result : undefined,
+          error: result.status === 'completed' ? undefined : result.reason,
+        });
+      } catch (error) {
+        respond({
+          type: 'desktalk:bridge-response',
+          streamId: currentStreamId,
+          token,
+          requestId,
+          ok: false,
+          error: (error as Error).message,
+        });
+      }
+    },
+    [bridgeToken, confirmBridgeCommand, pendingBridgeConfirm, streamId],
+  );
+
+  // ─── Render ─────────────────────────────────────────────────────────────
 
   return (
     <PreviewActions
       currentFile={currentFile}
+      mode={mode}
       onFileOpened={handleFileOpened}
       onZoomIn={handleZoomIn}
       onZoomOut={handleZoomOut}
@@ -180,40 +444,80 @@ function PreviewApp({ initialPath }: { initialPath?: string }) {
       onNext={handleNext}
     >
       <div className={styles.root}>
-        {currentFile ? (
-          <>
-            <PreviewToolbar
-              filename={currentFile.name}
-              zoomPercent={zoomPercent}
-              canGoPrev={canGoPrev}
-              canGoNext={canGoNext}
-              onZoomIn={handleZoomIn}
-              onZoomOut={handleZoomOut}
-              onFitToWindow={handleFitToWindow}
-              onActualSize={handleActualSize}
-              onPrevious={handlePrevious}
-              onNext={handleNext}
-            />
-            <div
-              ref={viewportRef}
-              data-preview-viewport=""
-              style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}
-            >
-              <ImageViewport
-                dataUrl={currentFile.dataUrl}
-                zoom={zoom}
-                onZoomChange={handleZoomChange}
+        {mode === 'image' ? (
+          currentFile ? (
+            <>
+              <PreviewToolbar
+                filename={currentFile.name}
+                mode="image"
+                zoomPercent={zoomPercent}
+                canGoPrev={canGoPrev}
+                canGoNext={canGoNext}
+                onZoomIn={handleZoomIn}
+                onZoomOut={handleZoomOut}
+                onFitToWindow={handleFitToWindow}
+                onActualSize={handleActualSize}
+                onPrevious={handlePrevious}
+                onNext={handleNext}
               />
+              <div
+                ref={viewportRef}
+                data-preview-viewport=""
+                style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}
+              >
+                <ImageViewport
+                  dataUrl={currentFile.dataUrl}
+                  zoom={zoom}
+                  onZoomChange={handleZoomChange}
+                />
+              </div>
+            </>
+          ) : error ? (
+            <div className={styles.errorState}>
+              <span className={styles.errorIcon}>{'\u26A0'}</span>
+              <span>{error}</span>
             </div>
-          </>
-        ) : error ? (
-          <div className={styles.errorState}>
-            <span className={styles.errorIcon}>{'\u26A0'}</span>
-            <span>{error}</span>
-          </div>
+          ) : (
+            <div className={styles.emptyState}>No image open</div>
+          )
+        ) : mode === 'html' ? (
+          htmlFile ? (
+            <>
+              <PreviewToolbar filename={htmlFile.name} mode="html" />
+              <HtmlViewport html={htmlFile.content} onBridgeRequest={respondToBridgeRequest} />
+            </>
+          ) : error ? (
+            <div className={styles.errorState}>
+              <span className={styles.errorIcon}>{'\u26A0'}</span>
+              <span>{error}</span>
+            </div>
+          ) : (
+            <div className={styles.emptyState}>Loading HTML...</div>
+          )
         ) : (
-          <div className={styles.emptyState}>No image open</div>
+          /* stream mode */
+          <>
+            <PreviewToolbar filename={displayTitle} mode="stream" streaming={streaming} />
+            <HtmlViewport
+              html={streamHtml}
+              streaming={streaming}
+              onBridgeRequest={respondToBridgeRequest}
+            />
+          </>
         )}
+        {pendingBridgeConfirm ? (
+          <BridgeConfirmDialog
+            command={pendingBridgeConfirm.commandPreview}
+            cwd={pendingBridgeConfirm.cwd}
+            risk={pendingBridgeConfirm.reason}
+            onConfirm={() => {
+              void handleBridgeConfirmation(true);
+            }}
+            onCancel={() => {
+              void handleBridgeConfirmation(false);
+            }}
+          />
+        ) : null}
       </div>
     </PreviewActions>
   );
@@ -222,12 +526,23 @@ function PreviewApp({ initialPath }: { initialPath?: string }) {
 let root: ReturnType<typeof createRoot> | null = null;
 
 export function activate(ctx: MiniAppFrontendContext): void {
+  const mode = detectMode(ctx.args);
   const initialPath = typeof ctx.args?.path === 'string' ? ctx.args.path : undefined;
+  const streamId = typeof ctx.args?.streamId === 'string' ? ctx.args.streamId : undefined;
+  const streamTitle = typeof ctx.args?.title === 'string' ? ctx.args.title : undefined;
+  const bridgeToken = typeof ctx.args?.bridgeToken === 'string' ? ctx.args.bridgeToken : undefined;
+
   root = createRoot(ctx.root);
   root.render(
     <WindowIdProvider windowId={ctx.windowId}>
       <MiniAppIdProvider miniAppId={ctx.miniAppId}>
-        <PreviewApp initialPath={initialPath} />
+        <PreviewApp
+          initialPath={initialPath}
+          mode={mode}
+          streamId={streamId}
+          streamTitle={streamTitle}
+          bridgeToken={bridgeToken}
+        />
       </MiniAppIdProvider>
     </WindowIdProvider>,
   );

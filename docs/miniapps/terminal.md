@@ -4,7 +4,7 @@
 
 The Terminal MiniApp is a full-featured terminal emulator modeled after the macOS Terminal app. It provides a tabbed interface for running interactive shell sessions inside DeskTalk, powered by [xterm.js](https://xtermjs.org/) on the frontend and [node-pty](https://github.com/nicedoc/node-pty) on the backend. Each tab spawns an isolated pseudo-terminal running the user's default shell (e.g., `/bin/bash`, `/bin/zsh`).
 
-Beyond interactive use, the Terminal MiniApp is the **designated execution surface for the pi coding agent**. Instead of a built-in bash tool, the agent opens (or reuses) a Terminal window and executes commands through it — so the user can observe every command the AI runs and intervene if necessary.
+Beyond interactive use, the Terminal MiniApp is the **designated execution surface for the pi coding agent**. Instead of a built-in bash tool, the agent opens (or reuses) a Terminal window with the same shallow-equal launch arguments and executes commands through it — so the user can observe every command the AI runs and intervene if necessary.
 
 > **Safety-critical MiniApp.** The Terminal MiniApp has direct access to the host operating system's shell. To mitigate risk, all commands — whether entered by the user or dispatched by the AI agent — pass through a **command safety analyzer** that inspects destructive operations (e.g., `rm`, `rm -rf`, `chmod`, `mkfs`) and requires explicit user confirmation before execution.
 
@@ -33,14 +33,14 @@ All input lines submitted to a PTY — whether typed by the user or sent program
 
 **Analyzed commands:**
 
-| Pattern | Risk | Behavior |
-|---------|------|----------|
-| `rm` (with any flags) | Destructive file deletion | Prompt user confirmation; show expanded paths if possible |
-| `rm -rf /` or `rm -rf /*` | Catastrophic | **Block unconditionally** with an error message |
-| `chmod 777` on sensitive paths | Permission escalation | Prompt user confirmation |
-| `mkfs`, `dd if=... of=/dev/...` | Disk destruction | Prompt user confirmation |
-| `:(){ :|: & };:` (fork bomb patterns) | System DoS | Block unconditionally |
-| `> /dev/sda` or similar | Disk destruction | Block unconditionally |
+| Pattern                         | Risk                          | Behavior                                                  |
+| ------------------------------- | ----------------------------- | --------------------------------------------------------- | --------------------- |
+| `rm` (with any flags)           | Destructive file deletion     | Prompt user confirmation; show expanded paths if possible |
+| `rm -rf /` or `rm -rf /*`       | Catastrophic                  | **Block unconditionally** with an error message           |
+| `chmod 777` on sensitive paths  | Permission escalation         | Prompt user confirmation                                  |
+| `mkfs`, `dd if=... of=/dev/...` | Disk destruction              | Prompt user confirmation                                  |
+| `:(){ :                         | : & };:` (fork bomb patterns) | System DoS                                                | Block unconditionally |
+| `> /dev/sda` or similar         | Disk destruction              | Block unconditionally                                     |
 
 **Analysis approach:**
 
@@ -70,10 +70,10 @@ The safety analyzer runs on the **backend** so it cannot be bypassed by a modifi
 
 Note: The Actions Bar is a global element managed by the core shell (see `docs/spec.md`). MiniApps register their actions via `<ActionsProvider>`, but the bar itself is not part of the MiniApp window.
 
-| Element | Description |
-|---------|-------------|
-| Tab Bar | Horizontal row of tabs, each representing a PTY session. Includes the active tab indicator, per-tab close button, and a "+" button to create a new tab. |
-| Terminal Viewport | The xterm.js canvas filling the remaining window area. Handles keyboard input, mouse selection, scrollback, and resize. |
+| Element             | Description                                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tab Bar             | Horizontal row of tabs, each representing a PTY session. Includes the active tab indicator, per-tab close button, and a "+" button to create a new tab. |
+| Terminal Viewport   | The xterm.js canvas filling the remaining window area. Handles keyboard input, mouse selection, scrollback, and resize.                                 |
 | Confirmation Dialog | Modal overlay shown when the safety analyzer flags a `warn`-level command. Displays the flagged command, the risk reason, and Confirm / Cancel buttons. |
 
 ### Interactions
@@ -90,22 +90,22 @@ Note: The Actions Bar is a global element managed by the core shell (see `docs/s
 
 Use [xterm.js](https://xtermjs.org/) as the terminal renderer. Key addons:
 
-| Addon | Purpose |
-|-------|---------|
-| `@xterm/addon-fit` | Auto-resize the terminal to fit its container. |
-| `@xterm/addon-web-links` | Detect and make URLs clickable. |
-| `@xterm/addon-search` | In-terminal text search (Ctrl+Shift+F). |
-| `@xterm/addon-webgl` | GPU-accelerated rendering (with canvas fallback). |
+| Addon                    | Purpose                                           |
+| ------------------------ | ------------------------------------------------- |
+| `@xterm/addon-fit`       | Auto-resize the terminal to fit its container.    |
+| `@xterm/addon-web-links` | Detect and make URLs clickable.                   |
+| `@xterm/addon-search`    | In-terminal text search (Ctrl+Shift+F).           |
+| `@xterm/addon-webgl`     | GPU-accelerated rendering (with canvas fallback). |
 
 ### Components
 
-| Component | Responsibility |
-|-----------|---------------|
-| `TerminalTabBar` | Renders tab headers with active indicator, close buttons, and "+" button. Handles tab reordering (optional). |
-| `TerminalView` | Wraps a single xterm.js `Terminal` instance. Manages the addon lifecycle, input/output streaming, and resize events. |
-| `TerminalContainer` | Manages the collection of `TerminalView` instances keyed by tab ID. Shows the active tab's view, hides others. |
+| Component             | Responsibility                                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `TerminalTabBar`      | Renders tab headers with active indicator, close buttons, and "+" button. Handles tab reordering (optional).             |
+| `TerminalView`        | Wraps a single xterm.js `Terminal` instance. Manages the addon lifecycle, input/output streaming, and resize events.     |
+| `TerminalContainer`   | Manages the collection of `TerminalView` instances keyed by tab ID. Shows the active tab's view, hides others.           |
 | `SafetyConfirmDialog` | Modal dialog rendered when the backend flags a command. Shows the command, risk description, and confirm/cancel buttons. |
-| `TerminalActions` | Provides actions via `<ActionsProvider>`. |
+| `TerminalActions`     | Provides actions via `<ActionsProvider>`.                                                                                |
 
 ### Frontend ↔ Backend Communication
 
@@ -119,14 +119,14 @@ This keeps the architecture consistent with the existing MiniApp messaging model
 
 ## Actions (AI-invokable)
 
-| Action | Description | Parameters |
-|--------|-------------|------------|
-| `List Tabs` | List all open terminal tabs with their IDs and labels. | — |
-| `Create Tab` | Open a new terminal tab and make it active. | `label?: string`, `cwd?: string` |
-| `Close Tab` | Close a terminal tab by ID. | `tabId: string` |
-| `Focus Tab` | Switch the viewport to a specific tab. | `tabId: string` |
-| `Execute` | Send a command string to the active (or specified) tab's PTY. | `command: string`, `tabId?: string` |
-| `Get Output` | Return recent terminal output (last N lines of scrollback) from a tab. | `tabId?: string`, `lines?: number` |
+| Action       | Description                                                            | Parameters                          |
+| ------------ | ---------------------------------------------------------------------- | ----------------------------------- |
+| `List Tabs`  | List all open terminal tabs with their IDs and labels.                 | —                                   |
+| `Create Tab` | Open a new terminal tab and make it active.                            | `label?: string`, `cwd?: string`    |
+| `Close Tab`  | Close a terminal tab by ID.                                            | `tabId: string`                     |
+| `Focus Tab`  | Switch the viewport to a specific tab.                                 | `tabId: string`                     |
+| `Execute`    | Send a command string to the active (or specified) tab's PTY.          | `command: string`, `tabId?: string` |
+| `Get Output` | Return recent terminal output (last N lines of scrollback) from a tab. | `tabId?: string`, `lines?: number`  |
 
 The `Execute` action is the primary mechanism for the pi coding agent to run shell commands (see [AI Agent Integration](#ai-agent-integration) below).
 
@@ -148,52 +148,52 @@ Use [node-pty](https://github.com/microsoft/node-pty) to spawn pseudo-terminal p
 
 ### Commands (via MessagingHook)
 
-| Command | Request | Response | Description |
-|---------|---------|----------|-------------|
-| `terminal.create` | `{ label?: string, cwd?: string }` | `{ tabId: string }` | Spawn a new PTY session. |
-| `terminal.input` | `{ tabId: string, data: string }` | `void` | Write data (keystrokes) to a PTY. Passes through the safety analyzer first. |
-| `terminal.resize` | `{ tabId: string, cols: number, rows: number }` | `void` | Resize a PTY. |
-| `terminal.close` | `{ tabId: string }` | `void` | Kill and clean up a PTY session. |
-| `terminal.list` | `void` | `TerminalTab[]` | List all active tabs. |
-| `terminal.getOutput` | `{ tabId: string, lines?: number }` | `{ output: string }` | Return recent scrollback output. |
-| `terminal.execute` | `{ tabId: string, command: string }` | `{ accepted: boolean, reason?: string }` | Submit a command line for execution. Runs the safety analyzer; if the command is `block`-level, returns `accepted: false` with a reason. If `warn`-level, emits a `terminal.confirm` event to the frontend. If `safe`, writes the command + newline to the PTY. |
+| Command              | Request                                         | Response                                 | Description                                                                                                                                                                                                                                                     |
+| -------------------- | ----------------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `terminal.create`    | `{ label?: string, cwd?: string }`              | `{ tabId: string }`                      | Spawn a new PTY session.                                                                                                                                                                                                                                        |
+| `terminal.input`     | `{ tabId: string, data: string }`               | `void`                                   | Write data (keystrokes) to a PTY. Passes through the safety analyzer first.                                                                                                                                                                                     |
+| `terminal.resize`    | `{ tabId: string, cols: number, rows: number }` | `void`                                   | Resize a PTY.                                                                                                                                                                                                                                                   |
+| `terminal.close`     | `{ tabId: string }`                             | `void`                                   | Kill and clean up a PTY session.                                                                                                                                                                                                                                |
+| `terminal.list`      | `void`                                          | `TerminalTab[]`                          | List all active tabs.                                                                                                                                                                                                                                           |
+| `terminal.getOutput` | `{ tabId: string, lines?: number }`             | `{ output: string }`                     | Return recent scrollback output.                                                                                                                                                                                                                                |
+| `terminal.execute`   | `{ tabId: string, command: string }`            | `{ accepted: boolean, reason?: string }` | Submit a command line for execution. Runs the safety analyzer; if the command is `block`-level, returns `accepted: false` with a reason. If `warn`-level, emits a `terminal.confirm` event to the frontend. If `safe`, writes the command + newline to the PTY. |
 
 ### Events (backend → frontend)
 
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `terminal.output` | `{ tabId: string, data: string }` | Raw PTY output chunk for rendering. |
-| `terminal.exit` | `{ tabId: string, exitCode: number }` | PTY process exited. |
+| Event              | Payload                                                               | Description                                                                   |
+| ------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `terminal.output`  | `{ tabId: string, data: string }`                                     | Raw PTY output chunk for rendering.                                           |
+| `terminal.exit`    | `{ tabId: string, exitCode: number }`                                 | PTY process exited.                                                           |
 | `terminal.confirm` | `{ tabId: string, command: string, risk: string, requestId: string }` | Safety analyzer flagged a command — frontend should show confirmation dialog. |
 
 The frontend responds to `terminal.confirm` by sending a `terminal.confirmResponse` command:
 
-| Command | Request | Response | Description |
-|---------|---------|----------|-------------|
-| `terminal.confirmResponse` | `{ requestId: string, confirmed: boolean }` | `void` | User's response to a safety confirmation prompt. If confirmed, the command is forwarded to the PTY. |
+| Command                    | Request                                     | Response | Description                                                                                         |
+| -------------------------- | ------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------- |
+| `terminal.confirmResponse` | `{ requestId: string, confirmed: boolean }` | `void`   | User's response to a safety confirmation prompt. If confirmed, the command is forwarded to the PTY. |
 
 ### Data Model
 
 ```ts
 interface TerminalTab {
   tabId: string;
-  label: string;           // User-defined or auto-generated (e.g., "bash", "zsh")
-  cwd: string;             // Current working directory (best-effort, read from /proc or lsof)
-  pid: number;             // PTY child process PID
-  running: boolean;        // Whether the shell process is still alive
-  createdAt: string;       // ISO 8601
+  label: string; // User-defined or auto-generated (e.g., "bash", "zsh")
+  cwd: string; // Current working directory (best-effort, read from /proc or lsof)
+  pid: number; // PTY child process PID
+  running: boolean; // Whether the shell process is still alive
+  createdAt: string; // ISO 8601
 }
 
 interface SafetyAnalysisResult {
   level: 'safe' | 'warn' | 'block';
-  command: string;         // The original command string
-  reason?: string;         // Human-readable explanation (for warn/block)
+  command: string; // The original command string
+  reason?: string; // Human-readable explanation (for warn/block)
   segments: CommandSegment[];
 }
 
 interface CommandSegment {
-  raw: string;             // The raw command segment
-  program: string;         // Detected program name (e.g., "rm", "chmod")
+  raw: string; // The raw command segment
+  program: string; // Detected program name (e.g., "rm", "chmod")
   level: 'safe' | 'warn' | 'block';
   reason?: string;
 }

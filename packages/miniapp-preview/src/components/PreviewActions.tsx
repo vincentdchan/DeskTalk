@@ -1,10 +1,11 @@
 import React, { useCallback } from 'react';
 import { ActionsProvider, Action, useCommand } from '@desktalk/sdk';
-import type { PreviewFile } from '../types';
+import type { PreviewFile, PreviewMode } from '../types';
 
 interface PreviewActionsProps {
   children: React.ReactNode;
   currentFile: PreviewFile | null;
+  mode: PreviewMode;
   onFileOpened: (file: PreviewFile) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -18,6 +19,7 @@ interface PreviewActionsProps {
 export function PreviewActions({
   children,
   currentFile: _currentFile,
+  mode,
   onFileOpened,
   onZoomIn,
   onZoomOut,
@@ -73,54 +75,64 @@ export function PreviewActions({
     onNext();
   }, [onNext]);
 
+  const isImage = mode === 'image';
+
   return (
     <ActionsProvider>
       <Action
         name="Open File"
-        description="Open an image file for preview"
+        description="Open an image or HTML file for preview"
         params={{
-          path: { type: 'string', description: 'Path to the image file', required: true },
+          path: { type: 'string', description: 'Path to the file', required: true },
         }}
         handler={handleOpen}
       />
-      <Action name="Zoom In" description="Increase zoom level by one step" handler={handleZoomIn} />
-      <Action
-        name="Zoom Out"
-        description="Decrease zoom level by one step"
-        handler={handleZoomOut}
-      />
-      <Action
-        name="Fit to Window"
-        description="Scale image to fit the viewport"
-        handler={handleFitToWindow}
-      />
-      <Action
-        name="Actual Size"
-        description="Display image at 1:1 pixel ratio"
-        handler={handleActualSize}
-      />
-      <Action
-        name="Pan"
-        description="Pan the viewport in a direction"
-        params={{
-          direction: {
-            type: 'string',
-            description: 'Direction to pan: "up", "down", "left", or "right"',
-            required: true,
-          },
-        }}
-        handler={handlePan}
-      />
-      <Action
-        name="Previous File"
-        description="Navigate to previous image in directory"
-        handler={handlePrevious}
-      />
-      <Action
-        name="Next File"
-        description="Navigate to next image in directory"
-        handler={handleNext}
-      />
+      {isImage && (
+        <>
+          <Action
+            name="Zoom In"
+            description="Increase zoom level by one step"
+            handler={handleZoomIn}
+          />
+          <Action
+            name="Zoom Out"
+            description="Decrease zoom level by one step"
+            handler={handleZoomOut}
+          />
+          <Action
+            name="Fit to Window"
+            description="Scale image to fit the viewport"
+            handler={handleFitToWindow}
+          />
+          <Action
+            name="Actual Size"
+            description="Display image at 1:1 pixel ratio"
+            handler={handleActualSize}
+          />
+          <Action
+            name="Pan"
+            description="Pan the viewport in a direction"
+            params={{
+              direction: {
+                type: 'string',
+                description: 'Direction to pan: "up", "down", "left", or "right"',
+                required: true,
+              },
+            }}
+            handler={handlePan}
+          />
+          <Action
+            name="Previous File"
+            description="Navigate to previous image in directory"
+            handler={handlePrevious}
+          />
+          <Action
+            name="Next File"
+            description="Navigate to next image in directory"
+            handler={handleNext}
+          />
+        </>
+      )}
       {children}
     </ActionsProvider>
   );

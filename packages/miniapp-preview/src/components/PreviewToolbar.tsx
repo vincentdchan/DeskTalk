@@ -1,21 +1,27 @@
 import React from 'react';
+import type { PreviewMode } from '../types';
 import styles from '../PreviewApp.module.css';
 
 interface PreviewToolbarProps {
   filename: string;
-  zoomPercent: number;
-  canGoPrev: boolean;
-  canGoNext: boolean;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onFitToWindow: () => void;
-  onActualSize: () => void;
-  onPrevious: () => void;
-  onNext: () => void;
+  mode: PreviewMode;
+  /** Only used in image mode. */
+  zoomPercent?: number;
+  canGoPrev?: boolean;
+  canGoNext?: boolean;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onFitToWindow?: () => void;
+  onActualSize?: () => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
+  /** Shown in stream mode when content is still arriving. */
+  streaming?: boolean;
 }
 
 export function PreviewToolbar({
   filename,
+  mode,
   zoomPercent,
   canGoPrev,
   canGoNext,
@@ -25,7 +31,21 @@ export function PreviewToolbar({
   onActualSize,
   onPrevious,
   onNext,
+  streaming,
 }: PreviewToolbarProps) {
+  // HTML and stream modes: show only the title (and an optional streaming indicator)
+  if (mode === 'html' || mode === 'stream') {
+    return (
+      <div className={styles.toolbar}>
+        <span className={styles.filename} title={filename}>
+          {filename}
+        </span>
+        {streaming && <span className={styles.zoomIndicator}>Streaming...</span>}
+      </div>
+    );
+  }
+
+  // Image mode: full toolbar with navigation and zoom controls
   return (
     <div className={styles.toolbar}>
       <div className={styles.toolbarGroup}>
@@ -55,7 +75,7 @@ export function PreviewToolbar({
         <button className={styles.toolBtn} onClick={onZoomOut} title="Zoom out">
           {'\u2212'}
         </button>
-        <span className={styles.zoomIndicator}>{zoomPercent}%</span>
+        <span className={styles.zoomIndicator}>{zoomPercent ?? 100}%</span>
         <button className={styles.toolBtn} onClick={onZoomIn} title="Zoom in">
           +
         </button>

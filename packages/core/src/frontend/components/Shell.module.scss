@@ -13,13 +13,17 @@
 .actionsBar {
   flex: 0 0 var(--actions-bar-height);
   min-height: 42px;
+  position: relative;
+  z-index: 30;
 }
 
 .content {
-  display: flex;
+  display: grid;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
+  position: relative;
+  overflow: hidden;
 }
 
 .desktop {
@@ -30,15 +34,46 @@
   min-height: 0;
 }
 
-.infoPanel {
-  flex: 0 0 var(--info-panel-width);
-  width: var(--info-panel-width);
+.tileSplit {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tileSplitHorizontal {
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.tileSplitVertical {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.tilePane,
+.tileLeaf {
+  min-width: 0;
+  min-height: 0;
+}
+
+.tileLeaf {
+  width: 100%;
+  height: 100%;
+}
+
+.assistantPane {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border-radius: 0 0 0 var(--border-radius);
 }
 
-.dock {
-  flex: 0 0 auto;
+.maximizedMask {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--dt-bg) 46%, transparent);
+  backdrop-filter: blur(4px) saturate(0.84);
+  pointer-events: none;
 }

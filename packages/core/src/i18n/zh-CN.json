@@ -1,8 +1,7 @@
 {
-  "appName": "DeskTalk",
+  "applications": "应用程序",
   "close": "关闭",
   "miniapp.loading": "正在加载 MiniApp...",
   "window.maximize": "最大化",
-  "window.minimize": "最小化",
   "window.restore": "还原"
 }

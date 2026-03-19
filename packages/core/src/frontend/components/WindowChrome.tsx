@@ -3,237 +3,94 @@ import type { WindowState } from '@desktalk/sdk';
 import { useWindowManager } from '../stores/window-manager';
 import styles from './WindowChrome.module.scss';
 
-const MIN_WINDOW_WIDTH = 300;
-const MIN_WINDOW_HEIGHT = 200;
-
 interface WindowChromeProps {
   window: WindowState;
+  /** Pixel rect from tiling layout. When provided, positions the window absolutely. */
+  tileRect?: { x: number; y: number; width: number; height: number };
+  title?: string;
+  isFocused?: boolean;
+  showCloseButton?: boolean;
+  showFullscreenButton?: boolean;
+  onFocus?: () => void;
+  isOverlayMaximized?: boolean;
   children: React.ReactNode;
 }
 
-export function WindowChrome({ window: win, children }: WindowChromeProps) {
+export function WindowChrome({
+  window: win,
+  tileRect,
+  title,
+  isFocused,
+  showCloseButton = true,
+  showFullscreenButton = true,
+  onFocus,
+  isOverlayMaximized = false,
+  children,
+}: WindowChromeProps) {
   const windowRef = useRef<HTMLDivElement | null>(null);
+  const fullscreenWindowId = useWindowManager((s) => s.fullscreenWindowId);
+  const isFullscreen = win.id === fullscreenWindowId;
+  const focused = isFocused ?? win.focused;
 
-  const dragRef = useRef<{
-    startX: number;
-    startY: number;
-    origX: number;
-    origY: number;
-    lastX: number;
-    lastY: number;
-  } | null>(null);
-  const resizeRef = useRef<{
-    startX: number;
-    startY: number;
-    origWidth: number;
-    origHeight: number;
-    lastWidth: number;
-    lastHeight: number;
-  } | null>(null);
+  const handleFocus = useCallback(() => {
+    if (onFocus) {
+      onFocus();
+      return;
+    }
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      if (win.maximized) return;
-      e.preventDefault();
-      useWindowManager.getState().focusWindow(win.id);
-      dragRef.current = {
-        startX: e.clientX,
-        startY: e.clientY,
-        origX: win.position.x,
-        origY: win.position.y,
-        lastX: win.position.x,
-        lastY: win.position.y,
-      };
-
-      const handleMouseMove = (me: MouseEvent) => {
-        if (!dragRef.current) return;
-        const dx = me.clientX - dragRef.current.startX;
-        const dy = me.clientY - dragRef.current.startY;
-        const parent = windowRef.current?.parentElement;
-
-        const nextX = dragRef.current.origX + dx;
-        const nextY = dragRef.current.origY + dy;
-
-        if (!parent) {
-          const nextPosition = { x: nextX, y: nextY };
-          dragRef.current.lastX = nextPosition.x;
-          dragRef.current.lastY = nextPosition.y;
-          // Optimistic move during drag — don't sync to backend yet
-          useWindowManager.setState((state) => ({
-            windows: state.windows.map((w) =>
-              w.id === win.id ? { ...w, position: nextPosition } : w,
-            ),
-          }));
-          return;
-        }
-
-        const maxX = Math.max(parent.clientWidth - win.size.width, 0);
-        const maxY = Math.max(parent.clientHeight - win.size.height, 0);
-
-        const nextPosition = {
-          x: Math.min(Math.max(nextX, 0), maxX),
-          y: Math.min(Math.max(nextY, 0), maxY),
-        };
-        dragRef.current.lastX = nextPosition.x;
-        dragRef.current.lastY = nextPosition.y;
-        // Optimistic move during drag — don't sync to backend yet
-        useWindowManager.setState((state) => ({
-          windows: state.windows.map((w) =>
-            w.id === win.id ? { ...w, position: nextPosition } : w,
-          ),
-        }));
-      };
-
-      const handleMouseUp = () => {
-        if (dragRef.current) {
-          // Final move — this syncs to backend
-          useWindowManager.getState().moveWindow(win.id, {
-            x: dragRef.current.lastX,
-            y: dragRef.current.lastY,
-          });
-        }
-        dragRef.current = null;
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    },
-    [win.id, win.maximized, win.position],
-  );
-
-  const handleResizeMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      if (win.maximized) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-      useWindowManager.getState().focusWindow(win.id);
-
-      resizeRef.current = {
-        startX: e.clientX,
-        startY: e.clientY,
-        origWidth: win.size.width,
-        origHeight: win.size.height,
-        lastWidth: win.size.width,
-        lastHeight: win.size.height,
-      };
-
-      const handleMouseMove = (me: MouseEvent) => {
-        if (!resizeRef.current) return;
-
-        const dx = me.clientX - resizeRef.current.startX;
-        const dy = me.clientY - resizeRef.current.startY;
-        const parent = windowRef.current?.parentElement;
-
-        let nextWidth = Math.max(resizeRef.current.origWidth + dx, MIN_WINDOW_WIDTH);
-        let nextHeight = Math.max(resizeRef.current.origHeight + dy, MIN_WINDOW_HEIGHT);
-
-        if (parent) {
-          const maxWidth = Math.max(parent.clientWidth - win.position.x, MIN_WINDOW_WIDTH);
-          const maxHeight = Math.max(parent.clientHeight - win.position.y, MIN_WINDOW_HEIGHT);
-          nextWidth = Math.min(nextWidth, maxWidth);
-          nextHeight = Math.min(nextHeight, maxHeight);
-        }
-
-        const nextSize = { width: nextWidth, height: nextHeight };
-        resizeRef.current.lastWidth = nextSize.width;
-        resizeRef.current.lastHeight = nextSize.height;
-        // Optimistic resize during drag — don't sync to backend yet
-        useWindowManager.setState((state) => ({
-          windows: state.windows.map((w) =>
-            w.id === win.id
-              ? {
-                  ...w,
-                  size: {
-                    width: Math.max(nextSize.width, MIN_WINDOW_WIDTH),
-                    height: Math.max(nextSize.height, MIN_WINDOW_HEIGHT),
-                  },
-                }
-              : w,
-          ),
-        }));
-      };
-
-      const handleMouseUp = () => {
-        if (resizeRef.current) {
-          // Final resize — this syncs to backend
-          useWindowManager.getState().resizeWindow(win.id, {
-            width: resizeRef.current.lastWidth,
-            height: resizeRef.current.lastHeight,
-          });
-        }
-        resizeRef.current = null;
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    },
-    [win.id, win.maximized, win.position.x, win.position.y, win.size.height, win.size.width],
-  );
-
-  if (win.minimized) return null;
+    const state = useWindowManager.getState();
+    if (state.focusedWindowId !== win.id) {
+      state.focusWindow(win.id);
+    }
+  }, [onFocus, win.id]);
 
   const windowClasses = [
     styles.window,
-    win.focused ? styles.windowFocused : '',
-    win.maximized ? styles.windowMaximized : '',
+    focused ? styles.windowFocused : '',
+    isFullscreen && isOverlayMaximized ? styles.windowFullscreen : '',
   ]
     .filter(Boolean)
     .join(' ');
 
-  const windowStyle: React.CSSProperties = win.maximized
+  const windowStyle: React.CSSProperties = isFullscreen
     ? {}
-    : {
-        left: win.position.x,
-        top: win.position.y,
-        width: win.size.width,
-        height: win.size.height,
-        zIndex: win.zIndex,
-      };
+    : tileRect
+      ? {
+          position: 'absolute',
+          left: tileRect.x,
+          top: tileRect.y,
+          width: tileRect.width,
+          height: tileRect.height,
+        }
+      : {};
 
   return (
-    <div
-      ref={windowRef}
-      className={windowClasses}
-      style={windowStyle}
-      onMouseDown={() => {
-        if (!win.focused) useWindowManager.getState().focusWindow(win.id);
-      }}
-    >
-      <div className={styles.chrome} onMouseDown={handleMouseDown}>
+    <div ref={windowRef} className={windowClasses} style={windowStyle} onMouseDown={handleFocus}>
+      <div className={styles.chrome}>
         <div className={styles.trafficLights}>
-          <button
-            className={styles.trafficLightClose}
-            onClick={(e) => {
-              e.stopPropagation();
-              useWindowManager.getState().closeWindow(win.id);
-            }}
-          />
-          <button
-            className={styles.trafficLightMinimize}
-            onClick={(e) => {
-              e.stopPropagation();
-              useWindowManager.getState().minimizeWindow(win.id);
-            }}
-          />
-          <button
-            className={styles.trafficLightMaximize}
-            onClick={(e) => {
-              e.stopPropagation();
-              useWindowManager.getState().maximizeWindow(win.id);
-            }}
-          />
+          {showCloseButton && (
+            <button
+              className={styles.trafficLightClose}
+              onClick={(e) => {
+                e.stopPropagation();
+                useWindowManager.getState().closeWindow(win.id);
+              }}
+            />
+          )}
+
+          {showFullscreenButton && (
+            <button
+              className={styles.trafficLightFullscreen}
+              onClick={(e) => {
+                e.stopPropagation();
+                useWindowManager.getState().maximizeWindow(win.id);
+              }}
+            />
+          )}
         </div>
-        <div className={styles.title}>{win.title}</div>
+        <div className={styles.title}>{title ?? win.title}</div>
       </div>
       <div className={styles.body}>{children}</div>
-      {!win.maximized && (
-        <div className={styles.resizeHandle} onMouseDown={handleResizeMouseDown} />
-      )}
     </div>
   );
 }

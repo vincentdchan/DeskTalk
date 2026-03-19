@@ -213,11 +213,6 @@ export async function createServer(options: ServerOptions) {
     const username = user.username;
     currentWsUsername = username;
 
-    // Switch window manager and preferences to this user's persisted state
-    ensureUserHome(username);
-    windowManager.switchUser(join(getUserHomeDir(username), '.storage', 'window-state.json'));
-    setPreferenceUser(username);
-
     addClient(socket);
     let activeAiRequestId: string | null = null;
 
@@ -230,23 +225,45 @@ export async function createServer(options: ServerOptions) {
       );
     }
 
-    // Send AI history on connect
-    sendAiEvent({
-      type: 'history_sync',
-      sessionId: piSessionService.getSessionId(),
-      messages: piSessionService.getHistory(),
-    });
+    void (async () => {
+      try {
+        // Restore this user's backend processes before asking the frontend
+        // to rebuild its persisted windows.
+        ensureUserHome(username);
+        windowManager.switchUser(join(getUserHomeDir(username), '.storage', 'window-state.json'));
+        setPreferenceUser(username);
 
-    // Send persisted window state so the frontend can restore on connect/refresh
-    const persisted = windowManager.getPersistedState();
-    socket.send(
-      JSON.stringify({
-        type: 'window:state',
-        windows: persisted.windows,
-        nextZIndex: persisted.nextZIndex,
-        windowIdCounter: persisted.windowIdCounter,
-      }),
-    );
+        await windowManager.activatePersistedMiniApps(async (miniAppId) => {
+          await registry.activate(miniAppId, username);
+        });
+
+        // Send AI history on connect
+        sendAiEvent({
+          type: 'history_sync',
+          sessionId: piSessionService.getSessionId(),
+          messages: piSessionService.getHistory(),
+        });
+
+        // Send persisted window state only after MiniApp backends are ready.
+        const persisted = windowManager.getPersistedState();
+        socket.send(
+          JSON.stringify({
+            type: 'window:state',
+            windows: persisted.windows,
+            tree: persisted.tree,
+            focusedWindowId: persisted.focusedWindowId,
+            fullscreenWindowId: persisted.fullscreenWindowId,
+            windowIdCounter: persisted.windowIdCounter,
+          }),
+        );
+      } catch (error) {
+        log.error(
+          { username, err: error instanceof Error ? error.message : String(error) },
+          'failed to restore persisted miniapps for websocket session',
+        );
+        socket.close(1011, 'Failed to restore desktop state');
+      }
+    })();
 
     socket.on('message', async (raw: Buffer | ArrayBuffer | Buffer[]) => {
       try {
@@ -279,7 +296,10 @@ export async function createServer(options: ServerOptions) {
           if (Array.isArray(msg.windows)) {
             windowManager.syncState({
               windows: msg.windows,
-              nextZIndex: typeof msg.nextZIndex === 'number' ? msg.nextZIndex : 1,
+              tree: msg.tree ?? null,
+              focusedWindowId: typeof msg.focusedWindowId === 'string' ? msg.focusedWindowId : null,
+              fullscreenWindowId:
+                typeof msg.fullscreenWindowId === 'string' ? msg.fullscreenWindowId : null,
               windowIdCounter: typeof msg.windowIdCounter === 'number' ? msg.windowIdCounter : 0,
             });
           }

@@ -13,7 +13,7 @@ export type SendAiCommand = (command: {
 }) => Promise<{ ok: boolean; windowId?: string; error?: string }>;
 
 const desktopSchema = Type.Object({
-  action: StringEnum(['list', 'focus', 'minimize', 'maximize', 'close', 'open']),
+  action: StringEnum(['list', 'focus', 'maximize', 'close', 'open']),
   windowId: Type.Optional(Type.String({ description: 'Target window ID' })),
   miniAppId: Type.Optional(Type.String({ description: 'MiniApp ID to open' })),
   args: Type.Optional(
@@ -24,7 +24,7 @@ const desktopSchema = Type.Object({
 });
 
 type DesktopParams = {
-  action: 'list' | 'focus' | 'minimize' | 'maximize' | 'close' | 'open';
+  action: 'list' | 'focus' | 'maximize' | 'close' | 'open';
   windowId?: string;
   miniAppId?: string;
   args?: Record<string, unknown>;
@@ -55,12 +55,11 @@ export function createDesktopTool(options: DesktopToolOptions): ToolDefinition {
     name: 'desktop',
     label: 'Desktop',
     description:
-      'Manage DeskTalk windows: list open windows, open MiniApps, focus, minimize, maximize, or close windows.',
-    promptSnippet:
-      'Manage DeskTalk desktop windows (list, open, focus, minimize, maximize, close).',
+      'Manage DeskTalk windows: list open windows, open MiniApps, focus, maximize, or close windows.',
+    promptSnippet: 'Manage DeskTalk desktop windows (list, open, focus, maximize, close).',
     promptGuidelines: [
       'Use action="list" to get the latest window IDs and desktop state.',
-      'Use action="open" with miniAppId to launch a MiniApp. Pass args to provide initial context (e.g. { path: "photos/cat.png" } for Preview).',
+      'Use action="open" with miniAppId to launch a MiniApp. Pass args to provide initial context (e.g. { path: "photos/cat.png" } for Preview). If a window with the same miniAppId and shallow-equal args already exists, it will be focused instead of opening a duplicate.',
     ],
     parameters: desktopSchema,
     async execute(_toolCallId, params) {
@@ -111,17 +110,6 @@ export function createDesktopTool(options: DesktopToolOptions): ToolDefinition {
           const windowId = requireValue(input.windowId, 'windowId is required for action="focus"');
           const commandResult = await sendAiCommand({ action: 'focus', windowId });
           if (!commandResult.ok) throw new Error(commandResult.error ?? 'Failed to focus window');
-          const result = { ok: true, action: input.action, windowId };
-          return { content: [{ type: 'text', text: stringify(result) }], details: result };
-        }
-        case 'minimize': {
-          const windowId = requireValue(
-            input.windowId,
-            'windowId is required for action="minimize"',
-          );
-          const commandResult = await sendAiCommand({ action: 'minimize', windowId });
-          if (!commandResult.ok)
-            throw new Error(commandResult.error ?? 'Failed to minimize window');
           const result = { ok: true, action: input.action, windowId };
           return { content: [{ type: 'text', text: stringify(result) }], details: result };
         }
