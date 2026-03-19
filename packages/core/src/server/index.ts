@@ -12,7 +12,12 @@ import { addClient, broadcastRaw } from '../services/messaging';
 import { registry } from '../services/miniapp-registry';
 import { processManager } from '../services/backend-process-manager';
 import { PiSessionService } from '../services/ai/pi-session-service';
-import { getStoredPreference, setPreferenceUser } from '../services/preferences';
+import {
+  getStoredPreference,
+  getStoredPreferenceForUser,
+  setPreferenceUser,
+} from '../services/preferences';
+import { DEFAULT_THEME_PREFERENCES } from '../services/theme-css';
 import { loadMergedLocaleMessages } from '../services/i18n';
 import { getWorkspacePaths, getUserHomeDir, ensureUserHome } from '../services/workspace';
 import { VoiceSession } from '../services/voice/voice-session';
@@ -636,10 +641,16 @@ export async function createServer(options: ServerOptions) {
     },
   );
 
-  app.get('/api/preferences/public', async () => {
+  app.get('/api/preferences/public', async (req) => {
+    const requestUser = req.user;
+    const token = req.cookies[COOKIE_NAME];
+    const user = requestUser ?? (token ? validateSession(token) : undefined);
+    const getPreference = (key: string) =>
+      user ? getStoredPreferenceForUser(user.username, key) : getStoredPreference(key);
+
     return {
-      theme: getStoredPreference('general.theme') === 'dark' ? 'dark' : 'light',
-      accentColor: String(getStoredPreference('general.accentColor') ?? '#7c6ff7'),
+      theme: getPreference('general.theme') === 'light' ? 'light' : DEFAULT_THEME_PREFERENCES.theme,
+      accentColor: String(getPreference('general.accentColor') ?? '#7c6ff7'),
     };
   });
 

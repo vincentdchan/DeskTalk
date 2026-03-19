@@ -49,7 +49,7 @@ Each node is either:
 | **Leaf**      | Holds exactly one window.                                                                                         |
 | **Container** | Holds two children with a split direction (`horizontal` or `vertical`) and a split ratio (0.0--1.0, default 0.5). |
 
-The **root** node always exists and fills the tiled Window Area inside the shell layout. The permanent AI Assistant pane on the right sits outside this tree.
+The **root** node always exists and fills the tiled Window Area inside the shell layout. The permanent AI Assistant pane on the right sits outside this tree. If the desktop WebSocket bridge is connecting or reconnecting, the shell temporarily masks both regions so the user cannot interact with stale window state.
 
 ### Node Types
 

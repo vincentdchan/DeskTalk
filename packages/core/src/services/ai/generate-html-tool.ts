@@ -52,7 +52,7 @@ async function readThemePreferences(getPreference: PreferenceReader): Promise<Th
       typeof accentColor === 'string' && accentColor
         ? accentColor
         : DEFAULT_THEME_PREFERENCES.accentColor,
-    theme: theme === 'dark' ? 'dark' : 'light',
+    theme: theme === 'light' ? 'light' : DEFAULT_THEME_PREFERENCES.theme,
   };
 }
 

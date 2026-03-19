@@ -264,11 +264,11 @@ The core provides a set of built-in actions that are always present in the Actio
 
 These built-in actions appear alongside any MiniApp-specific actions. For example, when a Note window is focused the Actions Bar shows: `Maximize | Minimize | Close | Create Note | Delete Note | Search Notes | ...`
 
-| Region      | Description                                                                                                                                                                                                                                                              |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Window Area | The main workspace where MiniApp windows are rendered. Supports opening, closing, moving, resizing, focusing, and minimizing windows.                                                                                                                                    |
-| Info Panel  | A permanent right-side AI Assistant pane that displays conversation messages, thinking state, and token/cost usage. It is rendered with window chrome inside the shell layout but is not a normal MiniApp window. Powered by pi (see [AI Integration](#ai-integration)). |
-| Dock        | A macOS-style dock at the bottom listing all available MiniApps for quick launch.                                                                                                                                                                                        |
+| Region      | Description                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Window Area | The main workspace where MiniApp windows are rendered. Supports opening, closing, moving, resizing, focusing, and minimizing windows. When the desktop WebSocket bridge is still connecting or reconnecting, the shell places a blocking mask over the desktop UI so the user cannot operate stale state.                                                                     |
+| Info Panel  | A permanent right-side AI Assistant pane that displays conversation messages, thinking state, and token/cost usage. It is rendered with window chrome inside the shell layout but is not a normal MiniApp window. Powered by pi (see [AI Integration](#ai-integration)). Like the rest of the desktop shell, it is temporarily masked during desktop bridge reconnect states. |
+| Dock        | A macOS-style dock at the bottom listing all available MiniApps for quick launch.                                                                                                                                                                                                                                                                                             |
 
 ### Window Lifecycle
 
@@ -279,6 +279,13 @@ These built-in actions appear alongside any MiniApp-specific actions. For exampl
 5. The MiniApp registers its actions via `<ActionsProvider>` so they appear in the Actions Bar when the window is focused.
 6. The user (or AI) interacts with the window.
 7. The window can be spotlight-maximized or closed.
+
+### Desktop Connection Guard
+
+- The desktop shell depends on a frontend-to-backend WebSocket bridge for window state sync, AI events, and MiniApp action brokering.
+- On first load the shell shows a blocking `Connecting...` overlay until the bridge is ready.
+- If the socket drops after the desktop has already loaded, the shell automatically retries with exponential backoff and shows a blocking `Reconnecting...` overlay with the next retry countdown.
+- This guard is desktop-only; login and onboarding pages do not render the shell overlay.
 
 ### Focus Model
 

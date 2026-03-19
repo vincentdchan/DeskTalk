@@ -44,7 +44,7 @@ const STATUS_HUES = {
 
 export const DEFAULT_THEME_PREFERENCES: ThemePreferences = {
   accentColor: DEFAULT_ACCENT_COLOR,
-  theme: 'light',
+  theme: 'dark',
 };
 
 function clamp(value: number, min: number, max: number): number {

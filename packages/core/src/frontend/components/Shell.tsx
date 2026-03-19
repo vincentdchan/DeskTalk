@@ -10,6 +10,7 @@ import {
 } from '../stores/window-manager';
 import type { WindowSyncPayload } from '../stores/window-manager';
 import { ActionsBar } from './ActionsBar';
+import { ConnectionOverlay } from './ConnectionOverlay';
 import { WindowChrome } from './WindowChrome';
 import { SplitResizer } from './SplitResizer';
 import { InfoPanel } from './InfoPanel';
@@ -25,6 +26,10 @@ const ASSISTANT_MIN_RATIO = 0.18;
 const ASSISTANT_MAX_RATIO = 0.45;
 const ASSISTANT_DEFAULT_RATIO = 0.28;
 const ASSISTANT_WINDOW_ID = '__assistant__';
+const INITIAL_RETRY_DELAY_MS = 1000;
+const MAX_RETRY_DELAY_MS = 15000;
+
+type WebSocketStatus = 'connecting' | 'connected' | 'reconnecting';
 
 type BridgeStateSelector =
   | 'desktop.summary'
@@ -111,41 +116,125 @@ function MiniAppWindow({
 
 /**
  * Hook that creates and manages the WebSocket connection to the server.
- * Returns true when the connection is open and ready for messaging.
+ * Reconnects automatically and exposes the current connection state.
  */
-function useWebSocket(): { ready: boolean; socket: WebSocket | null } {
-  const [ready, setReady] = useState(false);
+function useWebSocket(): {
+  status: WebSocketStatus;
+  socket: WebSocket | null;
+  retryInSeconds: number | null;
+} {
+  const [status, setStatus] = useState<WebSocketStatus>('connecting');
+  const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [retryInSeconds, setRetryInSeconds] = useState<number | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<number | null>(null);
+  const retryIntervalRef = useRef<number | null>(null);
+  const retryDelayRef = useRef(INITIAL_RETRY_DELAY_MS);
+  const hasConnectedRef = useRef(false);
 
   useEffect(() => {
-    // Build WS URL relative to the current page origin
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${location.host}/ws`;
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
+    let disposed = false;
 
-    ws.addEventListener('open', () => {
-      console.log('[shell] WebSocket connected');
-      initMessaging(ws);
-      setReady(true);
-    });
+    const clearRetryTimers = () => {
+      if (reconnectTimeoutRef.current !== null) {
+        window.clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      if (retryIntervalRef.current !== null) {
+        window.clearInterval(retryIntervalRef.current);
+        retryIntervalRef.current = null;
+      }
+    };
 
-    ws.addEventListener('close', () => {
-      console.log('[shell] WebSocket disconnected');
-      setReady(false);
-    });
+    const scheduleReconnect = () => {
+      if (disposed || reconnectTimeoutRef.current !== null) {
+        return;
+      }
 
-    ws.addEventListener('error', (event) => {
-      console.error('[shell] WebSocket error:', event);
-    });
+      const delayMs = retryDelayRef.current;
+      const retryAt = Date.now() + delayMs;
+      setStatus('reconnecting');
+      setRetryInSeconds(Math.max(1, Math.ceil(delayMs / 1000)));
+
+      retryIntervalRef.current = window.setInterval(() => {
+        const secondsLeft = Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
+        setRetryInSeconds(secondsLeft);
+      }, 1000);
+
+      reconnectTimeoutRef.current = window.setTimeout(() => {
+        clearRetryTimers();
+        setRetryInSeconds(null);
+        connect();
+      }, delayMs);
+
+      retryDelayRef.current = Math.min(retryDelayRef.current * 2, MAX_RETRY_DELAY_MS);
+    };
+
+    const connect = () => {
+      if (disposed) {
+        return;
+      }
+
+      clearRetryTimers();
+      setRetryInSeconds(null);
+      setStatus(hasConnectedRef.current ? 'reconnecting' : 'connecting');
+
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+      setSocket(ws);
+
+      ws.addEventListener('open', () => {
+        if (disposed || wsRef.current !== ws) {
+          return;
+        }
+
+        console.log('[shell] WebSocket connected');
+        hasConnectedRef.current = true;
+        retryDelayRef.current = INITIAL_RETRY_DELAY_MS;
+        initMessaging(ws);
+        setStatus('connected');
+        setRetryInSeconds(null);
+      });
+
+      ws.addEventListener('close', () => {
+        const isActiveSocket = wsRef.current === ws;
+
+        if (!isActiveSocket) {
+          return;
+        }
+
+        wsRef.current = null;
+        setSocket(null);
+
+        if (disposed) {
+          return;
+        }
+
+        console.log('[shell] WebSocket disconnected');
+        scheduleReconnect();
+      });
+
+      ws.addEventListener('error', (event) => {
+        console.error('[shell] WebSocket error:', event);
+      });
+    };
+
+    connect();
 
     return () => {
-      ws.close();
+      disposed = true;
+      clearRetryTimers();
+      const ws = wsRef.current;
       wsRef.current = null;
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        ws.close();
+      }
     };
   }, []);
 
-  return { ready, socket: wsRef.current };
+  return { status, socket, retryInSeconds };
 }
 
 /**
@@ -245,7 +334,8 @@ function TilingTreeView({
 }
 
 export function Shell() {
-  const { ready: wsReady, socket } = useWebSocket();
+  const { status: connectionStatus, socket, retryInSeconds } = useWebSocket();
+  const wsReady = connectionStatus === 'connected';
 
   const windows = useWindowManager((s) => s.windows);
   const tree = useWindowManager((s) => s.tree);
@@ -638,19 +728,15 @@ export function Shell() {
 
   return (
     <div className={styles.shell}>
+      <ConnectionOverlay status={connectionStatus} retryInSeconds={retryInSeconds} />
+
       <div className={styles.actionsBar}>
         <ActionsBar manifests={manifests} onLaunch={handleLaunch} />
       </div>
 
       <div className={styles.content} style={shellLayoutStyle}>
         <div ref={desktopRef} className={styles.desktop}>
-          {wsReady
-            ? tree && <TilingTreeView node={tree} windowsById={windowsById} />
-            : windows.length > 0 && (
-                <div style={{ padding: 24, color: 'var(--dt-text-muted)' }}>
-                  Connecting to server...
-                </div>
-              )}
+          {wsReady ? tree && <TilingTreeView node={tree} windowsById={windowsById} /> : null}
         </div>
 
         <SplitResizer

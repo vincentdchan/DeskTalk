@@ -19,11 +19,11 @@ export function setPreferenceUser(username: string): void {
   currentPreferenceUser = username;
 }
 
-function readPreferenceStore(): Record<string, PreferenceValue> {
+function readPreferenceStoreForUser(username: string): Record<string, PreferenceValue> {
   const workspace = getWorkspacePaths();
 
   // Try the per-user path first
-  const userPath = join(getUserHomeDir(currentPreferenceUser), '.storage', 'preference.json');
+  const userPath = join(getUserHomeDir(username), '.storage', 'preference.json');
   if (existsSync(userPath)) {
     try {
       const parsed = JSON.parse(readFileSync(userPath, 'utf-8')) as PreferenceStoreFile;
@@ -47,6 +47,17 @@ function readPreferenceStore(): Record<string, PreferenceValue> {
   }
 }
 
+function readPreferenceStore(): Record<string, PreferenceValue> {
+  return readPreferenceStoreForUser(currentPreferenceUser);
+}
+
 export function getStoredPreference(key: string): PreferenceValue | undefined {
   return readPreferenceStore()[key];
+}
+
+export function getStoredPreferenceForUser(
+  username: string,
+  key: string,
+): PreferenceValue | undefined {
+  return readPreferenceStoreForUser(username)[key];
 }
