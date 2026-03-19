@@ -14,6 +14,9 @@ import { createDesktopTool, type SendAiCommand } from './desktop-tool';
 import { createActionTool } from './action-tool';
 import { createGenerateHtmlTool } from './generate-html-tool';
 import { createReadHtmlGuidelinesTool } from './html-guidelines-tool';
+import { HtmlStreamCoordinator } from './html-stream-coordinator';
+import type { AssistantMessage, ToolCall } from '@mariozechner/pi-ai';
+import type pino from 'pino';
 import {
   AI_PROVIDER_DEFINITIONS,
   getAiProviderPreferences,
@@ -177,6 +180,8 @@ export class PiSessionService {
   private readonly session: AgentSession;
   private readonly resourceLoader: DefaultResourceLoader;
   private readonly windowManager: WindowManagerService;
+  private readonly htmlStreamCoordinator: HtmlStreamCoordinator;
+  private readonly log: pino.Logger;
 
   private constructor(options: {
     session: AgentSession;
@@ -187,6 +192,8 @@ export class PiSessionService {
     getPreference: PreferenceReader;
     resourceLoader: DefaultResourceLoader;
     windowManager: WindowManagerService;
+    htmlStreamCoordinator: HtmlStreamCoordinator;
+    logger: pino.Logger;
   }) {
     this.session = options.session;
     this.authStorage = options.authStorage;
@@ -196,6 +203,8 @@ export class PiSessionService {
     this.getPreference = options.getPreference;
     this.resourceLoader = options.resourceLoader;
     this.windowManager = options.windowManager;
+    this.htmlStreamCoordinator = options.htmlStreamCoordinator;
+    this.log = options.logger;
   }
 
   static async create(
@@ -209,6 +218,7 @@ export class PiSessionService {
     ) => Promise<unknown>,
     sendAiCommand: SendAiCommand,
     getCurrentUsername: () => string,
+    logger: pino.Logger,
   ): Promise<PiSessionService> {
     const authStorage = AuthStorage.create(join(workspacePaths.config, 'pi-auth.json'));
     const modelRegistry = new ModelRegistry(authStorage);
@@ -247,6 +257,15 @@ export class PiSessionService {
     });
     await resourceLoader.reload();
 
+    const htmlStreamCoordinator = new HtmlStreamCoordinator({
+      sendAiCommand,
+      activateMiniApp: (miniAppId: string) => {
+        registry.activate(miniAppId, getCurrentUsername());
+      },
+      getPreference,
+      logger: logger.child({ scope: 'html-stream' }),
+    });
+
     const customTools = [
       createDesktopTool({
         windowManager,
@@ -266,6 +285,7 @@ export class PiSessionService {
           registry.activate(miniAppId, getCurrentUsername());
         },
         getPreference,
+        streamCoordinator: htmlStreamCoordinator,
       }),
       createReadHtmlGuidelinesTool(),
     ];
@@ -290,6 +310,8 @@ export class PiSessionService {
       getPreference,
       resourceLoader,
       windowManager,
+      htmlStreamCoordinator,
+      logger,
     });
   }
 
@@ -451,8 +473,10 @@ export class PiSessionService {
         isAssistantMessage(event.message as BasicAgentMessage)
       ) {
         const message = event.message as unknown as BasicAssistantMessage;
-        if (event.assistantMessageEvent.type === 'text_delta') {
-          currentAssistantText += event.assistantMessageEvent.delta;
+        const msgEvent = event.assistantMessageEvent;
+
+        if (msgEvent.type === 'text_delta') {
+          currentAssistantText += msgEvent.delta;
           onEvent({
             type: 'message_update',
             text: currentAssistantText,
@@ -460,6 +484,37 @@ export class PiSessionService {
             model: message.model,
           });
         }
+
+        // ── HTML streaming via toolcall events ──────────────────────
+        if (msgEvent.type === 'toolcall_start') {
+          const partialMsg = msgEvent.partial as AssistantMessage;
+          const toolContent = partialMsg.content[msgEvent.contentIndex] as ToolCall | undefined;
+          this.log.debug(
+            {
+              toolName: toolContent?.name,
+              toolType: toolContent?.type,
+              contentIndex: msgEvent.contentIndex,
+            },
+            'toolcall_start received',
+          );
+          if (
+            toolContent &&
+            toolContent.type === 'toolCall' &&
+            toolContent.name === 'generate_html'
+          ) {
+            this.log.debug('detected generate_html — calling onToolcallStart()');
+            this.htmlStreamCoordinator.onToolcallStart();
+          }
+        }
+
+        if (msgEvent.type === 'toolcall_delta') {
+          const session = this.htmlStreamCoordinator.getActiveSession();
+          if (session && session.state === 'streaming') {
+            this.htmlStreamCoordinator.onToolcallDelta(msgEvent.delta);
+          }
+        }
+
+        // toolcall_end: coordinator doesn't need to act — execute() handles finalization
         return;
       }
 

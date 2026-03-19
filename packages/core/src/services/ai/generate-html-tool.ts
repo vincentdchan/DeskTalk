@@ -10,6 +10,7 @@ import {
   type ThemePreferences,
 } from '../theme-css';
 import { createHtmlBridgeScript } from './html-bridge-script';
+import type { HtmlStreamCoordinator } from './html-stream-coordinator';
 
 const generateHtmlSchema = Type.Object({
   title: Type.String({ description: 'Window title for the generated HTML preview' }),
@@ -32,6 +33,8 @@ interface GenerateHtmlToolOptions {
   sendAiCommand: SendAiCommand;
   activateMiniApp: (miniAppId: string) => void;
   getPreference: PreferenceReader;
+  /** Shared coordinator for streaming HTML content from toolcall_delta events. */
+  streamCoordinator: HtmlStreamCoordinator;
 }
 
 let streamCounter = 0;
@@ -88,7 +91,7 @@ function injectIntoHtmlHead(html: string, snippet: string): string {
 }
 
 export function createGenerateHtmlTool(options: GenerateHtmlToolOptions): ToolDefinition {
-  const { sendAiCommand, activateMiniApp, getPreference } = options;
+  const { sendAiCommand, activateMiniApp, getPreference, streamCoordinator } = options;
 
   return {
     name: 'generate_html',
@@ -105,6 +108,33 @@ export function createGenerateHtmlTool(options: GenerateHtmlToolOptions): ToolDe
     parameters: generateHtmlSchema,
     async execute(_toolCallId, params) {
       const input = params as GenerateHtmlParams;
+
+      // ── Streaming path ──────────────────────────────────────────────
+      // If the coordinator already streamed content via toolcall_delta,
+      // finalize the stream with any remaining content.
+      const activeSession = streamCoordinator.getActiveSession();
+      if (activeSession && activeSession.state === 'streaming' && activeSession.windowOpened) {
+        const session = await streamCoordinator.finalize(input.content);
+        if (session) {
+          const result = {
+            ok: true,
+            windowId: session.windowId,
+            title: input.title,
+            streamId: session.streamId,
+            contentLength: input.content.length,
+            streamed: true,
+          };
+          return {
+            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+            details: result,
+          };
+        }
+      }
+
+      // ── Fallback: non-streaming path ────────────────────────────────
+      // Abort any partially-started session that didn't fully open.
+      streamCoordinator.abort();
+
       const streamId = nextStreamId();
       const bridgeToken = randomUUID();
 
@@ -149,6 +179,7 @@ export function createGenerateHtmlTool(options: GenerateHtmlToolOptions): ToolDe
         title: input.title,
         streamId,
         contentLength: bridgedHtml.length,
+        streamed: false,
       };
       return {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
