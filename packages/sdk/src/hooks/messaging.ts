@@ -184,6 +184,9 @@ export function useEvent<T>(event: string, handler: (data: T) => void): void {
  * const openMiniApp = useOpenMiniApp();
  * openMiniApp('preview', { path: 'photos/cat.png' });
  * ```
+ *
+ * The shell reuses an existing window when `miniAppId` and launch `args`
+ * are shallow-equal; otherwise it opens a new window.
  */
 export function useOpenMiniApp(): (miniAppId: string, args?: Record<string, unknown>) => void {
   return useCallback((miniAppId: string, args?: Record<string, unknown>) => {
@@ -197,8 +200,7 @@ export function useOpenMiniApp(): (miniAppId: string, args?: Record<string, unkn
 
 /**
  * React hook that fires a callback when the shell updates this window's
- * launch arguments (e.g. when `openWindow` reuses an existing window
- * with new args).
+ * launch arguments programmatically.
  *
  * Usage:
  * ```ts

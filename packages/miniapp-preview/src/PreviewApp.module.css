@@ -90,6 +90,16 @@
   outline: none;
 }
 
+.htmlViewport {
+  display: block;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  border: none;
+  background: #fff;
+}
+
 .image {
   max-width: none;
   max-height: none;
@@ -124,4 +134,111 @@
 .errorIcon {
   font-size: 32px;
   opacity: 0.5;
+}
+
+.dialogOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklab, var(--dt-overlay) 78%, transparent);
+}
+
+.dialogCard {
+  width: min(520px, calc(100vw - 32px));
+  padding: 20px;
+  border: 1px solid var(--dt-border-strong);
+  border-radius: 16px;
+  background: var(--dt-surface);
+  box-shadow: 0 24px 60px var(--dt-shadow-color);
+}
+
+.dialogHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dialogIcon {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--dt-warning-subtle);
+  color: var(--dt-warning);
+  font-size: 18px;
+}
+
+.dialogTitle {
+  color: var(--dt-text);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.dialogSubtitle {
+  margin-top: 2px;
+  color: var(--dt-text-secondary);
+  font-size: 13px;
+}
+
+.dialogLabel {
+  margin-top: 12px;
+  margin-bottom: 6px;
+  color: var(--dt-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dialogCode {
+  overflow-wrap: anywhere;
+  padding: 10px 12px;
+  border: 1px solid var(--dt-border-subtle);
+  border-radius: 10px;
+  background: var(--dt-bg-subtle);
+  color: var(--dt-text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.dialogRisk {
+  margin-top: 14px;
+  color: var(--dt-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.dialogCancelButton,
+.dialogConfirmButton {
+  border-radius: 10px;
+  padding: 9px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dialogCancelButton {
+  border: 1px solid var(--dt-border);
+  background: var(--dt-surface);
+  color: var(--dt-text);
+}
+
+.dialogConfirmButton {
+  border: 1px solid var(--dt-warning);
+  background: var(--dt-warning);
+  color: var(--dt-text-on-accent);
+  font-weight: 600;
 }

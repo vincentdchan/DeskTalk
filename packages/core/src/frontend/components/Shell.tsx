@@ -8,14 +8,39 @@ import {
   setWindowManagerSocket,
   useWindowManager,
 } from '../stores/window-manager';
+import type { WindowSyncPayload } from '../stores/window-manager';
 import { ActionsBar } from './ActionsBar';
-import { Dock, type DockMiniApp } from './Dock';
 import { WindowChrome } from './WindowChrome';
+import { SplitResizer } from './SplitResizer';
 import { InfoPanel } from './InfoPanel';
+import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { loadMiniAppModule } from '../miniapp-runtime';
 import type { MiniAppFrontendModule } from '../miniapp-runtime';
 import { httpClient } from '../http-client';
+import type { TilingNode, TreePath } from '../tiling-tree';
 import styles from './Shell.module.scss';
+
+const TILE_GAP = 4;
+const ASSISTANT_MIN_RATIO = 0.18;
+const ASSISTANT_MAX_RATIO = 0.45;
+const ASSISTANT_DEFAULT_RATIO = 0.28;
+const ASSISTANT_WINDOW_ID = '__assistant__';
+
+type BridgeStateSelector =
+  | 'desktop.summary'
+  | 'desktop.windows'
+  | 'desktop.focusedWindow'
+  | 'theme.current';
+
+interface BridgeStateRequestDetail {
+  selector: BridgeStateSelector;
+  resolve: (value: unknown) => void;
+  reject: (message: string) => void;
+}
+
+function clampAssistantRatio(ratio: number): number {
+  return Math.min(Math.max(ratio, ASSISTANT_MIN_RATIO), ASSISTANT_MAX_RATIO);
+}
 
 /**
  * Fallback UI when a MiniApp cannot be loaded.
@@ -84,16 +109,6 @@ function MiniAppWindow({
   return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
 }
 
-function toDockMiniApps(manifests: MiniAppManifest[], windows: WindowState[]): DockMiniApp[] {
-  return manifests.map((app) => ({
-    id: app.id,
-    name: app.name,
-    icon: app.icon,
-    iconPng: app.iconPng,
-    hasOpenWindows: windows.some((w) => w.miniAppId === app.id && !w.minimized),
-  }));
-}
-
 /**
  * Hook that creates and manages the WebSocket connection to the server.
  * Returns true when the connection is open and ready for messaging.
@@ -133,15 +148,207 @@ function useWebSocket(): { ready: boolean; socket: WebSocket | null } {
   return { ready, socket: wsRef.current };
 }
 
+/**
+ * Hook that tracks the desktop area size and reports it to the window manager.
+ */
+function useDesktopBounds(desktopRef: React.RefObject<HTMLDivElement | null>) {
+  const setDesktopBounds = useWindowManager((s) => s.setDesktopBounds);
+
+  useEffect(() => {
+    const el = desktopRef.current;
+    if (!el) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setDesktopBounds({ x: 0, y: 0, width, height });
+      }
+    });
+
+    observer.observe(el);
+    // Set initial bounds
+    setDesktopBounds({
+      x: 0,
+      y: 0,
+      width: el.clientWidth,
+      height: el.clientHeight,
+    });
+
+    return () => observer.disconnect();
+  }, [desktopRef, setDesktopBounds]);
+}
+
+function WindowTile({
+  win,
+  isOverlayMaximized = false,
+}: {
+  win: WindowState;
+  isOverlayMaximized?: boolean;
+}) {
+  return (
+    <WindowChrome window={win} isOverlayMaximized={isOverlayMaximized}>
+      <MiniAppWindow miniAppId={win.miniAppId} windowId={win.id} args={win.args} />
+    </WindowChrome>
+  );
+}
+
+function TilingTreeView({
+  node,
+  windowsById,
+  path = [],
+}: {
+  node: TilingNode;
+  windowsById: Map<string, WindowSyncPayload['windows'][number]>;
+  path?: TreePath;
+}) {
+  if (node.type === 'leaf') {
+    const win = windowsById.get(node.windowId);
+    if (!win) {
+      return null;
+    }
+
+    return (
+      <div className={styles.tileLeaf}>
+        <WindowTile win={win} isOverlayMaximized={win.maximized} />
+      </div>
+    );
+  }
+
+  const [first, second] = node.children;
+  const containerStyle: React.CSSProperties =
+    node.split === 'horizontal'
+      ? {
+          gridTemplateColumns: `minmax(0, ${node.ratio}fr) ${TILE_GAP}px minmax(0, ${1 - node.ratio}fr)`,
+        }
+      : {
+          gridTemplateRows: `minmax(0, ${node.ratio}fr) ${TILE_GAP}px minmax(0, ${1 - node.ratio}fr)`,
+        };
+
+  const splitClassName = [
+    styles.tileSplit,
+    node.split === 'horizontal' ? styles.tileSplitHorizontal : styles.tileSplitVertical,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <div className={splitClassName} style={containerStyle}>
+      <div className={styles.tilePane}>
+        <TilingTreeView node={first} windowsById={windowsById} path={[...path, 0]} />
+      </div>
+      <SplitResizer path={path} split={node.split} ratio={node.ratio} />
+      <div className={styles.tilePane}>
+        <TilingTreeView node={second} windowsById={windowsById} path={[...path, 1]} />
+      </div>
+    </div>
+  );
+}
+
 export function Shell() {
   const { ready: wsReady, socket } = useWebSocket();
 
   const windows = useWindowManager((s) => s.windows);
+  const tree = useWindowManager((s) => s.tree);
+  const fullscreenWindowId = useWindowManager((s) => s.fullscreenWindowId);
   const setWindowActions = useWindowManager((s) => s.setWindowActions);
 
   const [manifests, setManifests] = useState<MiniAppManifest[]>([]);
-  const [dockApps, setDockApps] = useState<DockMiniApp[]>([]);
+  const [assistantRatio, setAssistantRatio] = useState(ASSISTANT_DEFAULT_RATIO);
   const actionHandlersRef = useRef<Map<string, Map<string, ActionHandler>>>(new Map());
+
+  const desktopRef = useRef<HTMLDivElement>(null);
+  useDesktopBounds(desktopRef);
+  useKeyboardShortcuts();
+
+  useEffect(() => {
+    const handleBridgeStateRequest = (event: Event) => {
+      const detail = (event as CustomEvent<BridgeStateRequestDetail>).detail;
+      if (!detail?.selector) {
+        return;
+      }
+
+      const store = useWindowManager.getState();
+      const summarizeWindow = (windowData: WindowState) => ({
+        id: windowData.id,
+        miniAppId: windowData.miniAppId,
+        title: windowData.title,
+        focused: windowData.id === store.focusedWindowId,
+        maximized: windowData.id === store.fullscreenWindowId || !!windowData.maximized,
+      });
+
+      try {
+        switch (detail.selector) {
+          case 'desktop.summary':
+            detail.resolve({
+              focusedWindowId: store.focusedWindowId,
+              fullscreenWindowId: store.fullscreenWindowId,
+              windows: store.windows.map(summarizeWindow),
+            });
+            return;
+          case 'desktop.windows':
+            detail.resolve(store.windows.map(summarizeWindow));
+            return;
+          case 'desktop.focusedWindow': {
+            const focusedWindow = store.windows.find(
+              (windowData) => windowData.id === store.focusedWindowId,
+            );
+            detail.resolve(focusedWindow ? summarizeWindow(focusedWindow) : null);
+            return;
+          }
+          case 'theme.current': {
+            const computedStyle = getComputedStyle(document.documentElement);
+            const tokens = [
+              '--dt-bg',
+              '--dt-bg-subtle',
+              '--dt-surface',
+              '--dt-text',
+              '--dt-text-secondary',
+              '--dt-text-muted',
+              '--dt-border',
+              '--dt-accent',
+              '--dt-danger',
+              '--dt-success',
+              '--dt-warning',
+              '--dt-info',
+            ].reduce<Record<string, string>>((acc, tokenName) => {
+              acc[tokenName] = computedStyle.getPropertyValue(tokenName).trim();
+              return acc;
+            }, {});
+            detail.resolve({
+              mode: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
+              tokens,
+            });
+            return;
+          }
+        }
+      } catch (error) {
+        detail.reject((error as Error).message);
+      }
+    };
+
+    window.addEventListener('desktalk:bridge:get-state', handleBridgeStateRequest);
+    return () => {
+      window.removeEventListener('desktalk:bridge:get-state', handleBridgeStateRequest);
+    };
+  }, []);
+
+  const windowsById = new Map(windows.map((win) => [win.id, win]));
+  const fullscreenWindow = fullscreenWindowId ? windowsById.get(fullscreenWindowId) : undefined;
+  const desktopRatio = 1 - assistantRatio;
+  const shellLayoutStyle: React.CSSProperties = {
+    gridTemplateColumns: `minmax(0, ${desktopRatio}fr) ${TILE_GAP}px minmax(0, ${assistantRatio}fr)`,
+  };
+  const assistantWindow: WindowState = {
+    id: ASSISTANT_WINDOW_ID,
+    miniAppId: 'assistant',
+    title: 'AI Assistant',
+    position: { x: 0, y: 0 },
+    size: { width: 0, height: 0 },
+    minimized: false,
+    maximized: false,
+    focused: false,
+    zIndex: 1,
+  };
 
   const buildClientActions = useCallback(
     (
@@ -186,11 +393,6 @@ export function Shell() {
     };
   }, []);
 
-  // Update dock apps when manifests or windows change
-  useEffect(() => {
-    setDockApps(toDockMiniApps(manifests, windows));
-  }, [manifests, windows]);
-
   // Wire up the window manager socket
   useEffect(() => {
     setWindowManagerSocket(socket);
@@ -213,13 +415,14 @@ export function Shell() {
         if (message.type === 'window:state') {
           const payload = message as unknown as {
             type: string;
-            windows: WindowState[];
-            nextZIndex: number;
-            windowIdCounter: number;
-          };
+          } & WindowSyncPayload;
           useWindowManager.getState().restoreFromBackend({
             windows: payload.windows ?? [],
-            nextZIndex: typeof payload.nextZIndex === 'number' ? payload.nextZIndex : 1,
+            tree: payload.tree ?? null,
+            focusedWindowId:
+              typeof payload.focusedWindowId === 'string' ? payload.focusedWindowId : null,
+            fullscreenWindowId:
+              typeof payload.fullscreenWindowId === 'string' ? payload.fullscreenWindowId : null,
             windowIdCounter:
               typeof payload.windowIdCounter === 'number' ? payload.windowIdCounter : 0,
           });
@@ -307,9 +510,6 @@ export function Shell() {
           break;
         case 'focus':
           if (windowId) store.focusWindow(windowId);
-          break;
-        case 'minimize':
-          if (windowId) store.minimizeWindow(windowId);
           break;
         case 'maximize':
           if (windowId) store.maximizeWindow(windowId);
@@ -414,30 +614,13 @@ export function Shell() {
   const handleLaunch = useCallback(
     async (miniAppId: string) => {
       try {
-        const store = useWindowManager.getState();
-        const existingWindow = store
-          .getWindowsByMiniApp(miniAppId)
-          .reduce<WindowState | undefined>((selected, window) => {
-            if (!selected) {
-              return window;
-            }
-            if (window.focused) {
-              return window;
-            }
-            return window.zIndex > selected.zIndex ? window : selected;
-          }, undefined);
-
-        if (existingWindow) {
-          store.focusWindow(existingWindow.id);
-          return;
-        }
-
         // Activate on server
         await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`);
         // Find the manifest to get the title
         const manifest = manifests.find((m) => m.id === miniAppId);
         const title = manifest?.name ?? miniAppId;
-        // Open locally (syncs to backend automatically)
+        // Open locally. The store reuses an existing window when miniAppId and args
+        // are shallow-equal; otherwise it creates a new window.
         useWindowManager.getState().openWindow(miniAppId, title);
       } catch (err) {
         console.error('[shell] Could not launch MiniApp:', err);
@@ -446,46 +629,16 @@ export function Shell() {
     [manifests],
   );
 
-  const handleHideApp = useCallback((miniAppId: string) => {
-    const store = useWindowManager.getState();
-    const windowsToHide = store
-      .getWindowsByMiniApp(miniAppId)
-      .filter((window) => !window.minimized);
-
-    windowsToHide.forEach((window) => {
-      store.minimizeWindow(window.id);
-    });
-  }, []);
-
-  const handleQuitApp = useCallback(async (miniAppId: string) => {
-    const store = useWindowManager.getState();
-    const windowsToClose = store.getWindowsByMiniApp(miniAppId);
-
-    windowsToClose.forEach((window) => {
-      store.closeWindow(window.id);
-    });
-
-    try {
-      await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/deactivate`);
-    } catch (err) {
-      console.error('[shell] Could not quit MiniApp:', err);
-    }
-  }, []);
-
   return (
     <div className={styles.shell}>
       <div className={styles.actionsBar}>
-        <ActionsBar />
+        <ActionsBar manifests={manifests} onLaunch={handleLaunch} />
       </div>
 
-      <div className={styles.content}>
-        <div className={styles.desktop}>
+      <div className={styles.content} style={shellLayoutStyle}>
+        <div ref={desktopRef} className={styles.desktop}>
           {wsReady
-            ? windows.map((win) => (
-                <WindowChrome key={win.id} window={win}>
-                  <MiniAppWindow miniAppId={win.miniAppId} windowId={win.id} args={win.args} />
-                </WindowChrome>
-              ))
+            ? tree && <TilingTreeView node={tree} windowsById={windowsById} />
             : windows.length > 0 && (
                 <div style={{ padding: 24, color: 'var(--dt-text-muted)' }}>
                   Connecting to server...
@@ -493,18 +646,27 @@ export function Shell() {
               )}
         </div>
 
-        <div className={styles.infoPanel}>
-          <InfoPanel socket={socket} wsReady={wsReady} />
-        </div>
-      </div>
-
-      <div className={styles.dock}>
-        <Dock
-          miniApps={dockApps}
-          onLaunch={handleLaunch}
-          onHideApp={handleHideApp}
-          onQuitApp={handleQuitApp}
+        <SplitResizer
+          path={[]}
+          split="horizontal"
+          ratio={desktopRatio}
+          onRatioChange={(nextDesktopRatio) => {
+            setAssistantRatio(clampAssistantRatio(1 - nextDesktopRatio));
+          }}
         />
+
+        <div className={styles.assistantPane}>
+          <WindowChrome
+            window={assistantWindow}
+            title="AI Assistant"
+            showCloseButton={false}
+            showFullscreenButton={false}
+          >
+            <InfoPanel socket={socket} wsReady={wsReady} />
+          </WindowChrome>
+        </div>
+
+        {fullscreenWindow && <div className={styles.maximizedMask} />}
       </div>
     </div>
   );

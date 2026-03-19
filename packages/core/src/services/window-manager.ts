@@ -15,9 +15,28 @@ export interface SerializableActionDefinition {
   >;
 }
 
+/**
+ * Tiling tree node types (mirrored from frontend tiling-tree.ts for persistence).
+ */
+export interface LeafNode {
+  type: 'leaf';
+  windowId: string;
+}
+
+export interface ContainerNode {
+  type: 'container';
+  split: 'horizontal' | 'vertical';
+  ratio: number;
+  children: [TilingNode, TilingNode];
+}
+
+export type TilingNode = LeafNode | ContainerNode;
+
 export interface PersistedWindowState {
   windows: WindowState[];
-  nextZIndex: number;
+  tree: TilingNode | null;
+  focusedWindowId: string | null;
+  fullscreenWindowId: string | null;
   windowIdCounter: number;
 }
 
@@ -38,6 +57,35 @@ function writePersistedState(filePath: string, state: PersistedWindowState): voi
   writeFileSync(filePath, JSON.stringify(state, null, 2), 'utf-8');
 }
 
+/** Collect all window IDs from a tiling tree in traversal order. */
+function getLeafIds(node: TilingNode): string[] {
+  if (node.type === 'leaf') return [node.windowId];
+  return [...getLeafIds(node.children[0]), ...getLeafIds(node.children[1])];
+}
+
+/** Build a human-readable description of the tiling layout for AI context. */
+function describeLayout(
+  node: TilingNode,
+  titles: Record<string, string>,
+  focusedId: string | null,
+  indent = 0,
+): string {
+  const pad = '  '.repeat(indent);
+
+  if (node.type === 'leaf') {
+    const title = titles[node.windowId] ?? node.windowId;
+    const focus = node.windowId === focusedId ? ' (focused)' : '';
+    return `${pad}${title}${focus}`;
+  }
+
+  const pctFirst = Math.round(node.ratio * 100);
+  const pctSecond = 100 - pctFirst;
+  const header = `${pad}${node.split} split (${pctFirst}/${pctSecond})`;
+  const first = describeLayout(node.children[0], titles, focusedId, indent + 1);
+  const second = describeLayout(node.children[1], titles, focusedId, indent + 1);
+  return `${header}\n${first}\n${second}`;
+}
+
 /**
  * Backend window manager service — persistence-only.
  *
@@ -51,7 +99,9 @@ function writePersistedState(filePath: string, state: PersistedWindowState): voi
 export class WindowManagerService {
   private state: PersistedWindowState = {
     windows: [],
-    nextZIndex: 1,
+    tree: null,
+    focusedWindowId: null,
+    fullscreenWindowId: null,
     windowIdCounter: 0,
   };
   private readonly windowActions: Record<string, SerializableActionDefinition[]> = {};
@@ -68,7 +118,13 @@ export class WindowManagerService {
    */
   switchUser(newFilePath: string): void {
     this.filePath = newFilePath;
-    this.state = { windows: [], nextZIndex: 1, windowIdCounter: 0 };
+    this.state = {
+      windows: [],
+      tree: null,
+      focusedWindowId: null,
+      fullscreenWindowId: null,
+      windowIdCounter: 0,
+    };
     this.load();
   }
 
@@ -80,7 +136,11 @@ export class WindowManagerService {
 
     this.state = {
       windows: Array.isArray(persisted.windows) ? persisted.windows : [],
-      nextZIndex: typeof persisted.nextZIndex === 'number' ? persisted.nextZIndex : 1,
+      tree: persisted.tree ?? null,
+      focusedWindowId:
+        typeof persisted.focusedWindowId === 'string' ? persisted.focusedWindowId : null,
+      fullscreenWindowId:
+        typeof persisted.fullscreenWindowId === 'string' ? persisted.fullscreenWindowId : null,
       windowIdCounter:
         typeof persisted.windowIdCounter === 'number'
           ? persisted.windowIdCounter
@@ -88,12 +148,13 @@ export class WindowManagerService {
     };
 
     // Ensure at least one window is focused on load
-    if (this.state.windows.length > 0 && !this.state.windows.some((w) => w.focused)) {
-      const topWindow = this.state.windows.reduce((top, w) => (w.zIndex > top.zIndex ? w : top));
-      this.state.windows = this.state.windows.map((w) => ({
-        ...w,
-        focused: w.id === topWindow.id && !w.minimized,
-      }));
+    if (this.state.windows.length > 0 && !this.state.focusedWindowId) {
+      if (this.state.tree) {
+        const leafIds = getLeafIds(this.state.tree);
+        if (leafIds.length > 0) {
+          this.state.focusedWindowId = leafIds[0];
+        }
+      }
     }
   }
 
@@ -111,7 +172,10 @@ export class WindowManagerService {
   syncState(payload: PersistedWindowState): void {
     this.state = {
       windows: Array.isArray(payload.windows) ? payload.windows : [],
-      nextZIndex: typeof payload.nextZIndex === 'number' ? payload.nextZIndex : 1,
+      tree: payload.tree ?? null,
+      focusedWindowId: typeof payload.focusedWindowId === 'string' ? payload.focusedWindowId : null,
+      fullscreenWindowId:
+        typeof payload.fullscreenWindowId === 'string' ? payload.fullscreenWindowId : null,
       windowIdCounter: typeof payload.windowIdCounter === 'number' ? payload.windowIdCounter : 0,
     };
     writePersistedState(this.filePath, this.state);
@@ -125,7 +189,7 @@ export class WindowManagerService {
   }
 
   getFocusedWindow(): WindowState | undefined {
-    return this.state.windows.find((w) => w.focused);
+    return this.state.windows.find((w) => w.id === this.state.focusedWindowId);
   }
 
   getWindowActions(windowId: string): SerializableActionDefinition[] {
@@ -155,17 +219,20 @@ export class WindowManagerService {
   getDesktopContext(availableMiniApps: Array<{ id: string; name: string }>): string {
     const focusedWindow = this.getFocusedWindow();
 
-    // ─── Windows ──────────────────────────────────────────────────────────
-    const windowLines = this.state.windows.length
-      ? [...this.state.windows]
-          .sort((a, b) => a.zIndex - b.zIndex)
-          .map((w) => {
-            const states = [w.focused ? 'focused' : null, w.minimized ? 'minimized' : null]
-              .filter(Boolean)
-              .join(', ');
-            return `  ${w.id}: "${w.title}" (miniapp: ${w.miniAppId}${states ? `, ${states}` : ''})`;
-          })
-      : ['  (none)'];
+    // ─── Layout ───────────────────────────────────────────────────────────
+    const layoutLines: string[] = [];
+    if (this.state.tree) {
+      const titles: Record<string, string> = {};
+      for (const w of this.state.windows) {
+        titles[w.id] = `${w.title} (${w.id}, miniapp: ${w.miniAppId})`;
+      }
+      layoutLines.push(
+        'Layout:',
+        describeLayout(this.state.tree, titles, this.state.focusedWindowId, 1),
+      );
+    } else {
+      layoutLines.push('Layout: (empty)');
+    }
 
     // ─── MiniApps ─────────────────────────────────────────────────────────
     const miniAppLines = availableMiniApps.length
@@ -196,8 +263,7 @@ export class WindowManagerService {
     return [
       '[Desktop Context]',
       `Focused: ${focusedWindow ? `"${focusedWindow.title}" (${focusedWindow.id}, miniapp: ${focusedWindow.miniAppId})` : 'none'}`,
-      'Windows:',
-      ...windowLines,
+      ...layoutLines,
       'MiniApps:',
       ...miniAppLines,
       ...(actionLines.length > 0

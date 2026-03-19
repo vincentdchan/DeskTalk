@@ -12,6 +12,8 @@ import {
 } from '@mariozechner/pi-coding-agent';
 import { createDesktopTool, type SendAiCommand } from './desktop-tool';
 import { createActionTool } from './action-tool';
+import { createGenerateHtmlTool } from './generate-html-tool';
+import { createReadHtmlGuidelinesTool } from './html-guidelines-tool';
 import {
   AI_PROVIDER_DEFINITIONS,
   getAiProviderPreferences,
@@ -258,6 +260,14 @@ export class PiSessionService {
         windowManager,
         invokeAction,
       }),
+      createGenerateHtmlTool({
+        sendAiCommand,
+        activateMiniApp: (miniAppId: string) => {
+          registry.activate(miniAppId, getCurrentUsername());
+        },
+        getPreference,
+      }),
+      createReadHtmlGuidelinesTool(),
     ];
 
     const { session } = await createAgentSession({

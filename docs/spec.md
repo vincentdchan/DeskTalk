@@ -30,6 +30,7 @@ desktalk/
     miniapp-note/          # @desktalk/miniapp-note
     miniapp-todo/          # @desktalk/miniapp-todo
     miniapp-file-explorer/ # @desktalk/miniapp-file-explorer
+    miniapp-preview/       # @desktalk/miniapp-preview
     miniapp-preference/    # @desktalk/miniapp-preference
   docs/
   pnpm-workspace.yaml
@@ -45,6 +46,7 @@ All packages are published under the `@desktalk` npm scope:
 | Note          | `@desktalk/miniapp-note`          |
 | Todo          | `@desktalk/miniapp-todo`          |
 | File Explorer | `@desktalk/miniapp-file-explorer` |
+| Preview       | `@desktalk/miniapp-preview`       |
 | Preference    | `@desktalk/miniapp-preference`    |
 
 The `@desktalk/core` package declares each built-in MiniApp as a dependency in its `package.json`. At build time all MiniApps are bundled together. At runtime the core discovers and registers them.
@@ -262,19 +264,21 @@ The core provides a set of built-in actions that are always present in the Actio
 
 These built-in actions appear alongside any MiniApp-specific actions. For example, when a Note window is focused the Actions Bar shows: `Maximize | Minimize | Close | Create Note | Delete Note | Search Notes | ...`
 
-| Region      | Description                                                                                                                                                                  |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Window Area | The main workspace where MiniApp windows are rendered. Supports opening, closing, moving, resizing, focusing, and minimizing windows.                                        |
-| Info Panel  | A right-side panel that displays AI session information: thinking state, conversation messages, and token/cost usage. Powered by pi (see [AI Integration](#ai-integration)). |
-| Dock        | A macOS-style dock at the bottom listing all available MiniApps for quick launch.                                                                                            |
+| Region      | Description                                                                                                                                                                                                                                                              |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Window Area | The main workspace where MiniApp windows are rendered. Supports opening, closing, moving, resizing, focusing, and minimizing windows.                                                                                                                                    |
+| Info Panel  | A permanent right-side AI Assistant pane that displays conversation messages, thinking state, and token/cost usage. It is rendered with window chrome inside the shell layout but is not a normal MiniApp window. Powered by pi (see [AI Integration](#ai-integration)). |
+| Dock        | A macOS-style dock at the bottom listing all available MiniApps for quick launch.                                                                                                                                                                                        |
 
 ### Window Lifecycle
 
 1. User clicks a MiniApp icon in the Dock (or triggers an AI action).
-2. The window manager creates a new window instance and renders the MiniApp's root component inside it.
-3. The MiniApp registers its actions via `<ActionsProvider>` so they appear in the Actions Bar when the window is focused.
-4. The user (or AI) interacts with the window.
-5. The window can be minimized (hides to dock), maximized, or closed.
+2. The window manager checks for an existing window with the same `miniAppId` and shallow-equal launch `args`.
+3. If such a window exists, the shell focuses it instead of opening a duplicate.
+4. Otherwise, the window manager creates a new window instance and renders the MiniApp's root component inside it.
+5. The MiniApp registers its actions via `<ActionsProvider>` so they appear in the Actions Bar when the window is focused.
+6. The user (or AI) interacts with the window.
+7. The window can be spotlight-maximized or closed.
 
 ### Focus Model
 
@@ -380,6 +384,7 @@ Pi's built-in tools (`read`, `bash`, `edit`, `write`) are **disabled** for DeskT
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `list_actions`  | Returns the list of `<Action>` declarations registered by the currently focused MiniApp window. Each entry includes the action's `name`, `description`, and parameter schema. |
 | `invoke_action` | Calls a named action with parameters. The core resolves the action handler registered by the focused MiniApp and executes it. Returns the action's result.                    |
+| `generate_html` | Generates a self-contained HTML document and streams it into a Preview window's sandboxed iframe. Used for charts, visualizations, reports, and any rich visual content.      |
 
 ```ts
 import { Type } from '@sinclair/typebox';
@@ -445,7 +450,7 @@ Key event types forwarded to the frontend:
 
 ### Frontend — Info Panel
 
-The Info Panel is the user-facing AI interface, rendered as a permanent right-side panel in the shell (not inside any MiniApp window).
+The Info Panel is the user-facing AI interface, rendered as a permanent right-side AI Assistant pane in the shell. It is not managed by the normal MiniApp tiling tree.
 
 #### Sections
 
@@ -531,13 +536,14 @@ The `@desktalk/core` package declares `@mariozechner/pi-coding-agent` as a depen
 
 ## Built-in MiniApps
 
-DeskTalk ships with four built-in MiniApps. Each has its own detailed spec in `docs/miniapps/`.
+DeskTalk ships with five built-in MiniApps. Each has its own detailed spec in `docs/miniapps/`.
 
 | MiniApp       | Summary                                                                                                                                                       |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Note          | Markdown note-taking with YAML front matter and Milkdown editor.                                                                                              |
 | Todo          | Task management similar to macOS Reminders.                                                                                                                   |
 | File Explorer | Simple filesystem browser.                                                                                                                                    |
+| Preview       | Content viewer supporting image files (zoom, pan, navigation) and HTML files (sandboxed iframe). Also renders streaming HTML generated by the AI assistant.   |
 | Preference    | App and window configuration UI. **Privileged** — sole MiniApp with write access to global config (see [Privileged Access](#privileged-access--permissions)). |
 
 ## Engineering Guidelines

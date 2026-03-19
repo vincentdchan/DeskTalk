@@ -18,6 +18,7 @@ The File Explorer MiniApp is a system-level filesystem browser that lets users n
 
 - Text files (`.md`, `.txt`, `.json`, `.ts`, `.js`, etc.) are displayed with syntax highlighting.
 - Image files (`.png`, `.jpg`, `.gif`, `.svg`) are displayed inline.
+- HTML files (`.html`) are opened in the Preview MiniApp for iframe rendering.
 - Other files show name, size, type, and last-modified metadata.
 
 ## UI Layout
@@ -45,7 +46,9 @@ Note: The Actions Bar is a global element managed by the core shell (see `docs/s
 ### Interactions
 
 - Double-click a directory to navigate into it.
-- Double-click a file to open a preview pane.
+- Double-click a supported image file (`.jpg`, `.jpeg`, `.png`, `.webp`) to open it in the Preview MiniApp (image mode).
+- Double-click an `.html` file to open it in the Preview MiniApp (HTML mode).
+- Double-click any other file to open an inline preview pane.
 - Right-click for a context menu (rename, delete, copy, move).
 - Drag and drop for moving files (optional stretch goal).
 

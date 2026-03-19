@@ -15,7 +15,8 @@
   },
   "scripts": {
     "build": "desktalk-build",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "unit:test": "vitest run"
   },
   "dependencies": {
     "@desktalk/sdk": "workspace:*",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "typescript": "^5.7.0",
     "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0"
+    "@types/react-dom": "^19.0.0",
+    "vitest": "^3.0.0"
   }
 }

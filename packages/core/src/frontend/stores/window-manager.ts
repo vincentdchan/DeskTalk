@@ -1,15 +1,32 @@
 import { create } from 'zustand';
 import type { ActionDefinition, WindowPosition, WindowSize, WindowState } from '@desktalk/sdk';
+import type { TilingNode } from '../tiling-tree';
+import {
+  computeLayout,
+  computeSplitBars,
+  getLeafIds,
+  insertWindow,
+  removeWindow,
+  swapWindows,
+  adjustRatio,
+  equalizeRatio,
+  rotateSplit,
+  findNeighbor,
+  containsWindow,
+  setRatioAtPath,
+} from '../tiling-tree';
+import type { TileRect, Direction, SplitBar, TreePath } from '../tiling-tree';
 
-const MIN_WINDOW_WIDTH = 300;
-const MIN_WINDOW_HEIGHT = 200;
+const TILE_GAP = 4;
 
 /**
  * Snapshot sent to backend for persistence and AI context.
  */
 export interface WindowSyncPayload {
   windows: WindowState[];
-  nextZIndex: number;
+  tree: TilingNode | null;
+  focusedWindowId: string | null;
+  fullscreenWindowId: string | null;
   windowIdCounter: number;
 }
 
@@ -30,7 +47,9 @@ function syncToBackend(): void {
   const state = useWindowManager.getState();
   const payload: WindowSyncPayload = {
     windows: state.windows,
-    nextZIndex: state.nextZIndex,
+    tree: state.tree,
+    focusedWindowId: state.focusedWindowId,
+    fullscreenWindowId: state.fullscreenWindowId,
     windowIdCounter: state.windowIdCounter,
   };
   sendWindowMessage({ type: 'window:sync', ...payload });
@@ -60,19 +79,40 @@ export function reportWindowActionResult(
 
 interface WindowManagerState {
   windows: WindowState[];
-  nextZIndex: number;
   windowIdCounter: number;
   focusedWindowActions: ActionDefinition[];
   windowActions: Record<string, ActionDefinition[]>;
 
-  // Mutations (execute locally, then sync to backend)
+  // Tiling state
+  tree: TilingNode | null;
+  focusedWindowId: string | null;
+  fullscreenWindowId: string | null;
+  nextSplitDirection: 'horizontal' | 'vertical' | 'auto';
+
+  // Cached layout rects (recomputed after every tree mutation)
+  tileRects: TileRect[];
+  splitBars: SplitBar[];
+  desktopBounds: { x: number; y: number; width: number; height: number };
+
+  // Mutations
   openWindow: (miniAppId: string, title: string, args?: Record<string, unknown>) => string;
   closeWindow: (windowId: string) => void;
   focusWindow: (windowId: string) => void;
-  minimizeWindow: (windowId: string) => void;
   maximizeWindow: (windowId: string) => void;
   moveWindow: (windowId: string, position: WindowPosition) => void;
   resizeWindow: (windowId: string, size: WindowSize) => void;
+
+  // Tiling-specific mutations
+  focusDirection: (direction: Direction) => void;
+  swapDirection: (direction: Direction) => void;
+  toggleFullscreen: () => void;
+  setNextSplitDirection: (direction: 'horizontal' | 'vertical' | 'auto') => void;
+  rotateFocusedSplit: () => void;
+  adjustFocusedRatio: (delta: number) => void;
+  equalizeFocusedRatio: () => void;
+  focusNth: (n: number) => void;
+  setDesktopBounds: (bounds: { x: number; y: number; width: number; height: number }) => void;
+  setNodeRatio: (path: TreePath, ratio: number) => void;
 
   // Action management
   setFocusedWindowActions: (actions: ActionDefinition[]) => void;
@@ -80,79 +120,154 @@ interface WindowManagerState {
 
   // Queries
   getFocusedWindow: () => WindowState | undefined;
-  getWindowsByMiniApp: (miniAppId: string) => WindowState[];
+  getWindowsByMiniApp: (miniAppId: string, args?: Record<string, unknown>) => WindowState[];
 
   // Restore persisted state from backend on initial connect
   restoreFromBackend: (payload: WindowSyncPayload) => void;
 }
 
+function recomputeLayout(
+  tree: TilingNode | null,
+  bounds: { x: number; y: number; width: number; height: number },
+): { rects: TileRect[]; bars: SplitBar[] } {
+  if (!tree) return { rects: [], bars: [] };
+  return {
+    rects: computeLayout(tree, bounds, TILE_GAP),
+    bars: computeSplitBars(tree, bounds, TILE_GAP),
+  };
+}
+
+function updateWindowRectsFromTree(
+  windows: WindowState[],
+  rects: TileRect[],
+  focusedWindowId: string | null,
+  fullscreenWindowId: string | null,
+): WindowState[] {
+  const rectMap = new Map(rects.map((r) => [r.windowId, r]));
+  return windows.map((w) => {
+    const rect = rectMap.get(w.id);
+    return {
+      ...w,
+      focused: w.id === focusedWindowId,
+      maximized: w.id === fullscreenWindowId,
+      position: rect ? { x: rect.x, y: rect.y } : w.position,
+      size: rect ? { width: rect.width, height: rect.height } : w.size,
+      zIndex: w.id === fullscreenWindowId ? 9999 : 1,
+    };
+  });
+}
+
+function normalizeWindowArgs(args?: Record<string, unknown>): Record<string, unknown> {
+  return args ?? {};
+}
+
+function shallowEqualWindowArgs(
+  left?: Record<string, unknown>,
+  right?: Record<string, unknown>,
+): boolean {
+  const normalizedLeft = normalizeWindowArgs(left);
+  const normalizedRight = normalizeWindowArgs(right);
+  const leftKeys = Object.keys(normalizedLeft);
+  const rightKeys = Object.keys(normalizedRight);
+
+  if (leftKeys.length !== rightKeys.length) {
+    return false;
+  }
+
+  return leftKeys.every((key) => normalizedLeft[key] === normalizedRight[key]);
+}
+
 export const useWindowManager = create<WindowManagerState>((set, get) => ({
   windows: [],
-  nextZIndex: 1,
   windowIdCounter: 0,
   focusedWindowActions: [],
   windowActions: {},
 
+  // Tiling state
+  tree: null,
+  focusedWindowId: null,
+  fullscreenWindowId: null,
+  nextSplitDirection: 'auto',
+  tileRects: [],
+  splitBars: [],
+  desktopBounds: { x: 0, y: 0, width: 800, height: 600 },
+
   openWindow(miniAppId: string, title: string, args?: Record<string, unknown>): string {
     const state = get();
+
+    // Re-focus if the same MiniApp already has a window for the same shallow-equal args.
     const existingWindow = state.windows
-      .filter((window) => window.miniAppId === miniAppId)
+      .filter((w) => w.miniAppId === miniAppId && shallowEqualWindowArgs(w.args, args))
       .reduce<
         WindowState | undefined
-      >((topWindow, window) => (!topWindow || window.zIndex > topWindow.zIndex ? window : topWindow), undefined);
+      >((top, w) => (!top || w.id === state.focusedWindowId ? w : top), undefined);
 
     if (existingWindow) {
-      const updated = state.windows.map((window) => ({
-        ...window,
-        focused: window.id === existingWindow.id,
-        zIndex: window.id === existingWindow.id ? state.nextZIndex : window.zIndex,
-        minimized: window.id === existingWindow.id ? false : window.minimized,
-        args: window.id === existingWindow.id && args ? args : window.args,
-      }));
+      const newFullscreen =
+        state.fullscreenWindowId === existingWindow.id ? state.fullscreenWindowId : null;
+      const { rects, bars } = recomputeLayout(state.tree, state.desktopBounds);
+      const updatedWindows = updateWindowRectsFromTree(
+        state.windows.map((w) => (w.id === existingWindow.id && args ? { ...w, args } : w)),
+        rects,
+        existingWindow.id,
+        newFullscreen,
+      );
 
       set({
-        windows: updated,
-        nextZIndex: state.nextZIndex + 1,
+        windows: updatedWindows,
+        focusedWindowId: existingWindow.id,
+        fullscreenWindowId: newFullscreen,
+        tileRects: rects,
+        splitBars: bars,
         focusedWindowActions: state.windowActions[existingWindow.id] ?? [],
       });
 
       syncToBackend();
-
-      // Notify the running MiniApp that its args have been updated
-      if (args && typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent('desktalk:window-args-updated', {
-            detail: { windowId: existingWindow.id, args },
-          }),
-        );
-      }
 
       return existingWindow.id;
     }
 
     const windowIdCounter = state.windowIdCounter + 1;
     const id = `win-${windowIdCounter}`;
-    const offset = (state.windows.length % 10) * 30;
 
     const newWindow: WindowState = {
       id,
       miniAppId,
       title,
-      position: { x: 100 + offset, y: 80 + offset },
-      size: { width: 800, height: 600 },
+      position: { x: 0, y: 0 },
+      size: { width: 0, height: 0 },
       minimized: false,
       maximized: false,
       focused: true,
-      zIndex: state.nextZIndex,
+      zIndex: 1,
       args,
     };
 
-    const updatedWindows = state.windows.map((w) => ({ ...w, focused: false }));
+    // Insert into tiling tree
+    let newTree: TilingNode;
+    if (!state.tree) {
+      newTree = { type: 'leaf', windowId: id };
+    } else if (state.focusedWindowId && containsWindow(state.tree, state.focusedWindowId)) {
+      newTree = insertWindow(state.tree, state.focusedWindowId, id, state.nextSplitDirection);
+    } else {
+      // Focus lost or focused window not in tree — split the first leaf
+      const leafIds = getLeafIds(state.tree);
+      newTree = insertWindow(state.tree, leafIds[0], id, state.nextSplitDirection);
+    }
+
+    const { rects, bars } = recomputeLayout(newTree, state.desktopBounds);
+    const allWindows = [...state.windows, newWindow];
+    const updatedWindows = updateWindowRectsFromTree(allWindows, rects, id, null);
 
     set({
-      windows: [...updatedWindows, newWindow],
-      nextZIndex: state.nextZIndex + 1,
+      windows: updatedWindows,
       windowIdCounter,
+      tree: newTree,
+      focusedWindowId: id,
+      fullscreenWindowId: null,
+      nextSplitDirection: 'auto',
+      tileRects: rects,
+      splitBars: bars,
       focusedWindowActions: [],
     });
 
@@ -163,26 +278,36 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
   closeWindow(windowId: string) {
     const state = get();
     const remaining = state.windows.filter((w) => w.id !== windowId);
+    const { [windowId]: _, ...remainingActions } = state.windowActions;
 
-    if (remaining.length > 0) {
-      const visible = remaining.filter((w) => !w.minimized);
-      const topWindow =
-        visible.length > 0
-          ? visible.reduce((top, w) => (w.zIndex > top.zIndex ? w : top))
-          : undefined;
-      const updated = remaining.map((w) => ({
-        ...w,
-        focused: topWindow ? w.id === topWindow.id : false,
-      }));
-      const { [windowId]: _, ...remainingActions } = state.windowActions;
-      set({
-        windows: updated,
-        windowActions: remainingActions,
-        focusedWindowActions: topWindow ? (remainingActions[topWindow.id] ?? []) : [],
-      });
+    const newTree = state.tree ? removeWindow(state.tree, windowId) : null;
+
+    // Determine new focus
+    let newFocusId: string | null = null;
+    if (state.focusedWindowId === windowId) {
+      if (newTree) {
+        const leafIds = getLeafIds(newTree);
+        newFocusId = leafIds.length > 0 ? leafIds[0] : null;
+      }
     } else {
-      set({ windows: [], focusedWindowActions: [], windowActions: {} });
+      newFocusId = state.focusedWindowId;
     }
+
+    const newFullscreen = state.fullscreenWindowId === windowId ? null : state.fullscreenWindowId;
+
+    const { rects, bars } = recomputeLayout(newTree, state.desktopBounds);
+    const updatedWindows = updateWindowRectsFromTree(remaining, rects, newFocusId, newFullscreen);
+
+    set({
+      windows: updatedWindows,
+      tree: newTree,
+      focusedWindowId: newFocusId,
+      fullscreenWindowId: newFullscreen,
+      windowActions: remainingActions,
+      focusedWindowActions: newFocusId ? (remainingActions[newFocusId] ?? []) : [],
+      tileRects: rects,
+      splitBars: bars,
+    });
 
     syncToBackend();
   },
@@ -192,92 +317,263 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
     const target = state.windows.find((w) => w.id === windowId);
     if (!target) return;
 
-    const updated = state.windows.map((w) => ({
-      ...w,
-      focused: w.id === windowId,
-      zIndex: w.id === windowId ? state.nextZIndex : w.zIndex,
-      minimized: w.id === windowId ? false : w.minimized,
-    }));
+    const newTree = state.tree ?? ({ type: 'leaf', windowId } as TilingNode);
+
+    const { rects, bars } = recomputeLayout(newTree, state.desktopBounds);
+    const updatedWindows = updateWindowRectsFromTree(
+      state.windows,
+      rects,
+      windowId,
+      state.fullscreenWindowId,
+    );
 
     set({
-      windows: updated,
-      nextZIndex: state.nextZIndex + 1,
+      windows: updatedWindows,
+      tree: newTree,
+      focusedWindowId: windowId,
+      tileRects: rects,
+      splitBars: bars,
       focusedWindowActions: state.windowActions[windowId] ?? [],
     });
 
     syncToBackend();
   },
 
-  minimizeWindow(windowId: string) {
-    const state = get();
-    const target = state.windows.find((w) => w.id === windowId);
-    if (!target) return;
-
-    const updated = state.windows.map((w) => {
-      if (w.id !== windowId) return w;
-      return { ...w, minimized: true, focused: false };
-    });
-
-    const visible = updated.filter((w) => !w.minimized);
-    if (visible.length > 0) {
-      const topWindow = visible.reduce((top, w) => (w.zIndex > top.zIndex ? w : top));
-      const final = updated.map((w) => ({
-        ...w,
-        focused: w.id === topWindow.id,
-      }));
-      set({
-        windows: final,
-        focusedWindowActions: state.windowActions[topWindow.id] ?? [],
-      });
-    } else {
-      set({ windows: updated, focusedWindowActions: [] });
-    }
-
-    syncToBackend();
-  },
-
   maximizeWindow(windowId: string) {
+    // Repurposed: toggle fullscreen
     const state = get();
     const target = state.windows.find((w) => w.id === windowId);
     if (!target) return;
+
+    const newFullscreen = state.fullscreenWindowId === windowId ? null : windowId;
+    const { rects, bars } = recomputeLayout(state.tree, state.desktopBounds);
+    const updatedWindows = updateWindowRectsFromTree(
+      state.windows,
+      rects,
+      state.focusedWindowId,
+      newFullscreen,
+    );
 
     set({
-      windows: state.windows.map((w) => {
-        if (w.id !== windowId) return w;
-        return { ...w, maximized: !w.maximized };
-      }),
+      windows: updatedWindows,
+      fullscreenWindowId: newFullscreen,
+      tileRects: rects,
+      splitBars: bars,
     });
 
     syncToBackend();
   },
 
-  moveWindow(windowId: string, position: WindowPosition) {
-    set((state) => ({
-      windows: state.windows.map((w) => {
-        if (w.id !== windowId) return w;
-        return { ...w, position };
-      }),
-    }));
+  // These are kept for API compatibility but are no-ops in tiling mode
+  moveWindow(_windowId: string, _position: WindowPosition) {
+    // No-op in tiling mode — positions are computed from the tree
+  },
+
+  resizeWindow(_windowId: string, _size: WindowSize) {
+    // No-op in tiling mode — sizes are computed from the tree
+  },
+
+  // ─── Tiling-specific mutations ────────────────────────────────────────────
+
+  focusDirection(direction: Direction) {
+    const state = get();
+    if (!state.focusedWindowId || !state.tree) return;
+
+    const rects = state.tileRects;
+    const neighborId = findNeighbor(rects, state.focusedWindowId, direction);
+    if (!neighborId) return;
+
+    const updatedWindows = updateWindowRectsFromTree(
+      state.windows,
+      rects,
+      neighborId,
+      state.fullscreenWindowId,
+    );
+
+    set({
+      windows: updatedWindows,
+      focusedWindowId: neighborId,
+      fullscreenWindowId: null, // Exit fullscreen on directional navigation
+      focusedWindowActions: state.windowActions[neighborId] ?? [],
+    });
 
     syncToBackend();
   },
 
-  resizeWindow(windowId: string, size: WindowSize) {
-    set((state) => ({
-      windows: state.windows.map((w) => {
-        if (w.id !== windowId) return w;
-        return {
-          ...w,
-          size: {
-            width: Math.max(size.width, MIN_WINDOW_WIDTH),
-            height: Math.max(size.height, MIN_WINDOW_HEIGHT),
-          },
-        };
-      }),
-    }));
+  swapDirection(direction: Direction) {
+    const state = get();
+    if (!state.focusedWindowId || !state.tree) return;
+
+    const rects = state.tileRects;
+    const neighborId = findNeighbor(rects, state.focusedWindowId, direction);
+    if (!neighborId) return;
+
+    const newTree = swapWindows(state.tree, state.focusedWindowId, neighborId);
+    const { rects: newRects, bars } = recomputeLayout(newTree, state.desktopBounds);
+    const updatedWindows = updateWindowRectsFromTree(
+      state.windows,
+      newRects,
+      state.focusedWindowId,
+      state.fullscreenWindowId,
+    );
+
+    set({
+      windows: updatedWindows,
+      tree: newTree,
+      tileRects: newRects,
+      splitBars: bars,
+    });
 
     syncToBackend();
   },
+
+  toggleFullscreen() {
+    const state = get();
+    if (!state.focusedWindowId) return;
+    get().maximizeWindow(state.focusedWindowId);
+  },
+
+  setNextSplitDirection(direction: 'horizontal' | 'vertical' | 'auto') {
+    set({ nextSplitDirection: direction });
+  },
+
+  rotateFocusedSplit() {
+    const state = get();
+    if (!state.focusedWindowId || !state.tree) return;
+
+    const newTree = rotateSplit(state.tree, state.focusedWindowId);
+    const { rects, bars } = recomputeLayout(newTree, state.desktopBounds);
+    const updatedWindows = updateWindowRectsFromTree(
+      state.windows,
+      rects,
+      state.focusedWindowId,
+      state.fullscreenWindowId,
+    );
+
+    set({
+      windows: updatedWindows,
+      tree: newTree,
+      tileRects: rects,
+      splitBars: bars,
+    });
+
+    syncToBackend();
+  },
+
+  adjustFocusedRatio(delta: number) {
+    const state = get();
+    if (!state.focusedWindowId || !state.tree) return;
+
+    const newTree = adjustRatio(state.tree, state.focusedWindowId, delta);
+    const { rects, bars } = recomputeLayout(newTree, state.desktopBounds);
+    const updatedWindows = updateWindowRectsFromTree(
+      state.windows,
+      rects,
+      state.focusedWindowId,
+      state.fullscreenWindowId,
+    );
+
+    set({
+      windows: updatedWindows,
+      tree: newTree,
+      tileRects: rects,
+      splitBars: bars,
+    });
+
+    syncToBackend();
+  },
+
+  equalizeFocusedRatio() {
+    const state = get();
+    if (!state.focusedWindowId || !state.tree) return;
+
+    const newTree = equalizeRatio(state.tree, state.focusedWindowId);
+    const { rects, bars } = recomputeLayout(newTree, state.desktopBounds);
+    const updatedWindows = updateWindowRectsFromTree(
+      state.windows,
+      rects,
+      state.focusedWindowId,
+      state.fullscreenWindowId,
+    );
+
+    set({
+      windows: updatedWindows,
+      tree: newTree,
+      tileRects: rects,
+      splitBars: bars,
+    });
+
+    syncToBackend();
+  },
+
+  focusNth(n: number) {
+    const state = get();
+    if (!state.tree) return;
+
+    const leafIds = getLeafIds(state.tree);
+    const index = n - 1; // 1-indexed
+    if (index < 0 || index >= leafIds.length) return;
+
+    const targetId = leafIds[index];
+    const updatedWindows = updateWindowRectsFromTree(
+      state.windows,
+      state.tileRects,
+      targetId,
+      null, // Exit fullscreen
+    );
+
+    set({
+      windows: updatedWindows,
+      focusedWindowId: targetId,
+      fullscreenWindowId: null,
+      focusedWindowActions: state.windowActions[targetId] ?? [],
+    });
+
+    syncToBackend();
+  },
+
+  setDesktopBounds(bounds: { x: number; y: number; width: number; height: number }) {
+    const state = get();
+    const { rects, bars } = recomputeLayout(state.tree, bounds);
+    const updatedWindows = updateWindowRectsFromTree(
+      state.windows,
+      rects,
+      state.focusedWindowId,
+      state.fullscreenWindowId,
+    );
+
+    set({
+      windows: updatedWindows,
+      desktopBounds: bounds,
+      tileRects: rects,
+      splitBars: bars,
+    });
+  },
+
+  setNodeRatio(path: TreePath, ratio: number) {
+    const state = get();
+    if (!state.tree) return;
+
+    const newTree = setRatioAtPath(state.tree, path, ratio);
+    const { rects, bars } = recomputeLayout(newTree, state.desktopBounds);
+    const updatedWindows = updateWindowRectsFromTree(
+      state.windows,
+      rects,
+      state.focusedWindowId,
+      state.fullscreenWindowId,
+    );
+
+    set({
+      windows: updatedWindows,
+      tree: newTree,
+      tileRects: rects,
+      splitBars: bars,
+    });
+
+    syncToBackend();
+  },
+
+  // ─── Action management ────────────────────────────────────────────────────
 
   setFocusedWindowActions(actions: ActionDefinition[]) {
     set({ focusedWindowActions: actions });
@@ -289,27 +585,47 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
         ...state.windowActions,
         [windowId]: actions,
       };
-      const focusedWindow = state.windows.find((w) => w.focused);
       return {
         windowActions: nextWindowActions,
-        focusedWindowActions: focusedWindow?.id === windowId ? actions : state.focusedWindowActions,
+        focusedWindowActions:
+          state.focusedWindowId === windowId ? actions : state.focusedWindowActions,
       };
     });
   },
 
+  // ─── Queries ──────────────────────────────────────────────────────────────
+
   getFocusedWindow(): WindowState | undefined {
-    return get().windows.find((w) => w.focused);
+    const state = get();
+    return state.windows.find((w) => w.id === state.focusedWindowId);
   },
 
-  getWindowsByMiniApp(miniAppId: string): WindowState[] {
-    return get().windows.filter((w) => w.miniAppId === miniAppId);
+  getWindowsByMiniApp(miniAppId: string, args?: Record<string, unknown>): WindowState[] {
+    return get().windows.filter(
+      (w) => w.miniAppId === miniAppId && shallowEqualWindowArgs(w.args, args),
+    );
   },
+
+  // ─── Restore ──────────────────────────────────────────────────────────────
 
   restoreFromBackend(payload: WindowSyncPayload) {
+    const bounds = get().desktopBounds;
+    const { rects, bars } = recomputeLayout(payload.tree, bounds);
+    const updatedWindows = updateWindowRectsFromTree(
+      payload.windows,
+      rects,
+      payload.focusedWindowId,
+      payload.fullscreenWindowId,
+    );
+
     set({
-      windows: payload.windows,
-      nextZIndex: payload.nextZIndex,
+      windows: updatedWindows,
+      tree: payload.tree,
+      focusedWindowId: payload.focusedWindowId,
+      fullscreenWindowId: payload.fullscreenWindowId,
       windowIdCounter: payload.windowIdCounter,
+      tileRects: rects,
+      splitBars: bars,
     });
   },
 }));
