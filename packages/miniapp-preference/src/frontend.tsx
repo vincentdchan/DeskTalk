@@ -10,12 +10,16 @@ import { PreferenceRow } from './components/PreferenceRow';
 import { PreferenceActions } from './components/PreferenceActions';
 import styles from './styles/PreferenceApp.module.css';
 
+const COMPACT_NAV_WIDTH = 720;
+
 function PreferenceApp() {
   // ─── State ───────────────────────────────────────────────────────────────
   const [config, setConfig] = useState<Config>(getDefaultConfig());
   const [activeCategory, setActiveCategory] = useState<string>(CATEGORIES[0]);
   const [notification, setNotification] = useState<string | null>(null);
+  const [compactNav, setCompactNav] = useState(false);
   const notificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   // ─── Backend commands ────────────────────────────────────────────────────
   const getAllSettings = useCommand<void, Config>('preferences.getAll');
@@ -36,6 +40,26 @@ function PreferenceApp() {
   useEffect(() => {
     fetchConfig();
   }, [fetchConfig]);
+
+  useEffect(() => {
+    if (!rootRef.current) return;
+
+    const updateLayout = (width: number) => {
+      setCompactNav(width <= COMPACT_NAV_WIDTH);
+    };
+
+    updateLayout(rootRef.current.clientWidth);
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      updateLayout(entry.contentRect.width);
+    });
+
+    observer.observe(rootRef.current);
+
+    return () => observer.disconnect();
+  }, []);
 
   // ─── Listen for change events ────────────────────────────────────────────
   useEvent<{ key: string; value: string | number | boolean; requiresRestart: boolean }>(
@@ -103,7 +127,7 @@ function PreferenceApp() {
 
   return (
     <PreferenceActions onConfigChanged={fetchConfig}>
-      <div className={styles.root}>
+      <div ref={rootRef} className={`${styles.root}${compactNav ? ` ${styles.rootCompact}` : ''}`}>
         {/* Sidebar */}
         <PreferenceCategoryList activeCategory={activeCategory} onSelect={setActiveCategory} />
 

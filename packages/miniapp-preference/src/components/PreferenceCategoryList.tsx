@@ -24,9 +24,12 @@ export function PreferenceCategoryList({ activeCategory, onSelect }: PreferenceC
           className={category === activeCategory ? styles.categoryItemActive : styles.categoryItem}
           onClick={() => onSelect(category)}
           type="button"
+          data-label={category}
+          aria-label={category}
+          title={category}
         >
           <span className={styles.categoryIcon}>{CATEGORY_ICONS[category]}</span>
-          {category}
+          <span className={styles.categoryText}>{category}</span>
         </button>
       ))}
     </nav>

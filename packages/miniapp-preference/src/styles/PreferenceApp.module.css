@@ -7,11 +7,16 @@
   font-family: var(--font-sans);
 }
 
+.rootCompact {
+  flex-direction: column;
+}
+
 .sidebar {
   width: 180px;
   min-width: 180px;
   display: flex;
   flex-direction: column;
+  align-self: stretch;
   overflow-y: auto;
   padding: 8px 0;
   border-right: 1px solid var(--dt-border);
@@ -59,6 +64,13 @@
   width: 20px;
   font-size: 15px;
   text-align: center;
+}
+
+.categoryText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settingsPanel {
@@ -270,6 +282,113 @@
   font-weight: 500;
   transform: translateX(-50%);
   animation: slideUp 0.3s ease-out;
+}
+
+.rootCompact .sidebar {
+  width: 100%;
+  min-width: 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 10px 12px;
+  border-right: none;
+  border-bottom: 1px solid var(--dt-border);
+  background: color-mix(in oklab, var(--dt-surface) 72%, transparent);
+}
+
+.rootCompact .sidebarHeader {
+  flex: 0 0 auto;
+  padding: 0 10px 0 0;
+  border-right: 1px solid var(--dt-border-subtle);
+  white-space: nowrap;
+}
+
+.rootCompact .categoryItem,
+.rootCompact .categoryItemActive {
+  position: relative;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.rootCompact .categoryItemActive {
+  border-left: 1px solid color-mix(in oklab, var(--dt-accent) 45%, var(--dt-border));
+  background: color-mix(in oklab, var(--dt-accent) 12%, var(--dt-surface));
+  box-shadow: 0 0 0 1px var(--dt-accent-ghost) inset;
+  padding-left: 0;
+}
+
+.rootCompact .categoryText {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 5;
+  padding: 4px 8px;
+  border: 1px solid color-mix(in oklab, var(--dt-accent) 28%, var(--dt-border));
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--dt-bg) 86%, var(--dt-surface));
+  box-shadow: 0 10px 20px var(--dt-shadow-color);
+  color: var(--dt-text);
+  font-size: 11px;
+  line-height: 1.2;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(-4px);
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+  white-space: nowrap;
+}
+
+.rootCompact .categoryItem:hover .categoryText,
+.rootCompact .categoryItem:focus-visible .categoryText,
+.rootCompact .categoryItemActive:hover .categoryText,
+.rootCompact .categoryItemActive:focus-visible .categoryText {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.rootCompact .settingsPanel {
+  padding-bottom: 12px;
+}
+
+.rootCompact .section {
+  padding: 16px 16px 8px;
+}
+
+.rootCompact .row {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rootCompact .rowControl {
+  width: 100%;
+  min-width: 0;
+}
+
+.rootCompact .textInput,
+.rootCompact .textInputSensitive,
+.rootCompact .numberInput,
+.rootCompact .dropdown {
+  width: 100%;
+  min-width: 0;
+}
+
+.rootCompact .colorControl {
+  width: 100%;
+}
+
+.rootCompact .colorInput {
+  flex: 0 0 44px;
 }
 
 @keyframes slideUp {
