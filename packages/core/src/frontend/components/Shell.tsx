@@ -75,6 +75,7 @@ function MiniAppWindow({
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const modRef = useRef<MiniAppFrontendModule | null>(null);
+  const activationRef = useRef<{ deactivate(): void } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +84,7 @@ function MiniAppWindow({
       .then((loadedMod) => {
         if (!cancelled && containerRef.current) {
           modRef.current = loadedMod;
-          loadedMod.activate({
+          activationRef.current = loadedMod.activate({
             root: containerRef.current,
             miniAppId,
             windowId,
@@ -100,9 +101,13 @@ function MiniAppWindow({
 
     return () => {
       cancelled = true;
-      if (modRef.current) {
-        modRef.current.deactivate();
-        modRef.current = null;
+      const activation = activationRef.current;
+      activationRef.current = null;
+      modRef.current = null;
+      if (activation) {
+        queueMicrotask(() => {
+          activation.deactivate();
+        });
       }
     };
   }, [miniAppId, windowId]);

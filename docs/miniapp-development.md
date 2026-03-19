@@ -12,7 +12,7 @@ Every MiniApp is an npm package with **two separate entry files** — one for th
 miniapp-note/
   src/
     backend.ts          # Backend entry — exports manifest, activate(), deactivate()
-    frontend.tsx        # Frontend entry — exports activate(), deactivate() hooks
+    frontend.tsx        # Frontend entry — exports activate() and returns cleanup per window
   icons/
     miniapp-note-icon.png
     components/         # React components (imported by frontend.tsx)
@@ -121,14 +121,14 @@ export function deactivate(): void {
 
 ## Frontend Entry (`frontend.tsx`)
 
-The frontend entry runs in the browser. It exports `activate()` and `deactivate()` hooks — the same pattern as the backend entry. The core provides a root DOM element and metadata via a `MiniAppFrontendContext`, and the MiniApp mounts its own UI into that element.
+The frontend entry runs in the browser. It exports `activate()` and returns a per-window cleanup handle. The core provides a root DOM element and metadata via a `MiniAppFrontendContext`, and the MiniApp mounts its own UI into that element.
 
 React is the recommended framework, but MiniApps can use any framework. The core exposes `React` and `ReactDOM` on `window`, so MiniApps share the core's single React instance rather than bundling their own copies. The build tool (`desktalk-build`) automatically resolves React imports to these window globals.
 
 ```tsx
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { MiniAppFrontendContext } from '@desktalk/sdk';
+import type { MiniAppFrontendActivation, MiniAppFrontendContext } from '@desktalk/sdk';
 import {
   useCommand,
   ActionsProvider,
@@ -174,10 +174,8 @@ function NoteApp() {
   );
 }
 
-let root: ReturnType<typeof createRoot> | null = null;
-
-export function activate(ctx: MiniAppFrontendContext): void {
-  root = createRoot(ctx.root);
+export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation {
+  const root = createRoot(ctx.root);
   root.render(
     <WindowIdProvider windowId={ctx.windowId}>
       <MiniAppIdProvider miniAppId={ctx.miniAppId}>
@@ -185,11 +183,12 @@ export function activate(ctx: MiniAppFrontendContext): void {
       </MiniAppIdProvider>
     </WindowIdProvider>,
   );
-}
 
-export function deactivate(): void {
-  root?.unmount();
-  root = null;
+  return {
+    deactivate() {
+      root.unmount();
+    },
+  };
 }
 ```
 
@@ -225,6 +224,16 @@ export interface MiniAppBackendActivation {
 }
 ```
 
+### MiniAppFrontendActivation
+
+Returned from the frontend `activate()` function. Each open window gets its own activation object so cleanup stays instance-safe even when multiple windows of the same MiniApp are open.
+
+```ts
+export interface MiniAppFrontendActivation {
+  deactivate(): void;
+}
+```
+
 ### MiniAppFrontendContext
 
 The context object passed to the frontend `activate()` function. Contains the root DOM element where the MiniApp should mount its UI, plus metadata about the MiniApp and window.
@@ -244,13 +253,13 @@ export interface MiniAppFrontendContext {
 
 ## Lifecycle
 
-| Phase            | Trigger                                    | What happens                                                                                                                                                                                                                                                             |
-| ---------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Discovery**    | `desktalk start`                           | Core scans installed packages and reads each `manifest` export from the backend entry. Icons appear in the Dock.                                                                                                                                                         |
-| **Activation**   | User opens the MiniApp (or AI triggers it) | Core calls the backend entry's `activate(ctx)` to set up command handlers, then loads the frontend entry and calls its `activate(ctx)` with a root DOM element to mount into. When the AI opens the window, optional launch `args` are included in the frontend context. |
-| **Running**      | User/AI interacts                          | Frontend uses SDK hooks (`useCommand`, `useEvent`) to communicate with backend handlers.                                                                                                                                                                                 |
-| **Deactivation** | All windows of the MiniApp are closed      | Core calls the frontend entry's `deactivate()` to unmount the UI, then calls the backend entry's `deactivate()`. Resources are released.                                                                                                                                 |
-| **Uninstall**    | `desktalk uninstall <name>`                | Core calls `deactivate()` if active, then removes the package.                                                                                                                                                                                                           |
+| Phase            | Trigger                                    | What happens                                                                                                                                                                                                                                                                                                                  |
+| ---------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Discovery**    | `desktalk start`                           | Core scans installed packages and reads each `manifest` export from the backend entry. Icons appear in the Dock.                                                                                                                                                                                                              |
+| **Activation**   | User opens the MiniApp (or AI triggers it) | Core calls the backend entry's `activate(ctx)` to set up command handlers, then loads the frontend entry and calls its `activate(ctx)` with a root DOM element to mount into. `activate(ctx)` returns a per-window cleanup handle. When the AI opens the window, optional launch `args` are included in the frontend context. |
+| **Running**      | User/AI interacts                          | Frontend uses SDK hooks (`useCommand`, `useEvent`) to communicate with backend handlers.                                                                                                                                                                                                                                      |
+| **Deactivation** | A window is closed                         | Core calls the returned frontend cleanup handle for that specific window to unmount the UI. When all windows of the MiniApp are closed, the backend entry's `deactivate()` runs and releases backend resources.                                                                                                               |
+| **Uninstall**    | `desktalk uninstall <name>`                | Core calls `deactivate()` if active, then removes the package.                                                                                                                                                                                                                                                                |
 
 ## Launch Arguments
 
@@ -272,9 +281,9 @@ Launch arguments are persisted as part of `WindowState`. If the user refreshes t
 ### Example: Preview MiniApp
 
 ```tsx
-export function activate(ctx: MiniAppFrontendContext): void {
+export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation {
   const initialPath = typeof ctx.args?.path === 'string' ? ctx.args.path : undefined;
-  root = createRoot(ctx.root);
+  const root = createRoot(ctx.root);
   root.render(
     <WindowIdProvider windowId={ctx.windowId}>
       <MiniAppIdProvider miniAppId={ctx.miniAppId}>
@@ -282,6 +291,12 @@ export function activate(ctx: MiniAppFrontendContext): void {
       </MiniAppIdProvider>
     </WindowIdProvider>,
   );
+
+  return {
+    deactivate() {
+      root.unmount();
+    },
+  };
 }
 ```
 

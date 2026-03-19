@@ -227,7 +227,7 @@ For the full MiniApp development guide — package structure, exported interface
 
 - Each MiniApp has **two separate entry files**: a backend entry (`src/backend.ts`) that runs on the Node.js server, and a frontend entry (`src/frontend.tsx`) that runs in the browser.
 - The backend entry exports `manifest`, `activate(ctx)`, and `deactivate()`. It handles command registration, storage, and filesystem access.
-- The frontend entry exports a default React component rendered inside a DeskTalk window. It communicates with the backend exclusively through SDK hooks (`useCommand`, `useEvent`).
+- The frontend entry exports an `activate(ctx)` hook that mounts its UI into the provided root element and returns a per-window cleanup handle for unmounting.
 - The `@desktalk/sdk` package provides a standard build CLI (`desktalk-build`) so MiniApp authors do not need to configure their own bundler.
 
 ## Window Management

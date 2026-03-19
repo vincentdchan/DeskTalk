@@ -1,4 +1,4 @@
-import type { MiniAppFrontendContext } from '@desktalk/sdk';
+import type { MiniAppFrontendActivation, MiniAppFrontendContext } from '@desktalk/sdk';
 
 /**
  * Frontend MiniApp module — what a MiniApp's frontend entry exports.
@@ -6,8 +6,7 @@ import type { MiniAppFrontendContext } from '@desktalk/sdk';
  * a React component. The MiniApp itself mounts its UI to the provided root element.
  */
 export interface MiniAppFrontendModule {
-  activate(ctx: MiniAppFrontendContext): void;
-  deactivate(): void;
+  activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation;
 }
 
 const builtinLoaders: Record<string, () => Promise<MiniAppFrontendModule>> = {
@@ -25,7 +24,7 @@ const moduleCache = new Map<string, MiniAppFrontendModule>();
 
 /**
  * Load a MiniApp's frontend module.
- * The frontend entry exports activate() and deactivate() hooks.
+ * The frontend entry exports activate() and returns a per-window cleanup handle.
  */
 export async function loadMiniAppModule(miniAppId: string): Promise<MiniAppFrontendModule> {
   const cached = moduleCache.get(miniAppId);

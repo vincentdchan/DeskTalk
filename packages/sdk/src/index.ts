@@ -5,6 +5,7 @@
 export type {
   MiniAppManifest,
   MiniAppBackendActivation,
+  MiniAppFrontendActivation,
   MiniAppFrontendContext,
   MiniAppActivation,
 } from './types/manifest';
