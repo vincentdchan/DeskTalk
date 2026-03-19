@@ -1,4 +1,5 @@
 import React from 'react';
+import '@desktalk/ui'; // global JSX types for <dt-tooltip>
 import { CATEGORIES, type Category } from '../schema';
 import styles from '../styles/PreferenceApp.module.css';
 
@@ -12,26 +13,43 @@ const CATEGORY_ICONS: Record<Category, string> = {
 interface PreferenceCategoryListProps {
   activeCategory: string;
   onSelect: (category: string) => void;
+  compact?: boolean;
 }
 
-export function PreferenceCategoryList({ activeCategory, onSelect }: PreferenceCategoryListProps) {
+export function PreferenceCategoryList({
+  activeCategory,
+  onSelect,
+  compact = false,
+}: PreferenceCategoryListProps) {
   return (
     <nav className={styles.sidebar}>
       <div className={styles.sidebarHeader}>Settings</div>
-      {CATEGORIES.map((category) => (
-        <button
-          key={category}
-          className={category === activeCategory ? styles.categoryItemActive : styles.categoryItem}
-          onClick={() => onSelect(category)}
-          type="button"
-          data-label={category}
-          aria-label={category}
-          title={category}
-        >
-          <span className={styles.categoryIcon}>{CATEGORY_ICONS[category]}</span>
-          <span className={styles.categoryText}>{category}</span>
-        </button>
-      ))}
+      {CATEGORIES.map((category) => {
+        const button = (
+          <button
+            key={category}
+            className={
+              category === activeCategory ? styles.categoryItemActive : styles.categoryItem
+            }
+            onClick={() => onSelect(category)}
+            type="button"
+            aria-label={compact ? category : undefined}
+          >
+            <span className={styles.categoryIcon}>{CATEGORY_ICONS[category]}</span>
+            {!compact && <span className={styles.categoryText}>{category}</span>}
+          </button>
+        );
+
+        if (compact) {
+          return (
+            <dt-tooltip key={category} content={category} placement="bottom">
+              {button}
+            </dt-tooltip>
+          );
+        }
+
+        return button;
+      })}
     </nav>
   );
 }

@@ -45,13 +45,14 @@ export function CommandInput({
           placeholder={isAiRunning ? 'AI is thinking...' : 'Ask the AI...'}
           disabled={isAiRunning}
         />
-        <button
-          className={`${styles.voiceButton} ${isVoiceActive ? styles.voiceButtonActive : ''}`}
-          onClick={onVoiceToggle}
-          title={isVoiceActive ? 'Stop voice input' : 'Start voice input'}
-        >
-          <MicIcon />
-        </button>
+        <dt-tooltip content={isVoiceActive ? 'Stop voice input' : 'Start voice input'}>
+          <button
+            className={`${styles.voiceButton} ${isVoiceActive ? styles.voiceButtonActive : ''}`}
+            onClick={onVoiceToggle}
+          >
+            <MicIcon />
+          </button>
+        </dt-tooltip>
       </div>
       <div className={styles.statusRow}>
         <span className={styles.statusItem}>{wsReady ? modelLabel : 'offline'}</span>

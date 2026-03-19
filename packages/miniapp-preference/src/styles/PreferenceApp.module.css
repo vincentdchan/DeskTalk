@@ -326,36 +326,6 @@
   padding-left: 0;
 }
 
-.rootCompact .categoryText {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  z-index: 5;
-  padding: 4px 8px;
-  border: 1px solid color-mix(in oklab, var(--dt-accent) 28%, var(--dt-border));
-  border-radius: 6px;
-  background: color-mix(in oklab, var(--dt-bg) 86%, var(--dt-surface));
-  box-shadow: 0 10px 20px var(--dt-shadow-color);
-  color: var(--dt-text);
-  font-size: 11px;
-  line-height: 1.2;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-50%) translateY(-4px);
-  transition:
-    opacity 0.12s ease,
-    transform 0.12s ease;
-  white-space: nowrap;
-}
-
-.rootCompact .categoryItem:hover .categoryText,
-.rootCompact .categoryItem:focus-visible .categoryText,
-.rootCompact .categoryItemActive:hover .categoryText,
-.rootCompact .categoryItemActive:focus-visible .categoryText {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
 .rootCompact .settingsPanel {
   padding-bottom: 12px;
 }

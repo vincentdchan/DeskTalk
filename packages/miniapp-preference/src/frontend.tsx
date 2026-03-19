@@ -129,7 +129,11 @@ function PreferenceApp() {
     <PreferenceActions onConfigChanged={fetchConfig}>
       <div ref={rootRef} className={`${styles.root}${compactNav ? ` ${styles.rootCompact}` : ''}`}>
         {/* Sidebar */}
-        <PreferenceCategoryList activeCategory={activeCategory} onSelect={setActiveCategory} />
+        <PreferenceCategoryList
+          activeCategory={activeCategory}
+          onSelect={setActiveCategory}
+          compact={compactNav}
+        />
 
         {/* Settings panel */}
         <div className={styles.settingsPanel}>

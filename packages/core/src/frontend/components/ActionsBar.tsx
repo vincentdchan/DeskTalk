@@ -75,14 +75,14 @@ export function ActionsBar({ manifests, onLaunch }: ActionsBarProps) {
             <>
               <div className={styles.separator} />
               {focusedWindowActions.map((action) => (
-                <button
-                  key={action.name}
-                  className={`${styles.action}${glowing ? ` ${styles.glowing}` : ''}`}
-                  title={action.description}
-                  onClick={() => action.handler()}
-                >
-                  {action.name}
-                </button>
+                <dt-tooltip key={action.name} content={action.description} placement="bottom">
+                  <button
+                    className={`${styles.action}${glowing ? ` ${styles.glowing}` : ''}`}
+                    onClick={() => action.handler()}
+                  >
+                    {action.name}
+                  </button>
+                </dt-tooltip>
               ))}
             </>
           )}
