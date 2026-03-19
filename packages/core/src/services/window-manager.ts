@@ -1,6 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { WindowState } from '@desktalk/sdk';
 
 export interface SerializableActionDefinition {
   name: string;
@@ -32,12 +31,119 @@ export interface ContainerNode {
 
 export type TilingNode = LeafNode | ContainerNode;
 
+export interface PersistedWindow {
+  id: string;
+  miniAppId: string;
+  title: string;
+  args?: Record<string, unknown>;
+}
+
 export interface PersistedWindowState {
-  windows: WindowState[];
-  tree: TilingNode | null;
+  version: 2;
+  windows: PersistedWindow[];
   focusedWindowId: string | null;
   fullscreenWindowId: string | null;
   windowIdCounter: number;
+  nextSplitDirection: 'horizontal' | 'vertical' | 'auto';
+  tree: TilingNode | null;
+}
+
+interface LegacyWindowState extends PersistedWindow {
+  position?: { x: number; y: number };
+  size?: { width: number; height: number };
+  minimized?: boolean;
+  maximized?: boolean;
+  focused?: boolean;
+  zIndex?: number;
+}
+
+interface LegacyPersistedWindowState {
+  windows?: LegacyWindowState[];
+  tree?: TilingNode | null;
+  focusedWindowId?: string | null;
+  fullscreenWindowId?: string | null;
+  windowIdCounter?: number;
+  nextSplitDirection?: 'horizontal' | 'vertical' | 'auto';
+}
+
+function emptyPersistedState(): PersistedWindowState {
+  return {
+    version: 2,
+    windows: [],
+    tree: null,
+    focusedWindowId: null,
+    fullscreenWindowId: null,
+    windowIdCounter: 0,
+    nextSplitDirection: 'auto',
+  };
+}
+
+function toPersistedWindow(window: LegacyWindowState): PersistedWindow {
+  return {
+    id: window.id,
+    miniAppId: window.miniAppId,
+    title: window.title,
+    args: window.args,
+  };
+}
+
+function isPersistedWindow(value: unknown): value is PersistedWindow {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.miniAppId === 'string' &&
+    typeof candidate.title === 'string'
+  );
+}
+
+function migratePersistedState(parsed: unknown): PersistedWindowState | null {
+  if (!parsed || typeof parsed !== 'object') {
+    return null;
+  }
+
+  const candidate = parsed as Record<string, unknown>;
+  const windows = Array.isArray(candidate.windows) ? candidate.windows : [];
+  const focusedWindowId =
+    typeof candidate.focusedWindowId === 'string' ? candidate.focusedWindowId : null;
+  const fullscreenWindowId =
+    typeof candidate.fullscreenWindowId === 'string' ? candidate.fullscreenWindowId : null;
+  const windowIdCounter =
+    typeof candidate.windowIdCounter === 'number' ? candidate.windowIdCounter : windows.length;
+  const nextSplitDirection =
+    candidate.nextSplitDirection === 'horizontal' ||
+    candidate.nextSplitDirection === 'vertical' ||
+    candidate.nextSplitDirection === 'auto'
+      ? candidate.nextSplitDirection
+      : 'auto';
+
+  if (candidate.version === 2) {
+    return {
+      version: 2,
+      windows: windows.filter(isPersistedWindow),
+      tree: (candidate.tree as TilingNode | null | undefined) ?? null,
+      focusedWindowId,
+      fullscreenWindowId,
+      windowIdCounter,
+      nextSplitDirection,
+    };
+  }
+
+  const legacy = candidate as LegacyPersistedWindowState;
+  return {
+    version: 2,
+    windows: windows
+      .filter(isPersistedWindow)
+      .map((window) => toPersistedWindow(window as LegacyWindowState)),
+    tree: legacy.tree ?? null,
+    focusedWindowId,
+    fullscreenWindowId,
+    windowIdCounter,
+    nextSplitDirection,
+  };
 }
 
 function readPersistedState(filePath: string): PersistedWindowState | null {
@@ -46,7 +152,7 @@ function readPersistedState(filePath: string): PersistedWindowState | null {
   }
 
   try {
-    return JSON.parse(readFileSync(filePath, 'utf-8')) as PersistedWindowState;
+    return migratePersistedState(JSON.parse(readFileSync(filePath, 'utf-8')));
   } catch {
     return null;
   }
@@ -97,13 +203,7 @@ function describeLayout(
  *  - Provides `getSystemPromptContext()` for dynamic AI prompt injection
  */
 export class WindowManagerService {
-  private state: PersistedWindowState = {
-    windows: [],
-    tree: null,
-    focusedWindowId: null,
-    fullscreenWindowId: null,
-    windowIdCounter: 0,
-  };
+  private state: PersistedWindowState = emptyPersistedState();
   private readonly windowActions: Record<string, SerializableActionDefinition[]> = {};
   private filePath: string;
 
@@ -118,13 +218,7 @@ export class WindowManagerService {
    */
   switchUser(newFilePath: string): void {
     this.filePath = newFilePath;
-    this.state = {
-      windows: [],
-      tree: null,
-      focusedWindowId: null,
-      fullscreenWindowId: null,
-      windowIdCounter: 0,
-    };
+    this.state = emptyPersistedState();
     this.load();
   }
 
@@ -135,6 +229,7 @@ export class WindowManagerService {
     }
 
     this.state = {
+      version: 2,
       windows: Array.isArray(persisted.windows) ? persisted.windows : [],
       tree: persisted.tree ?? null,
       focusedWindowId:
@@ -145,7 +240,15 @@ export class WindowManagerService {
         typeof persisted.windowIdCounter === 'number'
           ? persisted.windowIdCounter
           : (persisted.windows?.length ?? 0),
+      nextSplitDirection:
+        persisted.nextSplitDirection === 'horizontal' ||
+        persisted.nextSplitDirection === 'vertical' ||
+        persisted.nextSplitDirection === 'auto'
+          ? persisted.nextSplitDirection
+          : 'auto',
     };
+
+    writePersistedState(this.filePath, this.state);
 
     // Ensure at least one window is focused on load
     if (this.state.windows.length > 0 && !this.state.focusedWindowId) {
@@ -171,12 +274,19 @@ export class WindowManagerService {
    */
   syncState(payload: PersistedWindowState): void {
     this.state = {
+      version: 2,
       windows: Array.isArray(payload.windows) ? payload.windows : [],
       tree: payload.tree ?? null,
       focusedWindowId: typeof payload.focusedWindowId === 'string' ? payload.focusedWindowId : null,
       fullscreenWindowId:
         typeof payload.fullscreenWindowId === 'string' ? payload.fullscreenWindowId : null,
       windowIdCounter: typeof payload.windowIdCounter === 'number' ? payload.windowIdCounter : 0,
+      nextSplitDirection:
+        payload.nextSplitDirection === 'horizontal' ||
+        payload.nextSplitDirection === 'vertical' ||
+        payload.nextSplitDirection === 'auto'
+          ? payload.nextSplitDirection
+          : 'auto',
     };
     writePersistedState(this.filePath, this.state);
   }
@@ -184,11 +294,11 @@ export class WindowManagerService {
   /**
    * Get the current windows (from last synced state).
    */
-  getWindows(): WindowState[] {
+  getWindows(): PersistedWindow[] {
     return this.state.windows;
   }
 
-  getFocusedWindow(): WindowState | undefined {
+  getFocusedWindow(): PersistedWindow | undefined {
     return this.state.windows.find((w) => w.id === this.state.focusedWindowId);
   }
 

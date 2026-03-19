@@ -249,11 +249,13 @@ export async function createServer(options: ServerOptions) {
         socket.send(
           JSON.stringify({
             type: 'window:state',
+            version: persisted.version,
             windows: persisted.windows,
             tree: persisted.tree,
             focusedWindowId: persisted.focusedWindowId,
             fullscreenWindowId: persisted.fullscreenWindowId,
             windowIdCounter: persisted.windowIdCounter,
+            nextSplitDirection: persisted.nextSplitDirection,
           }),
         );
       } catch (error) {
@@ -295,12 +297,19 @@ export async function createServer(options: ServerOptions) {
           // Frontend syncs its full state — persist it
           if (Array.isArray(msg.windows)) {
             windowManager.syncState({
+              version: 2,
               windows: msg.windows,
               tree: msg.tree ?? null,
               focusedWindowId: typeof msg.focusedWindowId === 'string' ? msg.focusedWindowId : null,
               fullscreenWindowId:
                 typeof msg.fullscreenWindowId === 'string' ? msg.fullscreenWindowId : null,
               windowIdCounter: typeof msg.windowIdCounter === 'number' ? msg.windowIdCounter : 0,
+              nextSplitDirection:
+                msg.nextSplitDirection === 'horizontal' ||
+                msg.nextSplitDirection === 'vertical' ||
+                msg.nextSplitDirection === 'auto'
+                  ? msg.nextSplitDirection
+                  : 'auto',
             });
           }
         } else if (msg.type === 'window:actions_changed') {

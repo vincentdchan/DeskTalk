@@ -198,7 +198,7 @@ function TilingTreeView({
   path = [],
 }: {
   node: TilingNode;
-  windowsById: Map<string, WindowSyncPayload['windows'][number]>;
+  windowsById: Map<string, WindowState>;
   path?: TreePath;
 }) {
   if (node.type === 'leaf') {
@@ -417,6 +417,7 @@ export function Shell() {
             type: string;
           } & WindowSyncPayload;
           useWindowManager.getState().restoreFromBackend({
+            version: 2,
             windows: payload.windows ?? [],
             tree: payload.tree ?? null,
             focusedWindowId:
@@ -425,6 +426,12 @@ export function Shell() {
               typeof payload.fullscreenWindowId === 'string' ? payload.fullscreenWindowId : null,
             windowIdCounter:
               typeof payload.windowIdCounter === 'number' ? payload.windowIdCounter : 0,
+            nextSplitDirection:
+              payload.nextSplitDirection === 'horizontal' ||
+              payload.nextSplitDirection === 'vertical' ||
+              payload.nextSplitDirection === 'auto'
+                ? payload.nextSplitDirection
+                : 'auto',
           });
           return;
         }

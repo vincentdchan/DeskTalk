@@ -22,12 +22,45 @@ const TILE_GAP = 4;
 /**
  * Snapshot sent to backend for persistence and AI context.
  */
+export interface PersistedWindow {
+  id: string;
+  miniAppId: string;
+  title: string;
+  args?: Record<string, unknown>;
+}
+
 export interface WindowSyncPayload {
-  windows: WindowState[];
+  version: 2;
+  windows: PersistedWindow[];
   tree: TilingNode | null;
   focusedWindowId: string | null;
   fullscreenWindowId: string | null;
   windowIdCounter: number;
+  nextSplitDirection: 'horizontal' | 'vertical' | 'auto';
+}
+
+function toPersistedWindow(window: WindowState): PersistedWindow {
+  return {
+    id: window.id,
+    miniAppId: window.miniAppId,
+    title: window.title,
+    args: window.args,
+  };
+}
+
+function toWindowState(window: PersistedWindow): WindowState {
+  return {
+    id: window.id,
+    miniAppId: window.miniAppId,
+    title: window.title,
+    position: { x: 0, y: 0 },
+    size: { width: 0, height: 0 },
+    minimized: false,
+    maximized: false,
+    focused: false,
+    zIndex: 1,
+    args: window.args,
+  };
 }
 
 let windowManagerSocket: WebSocket | null = null;
@@ -46,11 +79,13 @@ function sendWindowMessage(message: Record<string, unknown>): void {
 function syncToBackend(): void {
   const state = useWindowManager.getState();
   const payload: WindowSyncPayload = {
-    windows: state.windows,
+    version: 2,
+    windows: state.windows.map(toPersistedWindow),
     tree: state.tree,
     focusedWindowId: state.focusedWindowId,
     fullscreenWindowId: state.fullscreenWindowId,
     windowIdCounter: state.windowIdCounter,
+    nextSplitDirection: state.nextSplitDirection,
   };
   sendWindowMessage({ type: 'window:sync', ...payload });
 }
@@ -435,6 +470,7 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
 
   setNextSplitDirection(direction: 'horizontal' | 'vertical' | 'auto') {
     set({ nextSplitDirection: direction });
+    syncToBackend();
   },
 
   rotateFocusedSplit() {
@@ -612,7 +648,7 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
     const bounds = get().desktopBounds;
     const { rects, bars } = recomputeLayout(payload.tree, bounds);
     const updatedWindows = updateWindowRectsFromTree(
-      payload.windows,
+      payload.windows.map(toWindowState),
       rects,
       payload.focusedWindowId,
       payload.fullscreenWindowId,
@@ -624,6 +660,7 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
       focusedWindowId: payload.focusedWindowId,
       fullscreenWindowId: payload.fullscreenWindowId,
       windowIdCounter: payload.windowIdCounter,
+      nextSplitDirection: payload.nextSplitDirection,
       tileRects: rects,
       splitBars: bars,
     });

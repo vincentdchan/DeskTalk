@@ -22,7 +22,13 @@ export type {
   LocalizeParam,
 } from './types/context';
 export type { ActionDefinition, ActionHandler, ActionParam } from './types/actions';
-export type { WindowState, WindowPosition, WindowSize } from './types/window';
+export type {
+  WindowState,
+  PersistedWindow,
+  PersistedWindowState,
+  WindowPosition,
+  WindowSize,
+} from './types/window';
 export type { LocaleMessages, LocalizeCall, I18nRuntimeValue } from './i18n/runtime';
 
 // ─── React Hooks ─────────────────────────────────────────────────────────────

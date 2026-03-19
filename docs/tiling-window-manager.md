@@ -206,13 +206,22 @@ interface WindowManagerState {
 
 ```ts
 interface WindowSyncPayload {
-  windows: WindowState[];
+  version: 2;
+  windows: Array<{
+    id: string;
+    miniAppId: string;
+    title: string;
+    args?: Record<string, unknown>;
+  }>;
   tree: TilingNode | null;
   focusedWindowId: string | null;
   fullscreenWindowId: string | null;
   windowIdCounter: number;
+  nextSplitDirection: 'horizontal' | 'vertical' | 'auto';
 }
 ```
+
+Persisted window sessions should store only window identity plus the tiling tree. Pixel `position`, `size`, `zIndex`, and other derived fields are recomputed from the tree and current desktop bounds during restore, so they should not be written to disk.
 
 ---
 
@@ -297,7 +306,34 @@ This hook is mounted once in `Shell`. It reads from and dispatches to the `useWi
 
 ### WindowManagerService
 
-The backend `WindowManagerService` persists the new `WindowSyncPayload` shape (with `tree`, `focusedWindowId`, `fullscreenWindowId`). The file format changes from a flat window list to include the tree structure.
+The backend `WindowManagerService` persists the new `WindowSyncPayload` shape (with `tree`, `focusedWindowId`, `fullscreenWindowId`, and `nextSplitDirection`). The file format changes from a flat floating-window snapshot to a tiled-layout snapshot with schema versioning.
+
+Example persisted file:
+
+```json
+{
+  "version": 2,
+  "windows": [
+    { "id": "win-1", "miniAppId": "note", "title": "Note" },
+    { "id": "win-2", "miniAppId": "todo", "title": "Todo" }
+  ],
+  "tree": {
+    "type": "container",
+    "split": "horizontal",
+    "ratio": 0.5,
+    "children": [
+      { "type": "leaf", "windowId": "win-1" },
+      { "type": "leaf", "windowId": "win-2" }
+    ]
+  },
+  "focusedWindowId": "win-1",
+  "fullscreenWindowId": null,
+  "windowIdCounter": 2,
+  "nextSplitDirection": "auto"
+}
+```
+
+On restore, the backend or frontend should migrate older floating-format files by stripping persisted coordinates and keeping only the window identity fields plus the tree metadata.
 
 ### AI Desktop Context
 
