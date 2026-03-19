@@ -8,7 +8,7 @@
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--dt-border);
-  border-radius: var(--border-radius);
+  border-radius: 0;
   box-shadow: 0 4px 12px var(--dt-shadow-color);
   transition:
     border-color 0.2s ease,
@@ -31,7 +31,7 @@
   width: auto;
   height: auto;
   z-index: 25;
-  border-radius: calc(var(--border-radius) + 4px);
+  border-radius: 0;
   box-shadow:
     0 24px 72px color-mix(in oklab, var(--dt-shadow-color) 220%, transparent),
     0 0 0 1px color-mix(in oklab, var(--dt-accent) 20%, var(--dt-border));
@@ -53,23 +53,23 @@
 
 .chrome {
   display: flex;
-  height: var(--window-chrome-height);
+  height: 22px;
   flex-shrink: 0;
   align-items: center;
-  padding: 0 12px;
+  padding: 0 8px;
   background: var(--dt-window-chrome);
   user-select: none;
 }
 
 .trafficLights {
   display: flex;
-  gap: 6px;
-  margin-right: 12px;
+  gap: 4px;
+  margin-right: 8px;
 }
 
 .trafficLight {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -95,9 +95,13 @@
   flex: 1;
   overflow: hidden;
   color: var(--dt-text-muted);
-  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   text-align: center;
   text-overflow: ellipsis;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 

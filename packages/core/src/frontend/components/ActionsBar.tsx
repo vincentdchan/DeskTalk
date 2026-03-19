@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { MiniAppManifest } from '@desktalk/sdk';
 import { useWindowManager } from '../stores/window-manager';
-import { DockIcon } from './DockIcon';
+import { LauncherPanel } from './LauncherPanel';
 import styles from './ActionsBar.module.scss';
 
 interface ActionsBarProps {
@@ -18,7 +18,6 @@ export function ActionsBar({ manifests, onLaunch }: ActionsBarProps) {
   const prevActionsRef = useRef(focusedWindowActions);
 
   const [launcherOpen, setLauncherOpen] = useState(false);
-  const launcherRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -30,34 +29,6 @@ export function ActionsBar({ manifests, onLaunch }: ActionsBarProps) {
     }
     prevActionsRef.current = focusedWindowActions;
   }, [focusedWindowActions]);
-
-  // Close launcher when clicking outside
-  useEffect(() => {
-    if (!launcherOpen) return;
-
-    function handleClickOutside(e: MouseEvent) {
-      const target = e.target as Node;
-      if (
-        launcherRef.current &&
-        !launcherRef.current.contains(target) &&
-        buttonRef.current &&
-        !buttonRef.current.contains(target)
-      ) {
-        setLauncherOpen(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [launcherOpen]);
-
-  const handleAppClick = useCallback(
-    (miniAppId: string) => {
-      onLaunch(miniAppId);
-      setLauncherOpen(false);
-    },
-    [onLaunch],
-  );
 
   const isFullscreen = focusedWindowId === fullscreenWindowId && fullscreenWindowId !== null;
 
@@ -72,23 +43,13 @@ export function ActionsBar({ manifests, onLaunch }: ActionsBarProps) {
           {$localize`applications:Applications`}
         </button>
 
-        {launcherOpen && (
-          <div ref={launcherRef} className={styles.launcherPanel}>
-            {manifests.length === 0 && (
-              <div className={styles.launcherEmpty}>No applications available</div>
-            )}
-            {manifests.map((app) => (
-              <button
-                key={app.id}
-                className={styles.launcherItem}
-                onClick={() => handleAppClick(app.id)}
-              >
-                <DockIcon icon={app.icon} iconPng={app.iconPng} className={styles.launcherIcon} />
-                <span className={styles.launcherLabel}>{app.name}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <LauncherPanel
+          manifests={manifests}
+          isOpen={launcherOpen}
+          onClose={() => setLauncherOpen(false)}
+          onLaunch={onLaunch}
+          anchorRef={buttonRef}
+        />
       </div>
 
       {focusedWindow && (
