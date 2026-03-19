@@ -20,6 +20,8 @@ export function HtmlViewport({ html, streaming, onBridgeRequest }: HtmlViewportP
   const writtenLengthRef = useRef(0);
   /** Whether we've called doc.open() for the current streaming session. */
   const docOpenRef = useRef(false);
+  /** Tracks whether the previous render was in streaming mode. */
+  const wasStreamingRef = useRef(Boolean(streaming));
 
   useEffect(() => {
     if (!onBridgeRequest) return;
@@ -57,10 +59,25 @@ export function HtmlViewport({ html, streaming, onBridgeRequest }: HtmlViewportP
     const doc = iframe.contentDocument;
     if (!doc) return;
 
+    const wasStreaming = wasStreamingRef.current;
+    wasStreamingRef.current = Boolean(streaming);
+
     if (!streaming) {
       // ── Static / final render ────────────────────────────────────
-      // When not streaming (or streaming just finished), write the full
-      // document and close it so scripts execute normally.
+      // If we were streaming, preserve the already-written document and only
+      // flush any remaining tail before closing. Rewriting would refresh the
+      // iframe and discard the injected bridge/runtime state.
+      if (wasStreaming && docOpenRef.current) {
+        const newContent = html.slice(writtenLengthRef.current);
+        if (newContent.length > 0) {
+          doc.write(newContent);
+          writtenLengthRef.current = html.length;
+        }
+        doc.close();
+        docOpenRef.current = false;
+        return;
+      }
+
       doc.open();
       doc.write(html);
       doc.close();
