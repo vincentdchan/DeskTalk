@@ -121,7 +121,7 @@ function stripDesktopContext(text: string): string {
  * tag counts) so the LLM still knows *what* it generated, just not the
  * exact markup.
  */
-function summarizeHtml(html: string): string {
+export function summarizeHtml(html: string): string {
   const lines: string[] = [];
 
   // Byte length
@@ -163,7 +163,7 @@ function summarizeHtml(html: string): string {
  * Mutates `message.content` in-place — this must be called synchronously in
  * the `message_end` subscriber, **before** session persistence runs.
  */
-function scrubHtmlToolCallArgs(message: AssistantMessage): void {
+export function scrubHtmlToolCallArgs(message: AssistantMessage): void {
   for (const block of message.content) {
     if (
       block.type === 'toolCall' &&
