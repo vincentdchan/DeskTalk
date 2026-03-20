@@ -28,7 +28,7 @@
   line-height: 1.4;
   color: var(--dt-text-muted);
   background: color-mix(in oklab, var(--dt-surface) 40%, var(--dt-bg));
-  border-left: 3px solid color-mix(in oklab, var(--dt-border) 50%, transparent);
+  border-left: 3px solid color-mix(in oklab, var(--dt-text-secondary) 55%, var(--dt-bg));
 }
 
 .toolCallLabel {

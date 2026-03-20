@@ -694,7 +694,7 @@ export class PiSessionService {
           // synchronously before session persistence (step 8c in the event
           // pipeline) so both in-memory state and the session file reflect
           // the summarised version.
-          scrubHtmlToolCallArgs(event.message as unknown as AssistantMessage);
+          // scrubHtmlToolCallArgs(event.message as unknown as AssistantMessage);
 
           onEvent({
             type: 'message_end',

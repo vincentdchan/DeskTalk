@@ -10,16 +10,16 @@ The File Explorer MiniApp is a system-level filesystem browser that lets users n
 
 - Browse directories and files in a tree or list view.
 - Navigate using breadcrumbs and back/forward buttons.
-- Open files for viewing (text files displayed inline, others show metadata).
+- Open files in the appropriate MiniApp (text files in TextEdit, images in Preview).
 - Create, rename, and delete files and directories.
 - Copy and move files via context menu or actions.
 
 ### File Display
 
-- Text files (`.md`, `.txt`, `.json`, `.ts`, `.js`, etc.) are displayed with syntax highlighting.
-- Image files (`.png`, `.jpg`, `.gif`, `.svg`) are displayed inline.
-- HTML files (`.html`) are opened in the Preview MiniApp for iframe rendering.
-- Other files show name, size, type, and last-modified metadata.
+- Text files (`.md`, `.txt`, `.json`, `.ts`, `.js`, etc.) open in the **TextEdit** MiniApp on double-click.
+- Image files (`.png`, `.jpg`, `.jpeg`, `.webp`) open in the **Preview** MiniApp on double-click.
+- HTML files (`.html`) open in the **Preview** MiniApp for iframe rendering.
+- Other files show name, size, type, and last-modified metadata in an inline pane.
 
 ## UI Layout
 
@@ -46,11 +46,27 @@ Note: The Actions Bar is a global element managed by the core shell (see `docs/s
 ### Interactions
 
 - Double-click a directory to navigate into it.
-- Double-click a supported image file (`.jpg`, `.jpeg`, `.png`, `.webp`) to open it in the Preview MiniApp (image mode).
-- Double-click an `.html` file to open it in the Preview MiniApp (HTML mode).
-- Double-click any other file to open an inline preview pane.
-- Right-click for a context menu (rename, delete, copy, move).
+- Double-click a text file (`.md`, `.txt`, `.json`, `.ts`, `.js`, `.py`, `.yaml`, `.toml`, `.css`, `.sh`, etc.) to open it in the **TextEdit** MiniApp.
+- Double-click an `.html` file to open it in the **Preview** MiniApp (HTML mode).
+- Double-click an image file (`.png`, `.jpg`, `.jpeg`, `.webp`) to open it in the **Preview** MiniApp.
+- Double-click other file types to open an inline metadata/preview pane.
+- Right-click for a context menu (rename, delete, copy, move, "Open with…").
 - Drag and drop for moving files (optional stretch goal).
+
+### Integration with Other MiniApps
+
+When a user double-clicks a file, the File Explorer determines which MiniApp to open based on the file extension:
+
+| File type               | Target MiniApp | Launch `args`                 |
+| ----------------------- | -------------- | ----------------------------- |
+| Text / code / Markdown  | TextEdit       | `{ path: "<relative-path>" }` |
+| HTML                    | Preview        | `{ path: "<relative-path>" }` |
+| Image (JPEG, PNG, WebP) | Preview        | `{ path: "<relative-path>" }` |
+| Other                   | (inline pane)  | —                             |
+
+The File Explorer opens the target MiniApp by requesting the core to launch a new window with the appropriate `miniAppId` and `args`. The `path` value is the file's path relative to the user's home directory (e.g., `"documents/notes.md"`). See [miniapp-development.md](../miniapp-development.md) — Launch Arguments for how `args` are passed to the target MiniApp's `activate(ctx)`.
+
+The "Open with…" context menu entry lets the user choose a MiniApp manually, overriding the default extension-based routing.
 
 ## Frontend Components
 

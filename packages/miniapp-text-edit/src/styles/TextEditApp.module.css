@@ -1,0 +1,127 @@
+.root {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--dt-window-body);
+  color: var(--dt-text);
+  font-family: var(--font-sans);
+}
+
+/* ─── Title Bar ───────────────────────────────────────────────────────────── */
+
+.titleBar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--dt-border);
+}
+
+.titleFilename {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titleActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.saveBtn {
+  padding: 4px 12px;
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+  background: var(--dt-surface);
+  color: var(--dt-text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.saveBtn:hover:not(:disabled) {
+  border-color: var(--dt-accent);
+  background: var(--dt-surface-hover);
+  color: var(--dt-accent);
+}
+
+.saveBtn:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.saveStatus {
+  color: var(--dt-text-muted);
+  opacity: 0.7;
+  font-size: 11px;
+}
+
+.saveStatusSaving {
+  composes: saveStatus;
+  color: var(--dt-warning);
+}
+
+/* ─── Editor Container ────────────────────────────────────────────────────── */
+
+.editorContainer {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ─── Status Bar ──────────────────────────────────────────────────────────── */
+
+.statusBar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 12px;
+  border-top: 1px solid var(--dt-border);
+  background: var(--dt-surface);
+}
+
+.statusItem {
+  color: var(--dt-text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* ─── Empty / Error States ────────────────────────────────────────────────── */
+
+.emptyState {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: var(--dt-text-muted);
+  font-size: 14px;
+}
+
+.errorState {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--dt-text-muted);
+  font-size: 14px;
+}
+
+.errorIcon {
+  font-size: 32px;
+  opacity: 0.5;
+}
