@@ -182,7 +182,13 @@ export function WindowChrome({
       : {};
 
   return (
-    <div ref={windowRef} className={windowClasses} style={windowStyle} onMouseDown={handleFocus}>
+    <div
+      ref={windowRef}
+      className={windowClasses}
+      style={windowStyle}
+      data-window-id={win.id}
+      onMouseDown={handleFocus}
+    >
       <div
         className={styles.chrome}
         onMouseDown={handleChromeMouseDown}

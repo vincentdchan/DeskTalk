@@ -373,6 +373,37 @@ export function Shell() {
   useDesktopBounds(desktopRef);
   useKeyboardShortcuts();
 
+  // Detect clicks inside iframes for focus tracking.
+  // When an iframe receives focus the parent window blurs.  At that moment
+  // document.activeElement points to the <iframe> element.  We walk up from
+  // it to find the ancestor WindowChrome (via data-window-id) and focus the
+  // corresponding window in the store.
+  useEffect(() => {
+    const handleWindowBlur = () => {
+      // Use a rAF so the browser has time to update document.activeElement
+      requestAnimationFrame(() => {
+        const active = document.activeElement;
+        if (!active || active.tagName !== 'IFRAME') return;
+
+        const chromeEl = active.closest<HTMLElement>('[data-window-id]');
+        if (!chromeEl) return;
+
+        const windowId = chromeEl.dataset.windowId;
+        if (!windowId) return;
+
+        const state = useWindowManager.getState();
+        if (state.focusedWindowId !== windowId) {
+          state.focusWindow(windowId);
+        }
+      });
+    };
+
+    window.addEventListener('blur', handleWindowBlur);
+    return () => {
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, []);
+
   useEffect(() => {
     const handleBridgeStateRequest = (event: Event) => {
       const detail = (event as CustomEvent<BridgeStateRequestDetail>).detail;
