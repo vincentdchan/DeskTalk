@@ -187,14 +187,30 @@ body {
   padding: 24px;
 }
 h1, h2, h3, h4, h5, h6 {
-  color: var(--dt-text);
-  margin-bottom: 0.5em;
-  line-height: 1.3;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  color: var(--dt-text) !important;
+  line-height: 1.3 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.5em !important;
+  font-style: normal !important;
+  text-transform: none !important;
+  letter-spacing: -0.01em !important;
 }
-h1 { font-size: 1.75rem; }
-h2 { font-size: 1.375rem; }
-h3 { font-size: 1.125rem; }
-p { margin-bottom: 1em; color: var(--dt-text-secondary); }
+h1 { font-size: 2rem !important; font-weight: 700 !important; letter-spacing: -0.02em !important; }
+h2 { font-size: 1.5rem !important; font-weight: 600 !important; }
+h3 { font-size: 1.25rem !important; font-weight: 600 !important; }
+h4 { font-size: 1.125rem !important; font-weight: 600 !important; }
+h5 { font-size: 1rem !important; font-weight: 600 !important; }
+h6 { font-size: 0.875rem !important; font-weight: 600 !important; text-transform: uppercase !important; letter-spacing: 0.05em !important; }
+p {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  font-size: 1rem !important;
+  font-weight: 400 !important;
+  line-height: 1.6 !important;
+  color: var(--dt-text-secondary) !important;
+  margin-top: 0 !important;
+  margin-bottom: 1em !important;
+}
 a { color: var(--dt-accent); text-decoration: none; }
 a:hover { color: var(--dt-accent-hover); text-decoration: underline; }
 hr {

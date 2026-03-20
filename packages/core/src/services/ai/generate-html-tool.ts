@@ -3,13 +3,10 @@ import { Type } from '@sinclair/typebox';
 import type { SendAiCommand } from './desktop-tool';
 import { broadcastEvent } from '../messaging';
 import { randomUUID } from 'node:crypto';
-import {
-  generateThemeCSS,
-  HTML_BASE_STYLESHEET,
-  DEFAULT_THEME_PREFERENCES,
-  type ThemePreferences,
-} from '../theme-css';
+import { DEFAULT_THEME_PREFERENCES, type ThemePreferences } from '../theme-css';
 import { createHtmlBridgeScript } from './html-bridge-script';
+import { createThemeLinkTag } from './html-theme-link';
+import { UI_BUNDLE_SCRIPT_TAG } from './html-ui-script';
 import type { HtmlStreamCoordinator } from './html-stream-coordinator';
 
 const generateHtmlSchema = Type.Object({
@@ -60,24 +57,23 @@ async function readThemePreferences(getPreference: PreferenceReader): Promise<Th
 }
 
 /**
- * Inject the DeskTalk theme tokens and base stylesheet into AI-generated HTML.
+ * Inject the DeskTalk theme CSS `<link>` tag into AI-generated HTML.
  *
- * Strategy: insert a `<style>` block right after the opening `<head>` tag.
+ * Strategy: insert a `<link>` right after the opening `<head>` tag.
  * If there is no `<head>`, prepend it before the content.
  */
 function injectThemeIntoHtml(html: string, themePreferences: ThemePreferences): string {
-  const themeCSS = generateThemeCSS(themePreferences);
-  const injectedStyle = `<style data-dt-theme>\n${themeCSS}\n${HTML_BASE_STYLESHEET}\n</style>`;
+  const themeLink = createThemeLinkTag(themePreferences.accentColor, themePreferences.theme);
 
   // Try to inject after <head> or <head ...>
   const headMatch = html.match(/<head(\s[^>]*)?>|<head>/i);
   if (headMatch && headMatch.index !== undefined) {
     const insertPos = headMatch.index + headMatch[0].length;
-    return html.slice(0, insertPos) + '\n' + injectedStyle + '\n' + html.slice(insertPos);
+    return html.slice(0, insertPos) + '\n' + themeLink + '\n' + html.slice(insertPos);
   }
 
-  // No <head> tag found — prepend the style block before the entire content
-  return injectedStyle + '\n' + html;
+  // No <head> tag found — prepend the link before the entire content
+  return themeLink + '\n' + html;
 }
 
 function injectIntoHtmlHead(html: string, snippet: string): string {
@@ -102,9 +98,10 @@ export function createGenerateHtmlTool(options: GenerateHtmlToolOptions): ToolDe
     promptGuidelines: [
       'Use this tool when the user asks you to show, visualize, display, or render something visually.',
       'Provide a complete, self-contained HTML document including <html>, <head>, and <body> tags.',
+      'Follow the HTML Generation Rules in the system prompt — use `<dt-card>` for content sections, no custom container classes, no styling headings/paragraphs.',
       'Generated previews automatically receive a `window.DeskTalk` bridge for reading safe desktop state and running constrained commands.',
       'The bridge exposes `exec` / `execute` — both accept either a shell string (`window.DeskTalk.exec("ls -la")`) or explicit arguments (`window.DeskTalk.exec("ls", ["-la"])`).',
-      'Before using custom styling, call read_html_guidelines if you need the full DeskTalk token and class reference.',
+      'Call read_html_guidelines for the full DeskTalk token, utility-class, and component reference.',
     ],
     parameters: generateHtmlSchema,
     async execute(_toolCallId, params) {
@@ -144,7 +141,7 @@ export function createGenerateHtmlTool(options: GenerateHtmlToolOptions): ToolDe
       const themedHtml = injectThemeIntoHtml(input.content, themePreferences);
       const bridgedHtml = injectIntoHtmlHead(
         themedHtml,
-        createHtmlBridgeScript(streamId, bridgeToken),
+        UI_BUNDLE_SCRIPT_TAG + '\n' + createHtmlBridgeScript(streamId, bridgeToken),
       );
 
       // Ensure the preview MiniApp is activated

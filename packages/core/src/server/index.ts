@@ -3,6 +3,8 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyWebsocket from '@fastify/websocket';
 import fastifyStatic from '@fastify/static';
 import { createReadStream } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
@@ -17,7 +19,11 @@ import {
   getStoredPreferenceForUser,
   setPreferenceUser,
 } from '../services/preferences';
-import { DEFAULT_THEME_PREFERENCES } from '../services/theme-css';
+import {
+  DEFAULT_THEME_PREFERENCES,
+  generateThemeCSS,
+  HTML_BASE_STYLESHEET,
+} from '../services/theme-css';
 import { loadMergedLocaleMessages } from '../services/i18n';
 import { getWorkspacePaths, getUserHomeDir, ensureUserHome } from '../services/workspace';
 import { VoiceSession } from '../services/voice/voice-session';
@@ -69,10 +75,10 @@ export async function createServer(options: ServerOptions) {
   // MiniApps on their behalf.
   let currentWsUsername: string | null = null;
 
-  windowManager.activatePersistedMiniApps(async (miniAppId) => {
+  windowManager.activatePersistedMiniApps(async (miniAppId, launchArgs) => {
     // During startup restore, use the admin user as the default owner.
     // In practice, persisted windows will be re-associated when the user logs in.
-    await registry.activate(miniAppId, 'admin');
+    await registry.activate(miniAppId, 'admin', { launchArgs });
   });
 
   // ─── Pending requests for action invocations brokered to the frontend ───
@@ -176,6 +182,8 @@ export async function createServer(options: ServerOptions) {
     '/api/setup/status',
     '/api/setup',
     '/api/preferences/public',
+    '/api/ui/desktalk-ui.js',
+    '/api/ui/desktalk-theme.css',
   ]);
 
   app.addHook('onRequest', async (req, reply) => {
@@ -239,8 +247,8 @@ export async function createServer(options: ServerOptions) {
         windowManager.switchUser(join(getUserHomeDir(username), '.storage', 'window-state.json'));
         setPreferenceUser(username);
 
-        await windowManager.activatePersistedMiniApps(async (miniAppId) => {
-          await registry.activate(miniAppId, username);
+        await windowManager.activatePersistedMiniApps(async (miniAppId, launchArgs) => {
+          await registry.activate(miniAppId, username, { launchArgs });
         });
 
         // Send AI history on connect
@@ -642,6 +650,63 @@ export async function createServer(options: ServerOptions) {
     },
   );
 
+  // ─── Serve the @desktalk/ui UMD bundle for generated HTML iframes ───────
+  // This lets AI-generated HTML load DeskTalk web components (<dt-card>, etc.)
+  // via a <script> tag without needing an external CDN.
+
+  const require = createRequire(import.meta.url);
+  const uiBundlePath = join(
+    dirname(require.resolve('@desktalk/ui/package.json')),
+    'dist',
+    'index.umd.js',
+  );
+  let uiBundleCache: { body: Buffer; etag: string } | null = null;
+
+  async function getUiBundle(): Promise<{ body: Buffer; etag: string }> {
+    if (uiBundleCache) return uiBundleCache;
+    const body = await readFile(uiBundlePath);
+    const etag = `"ui-${body.length.toString(36)}"`;
+    uiBundleCache = { body, etag };
+    return uiBundleCache;
+  }
+
+  app.get('/api/ui/desktalk-ui.js', async (_req, reply) => {
+    const { body, etag } = await getUiBundle();
+    reply.header('Content-Type', 'application/javascript; charset=utf-8');
+    reply.header('Cache-Control', 'public, max-age=86400, immutable');
+    reply.header('ETag', etag);
+    return reply.send(body);
+  });
+
+  // ─── Serve the DeskTalk theme + base CSS for generated HTML iframes ─────
+  // Query params `accent` and `theme` encode the user's current preferences
+  // so each configuration gets a distinct cacheable URL.
+
+  const themeCssCache = new Map<string, { body: string; etag: string }>();
+
+  app.get<{ Querystring: { accent?: string; theme?: string } }>(
+    '/api/ui/desktalk-theme.css',
+    async (req, reply) => {
+      const accent = req.query.accent ?? DEFAULT_THEME_PREFERENCES.accentColor;
+      const theme = req.query.theme === 'light' ? 'light' : DEFAULT_THEME_PREFERENCES.theme;
+      const cacheKey = `${accent}|${theme}`;
+
+      let cached = themeCssCache.get(cacheKey);
+      if (!cached) {
+        const themeCSS = generateThemeCSS({ accentColor: accent, theme });
+        const body = `${themeCSS}\n${HTML_BASE_STYLESHEET}`;
+        const etag = `"theme-${Buffer.byteLength(body).toString(36)}"`;
+        cached = { body, etag };
+        themeCssCache.set(cacheKey, cached);
+      }
+
+      reply.header('Content-Type', 'text/css; charset=utf-8');
+      reply.header('Cache-Control', 'public, max-age=86400, immutable');
+      reply.header('ETag', cached.etag);
+      return reply.send(cached.body);
+    },
+  );
+
   app.get('/api/preferences/public', async (req) => {
     const requestUser = req.user;
     const token = req.cookies[COOKIE_NAME];
@@ -683,12 +748,16 @@ export async function createServer(options: ServerOptions) {
   });
 
   // REST API: Activate a MiniApp (scoped to authenticated user)
-  app.post<{ Params: { id: string } }>('/api/miniapps/:id/activate', async (req) => {
-    const { id } = req.params;
-    const username = req.user!.username;
-    await registry.activate(id, username);
-    return { id, activated: true };
-  });
+  app.post<{ Params: { id: string }; Body: { args?: Record<string, unknown> } }>(
+    '/api/miniapps/:id/activate',
+    async (req) => {
+      const { id } = req.params;
+      const username = req.user!.username;
+      const launchArgs = req.body?.args ? [req.body.args] : [];
+      await registry.activate(id, username, { launchArgs });
+      return { id, activated: true };
+    },
+  );
 
   // REST API: Deactivate a MiniApp (scoped to authenticated user)
   app.post<{ Params: { id: string } }>('/api/miniapps/:id/deactivate', async (req) => {

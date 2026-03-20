@@ -2,13 +2,10 @@ import { parse as parsePartialJson, Allow } from 'partial-json';
 import { randomUUID } from 'node:crypto';
 import type pino from 'pino';
 import { broadcastEvent } from '../messaging';
-import {
-  generateThemeCSS,
-  HTML_BASE_STYLESHEET,
-  DEFAULT_THEME_PREFERENCES,
-  type ThemePreferences,
-} from '../theme-css';
+import { DEFAULT_THEME_PREFERENCES, type ThemePreferences } from '../theme-css';
 import { createHtmlBridgeScript } from './html-bridge-script';
+import { createThemeLinkTag } from './html-theme-link';
+import { UI_BUNDLE_SCRIPT_TAG } from './html-ui-script';
 import type { SendAiCommand } from './desktop-tool';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -363,8 +360,7 @@ export class HtmlStreamCoordinator {
 
   private async sendPreamble(session: HtmlStreamSession): Promise<void> {
     const themePreferences = await readThemePreferences(this.getPreference);
-    const themeCSS = generateThemeCSS(themePreferences);
-    const themeStyle = `<style data-dt-theme>\n${themeCSS}\n${HTML_BASE_STYLESHEET}\n</style>`;
+    const themeLink = createThemeLinkTag(themePreferences.accentColor, themePreferences.theme);
     const bridgeScript = createHtmlBridgeScript(session.streamId, session.bridgeToken);
 
     // We send the preamble as the very first chunk, *before* the LLM's HTML.
@@ -374,7 +370,7 @@ export class HtmlStreamCoordinator {
     // the preamble in a structure the browser can merge cleanly:
     //
     //   <!DOCTYPE html><html><head>
-    //     <style>…theme…</style>
+    //     <link rel="stylesheet" href="/api/ui/desktalk-theme.css?…">
     //     <script>…bridge…</script>
     //   <!-- preamble end -->
     //
@@ -383,7 +379,14 @@ export class HtmlStreamCoordinator {
     // spec, duplicate <html>/<head> tags are dropped). The LLM's <head>
     // children (like <title>, <meta>, additional <style>) are adopted into
     // the already-open <head>.
-    const preamble = '<!DOCTYPE html><html><head>\n' + themeStyle + '\n' + bridgeScript + '\n';
+    const preamble =
+      '<!DOCTYPE html><html><head>\n' +
+      themeLink +
+      '\n' +
+      UI_BUNDLE_SCRIPT_TAG +
+      '\n' +
+      bridgeScript +
+      '\n';
 
     broadcastEvent('preview', 'preview.html-chunk', {
       streamId: session.streamId,

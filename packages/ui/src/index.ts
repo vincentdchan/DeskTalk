@@ -6,12 +6,17 @@
  */
 
 import { DtTooltip } from './dt-tooltip';
+import { DtCard } from './dt-card';
 import './ui-elements';
 
-export { DtTooltip };
+export { DtTooltip, DtCard };
 
 // ── Auto-register ────────────────────────────────────────────────────────────
 
 if (!customElements.get('dt-tooltip')) {
   customElements.define('dt-tooltip', DtTooltip);
+}
+
+if (!customElements.get('dt-card')) {
+  customElements.define('dt-card', DtCard);
 }

@@ -11,12 +11,19 @@
 import { create } from 'zustand';
 import { httpClient } from '../http-client';
 
+export interface ToolCallInfo {
+  toolName: string;
+  params: Record<string, unknown>;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   source?: 'text' | 'voice';
   timestamp?: number;
+  /** When present, this message represents a tool call (rendered as a standalone row). */
+  toolCall?: ToolCallInfo;
 }
 
 export interface AiProviderOption {
@@ -32,7 +39,7 @@ interface AiProviderResponse {
 }
 
 export interface AiEventMessage {
-  type: 'history_sync' | 'message_start' | 'message_update' | 'message_end' | 'error';
+  type: 'history_sync' | 'message_start' | 'message_update' | 'message_end' | 'tool_call' | 'error';
   requestId?: string;
   text?: string;
   message?: string;
@@ -42,6 +49,7 @@ export interface AiEventMessage {
     totalTokens?: number;
   };
   messages?: ChatMessage[];
+  toolCall?: ToolCallInfo;
 }
 
 export interface ChatSessionState {
@@ -154,9 +162,35 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
       set((prev) => {
         const next = [...prev.messages];
         const lastIndex = next.length - 1;
-        if (lastIndex >= 0 && next[lastIndex].role === 'assistant') {
+        if (lastIndex >= 0 && next[lastIndex].role === 'assistant' && !next[lastIndex].toolCall) {
           next[lastIndex] = { ...next[lastIndex], content: event.text ?? '' };
         }
+        return { messages: next };
+      });
+    } else if (event.type === 'tool_call') {
+      // Insert a tool call message just before the current streaming assistant message
+      set((prev) => {
+        const next = [...prev.messages];
+        const requestId = state.activeRequestId;
+        const assistantId = requestId ? `assistant-${requestId}` : null;
+        const toolMsg: ChatMessage = {
+          id: `tool-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          role: 'assistant',
+          content: '',
+          toolCall: event.toolCall,
+        };
+
+        // Insert before the active streaming assistant message
+        if (assistantId) {
+          const idx = next.findIndex((m) => m.id === assistantId);
+          if (idx >= 0) {
+            next.splice(idx, 0, toolMsg);
+            return { messages: next };
+          }
+        }
+
+        // Fallback: append before the last assistant message
+        next.push(toolMsg);
         return { messages: next };
       });
     } else if (event.type === 'message_end') {

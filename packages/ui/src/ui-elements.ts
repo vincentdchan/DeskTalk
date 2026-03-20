@@ -15,11 +15,24 @@ type DtTooltipJSXProps = DtTooltipAttributes & {
   key?: string | number | null;
 };
 
+type DtCardAttributes = Partial<{
+  variant: 'default' | 'outlined' | 'filled';
+  class: string;
+  style: string | Record<string, string>;
+}>;
+
+type DtCardJSXProps = DtCardAttributes & {
+  children?: unknown;
+  ref?: unknown;
+  key?: string | number | null;
+};
+
 declare module 'react' {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
       'dt-tooltip': DtTooltipJSXProps;
+      'dt-card': DtCardJSXProps;
     }
   }
 }

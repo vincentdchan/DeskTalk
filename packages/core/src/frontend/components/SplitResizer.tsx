@@ -41,6 +41,11 @@ export function SplitResizer({ path, split, ratio, onRatioChange }: SplitResizer
         return;
       }
 
+      // Iframes swallow mouse events; disable their pointer events while resizing.
+      const iframeBlocker = document.createElement('style');
+      iframeBlocker.textContent = 'iframe { pointer-events: none !important; }';
+      document.head.appendChild(iframeBlocker);
+
       const handleMouseMove = (moveEvent: MouseEvent) => {
         if (!startRef.current) return;
 
@@ -68,6 +73,7 @@ export function SplitResizer({ path, split, ratio, onRatioChange }: SplitResizer
         document.removeEventListener('mouseup', handleMouseUp);
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
+        iframeBlocker.remove();
       };
 
       document.addEventListener('mousemove', handleMouseMove);
