@@ -4,15 +4,16 @@
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./types.d.ts",
   "unpkg": "./dist/index.umd.js",
   "jsdelivr": "./dist/index.umd.js",
   "files": [
-    "dist"
+    "dist",
+    "types.d.ts"
   ],
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./types.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
