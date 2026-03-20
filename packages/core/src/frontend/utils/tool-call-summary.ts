@@ -1,25 +1,49 @@
 function getToolCallSummary(toolName: string, params: Record<string, unknown>): string {
-  const path = typeof params.filePath === 'string' ? params.filePath : null;
-  const title = typeof params.title === 'string' ? params.title : null;
-  const miniAppId = typeof params.miniAppId === 'string' ? params.miniAppId : null;
-  const pattern = typeof params.pattern === 'string' ? params.pattern : null;
-  const command = typeof params.command === 'string' ? params.command : null;
-  const url = typeof params.url === 'string' ? params.url : null;
-  const description = typeof params.description === 'string' ? params.description : null;
   const name = toolName.toLowerCase();
 
-  if (name === 'read' && path) return `- Read ${path}`;
-  if (name === 'open' && title) return `- Open "${title}"`;
-  if (name === 'open' && path) return `- Open "${path}"`;
-  if (name === 'open' && miniAppId) return `- Open ${miniAppId}`;
-  if (name === 'glob' && pattern) return `- Find ${pattern}`;
-  if (name === 'grep' && pattern) return `- Search ${pattern}`;
-  if (name === 'bash' && command) return `- Run ${command}`;
-  if (name === 'webfetch' && url) return `- Fetch ${url}`;
-  if (description) return `- ${description}`;
+  // Built-in read tool (pi-coding-agent) — param is `path`
+  if (name === 'read') {
+    const filePath =
+      typeof params.path === 'string'
+        ? params.path
+        : typeof params.filePath === 'string'
+          ? params.filePath
+          : null;
+    return filePath ? `Read ${filePath}` : 'Read file';
+  }
 
-  const target = path ?? pattern ?? command ?? url;
-  return target ? `- ${toolName} ${target}` : `- ${toolName}`;
+  // desktop — action-based summary
+  if (name === 'desktop') {
+    const action = typeof params.action === 'string' ? params.action : null;
+    const miniAppId = typeof params.miniAppId === 'string' ? params.miniAppId : null;
+    const windowId = typeof params.windowId === 'string' ? params.windowId : null;
+
+    if (action === 'list') return 'List windows';
+    if (action === 'open' && miniAppId) return `Open ${miniAppId}`;
+    if (action === 'focus') return windowId ? `Focus window ${windowId}` : 'Focus window';
+    if (action === 'maximize') return windowId ? `Maximize window ${windowId}` : 'Maximize window';
+    if (action === 'close') return windowId ? `Close window ${windowId}` : 'Close window';
+    return action ? `Desktop ${action}` : 'Desktop';
+  }
+
+  // action — invoke MiniApp action
+  if (name === 'action') {
+    const actionName = typeof params.name === 'string' ? params.name : null;
+    return actionName ? `Invoke ${actionName}` : 'Invoke action';
+  }
+
+  // generate_html — generate visual content
+  if (name === 'generate_html') {
+    const title = typeof params.title === 'string' ? params.title : null;
+    return title ? `Generate HTML: ${title}` : 'Generate HTML';
+  }
+
+  // read_html_guidelines — no params
+  if (name === 'read_html_guidelines') {
+    return 'Read HTML guidelines';
+  }
+
+  return toolName;
 }
 
 function extractToolCall(line: string): { toolName: string; rawParams: string } | null {
@@ -98,7 +122,7 @@ function simplifyToolCallMarkdown(content: string): string {
 
       try {
         const params = JSON.parse(rawParams) as Record<string, unknown>;
-        simplified.push(getToolCallSummary(toolName, params));
+        simplified.push(`- ${getToolCallSummary(toolName, params)}`);
       } catch {
         simplified.push(`- ${toolName}`);
       }

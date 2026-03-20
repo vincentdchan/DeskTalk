@@ -18,6 +18,25 @@
   border-left: 3px solid color-mix(in oklab, var(--dt-info) 75%, var(--dt-border));
 }
 
+.messageToolCall {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--dt-text-muted);
+  background: color-mix(in oklab, var(--dt-surface) 40%, var(--dt-bg));
+  border-left: 3px solid color-mix(in oklab, var(--dt-border) 50%, transparent);
+}
+
+.toolCallLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .messageHeader {
   display: flex;
   align-items: center;

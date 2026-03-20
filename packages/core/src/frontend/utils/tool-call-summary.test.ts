@@ -2,27 +2,70 @@ import { describe, expect, it } from 'vitest';
 import { extractToolCall, getToolCallSummary, simplifyToolCallMarkdown } from './tool-call-summary';
 
 describe('getToolCallSummary', () => {
-  it('formats read tool calls with a file path', () => {
+  it('formats read tool calls with a path', () => {
+    expect(getToolCallSummary('read', { path: '/tmp/example.ts' })).toBe('Read /tmp/example.ts');
+  });
+
+  it('falls back to filePath param for read tool', () => {
     expect(getToolCallSummary('Read', { filePath: '/tmp/example.ts' })).toBe(
-      '- Read /tmp/example.ts',
+      'Read /tmp/example.ts',
     );
   });
 
-  it('prefers open titles over other identifiers', () => {
-    expect(
-      getToolCallSummary('Open', {
-        title: 'Preview Window',
-        miniAppId: 'preview',
-        filePath: '/tmp/example.ts',
-      }),
-    ).toBe('- Open "Preview Window"');
+  it('returns "Read file" when no path param provided', () => {
+    expect(getToolCallSummary('read', {})).toBe('Read file');
   });
 
-  it('falls back to description or tool name when needed', () => {
-    expect(getToolCallSummary('CustomTool', { description: 'Do a custom thing' })).toBe(
-      '- Do a custom thing',
+  it('formats desktop list action', () => {
+    expect(getToolCallSummary('desktop', { action: 'list' })).toBe('List windows');
+  });
+
+  it('formats desktop open action with miniAppId', () => {
+    expect(getToolCallSummary('desktop', { action: 'open', miniAppId: 'preview' })).toBe(
+      'Open preview',
     );
-    expect(getToolCallSummary('CustomTool', {})).toBe('- CustomTool');
+  });
+
+  it('formats desktop focus action with windowId', () => {
+    expect(getToolCallSummary('desktop', { action: 'focus', windowId: 'win-1' })).toBe(
+      'Focus window win-1',
+    );
+  });
+
+  it('formats desktop maximize action', () => {
+    expect(getToolCallSummary('desktop', { action: 'maximize' })).toBe('Maximize window');
+  });
+
+  it('formats desktop close action', () => {
+    expect(getToolCallSummary('desktop', { action: 'close', windowId: 'win-2' })).toBe(
+      'Close window win-2',
+    );
+  });
+
+  it('formats action tool calls', () => {
+    expect(getToolCallSummary('action', { name: 'setTheme' })).toBe('Invoke setTheme');
+  });
+
+  it('formats action tool calls without name', () => {
+    expect(getToolCallSummary('action', {})).toBe('Invoke action');
+  });
+
+  it('formats generate_html tool calls with title', () => {
+    expect(getToolCallSummary('generate_html', { title: 'My Dashboard' })).toBe(
+      'Generate HTML: My Dashboard',
+    );
+  });
+
+  it('formats generate_html tool calls without title', () => {
+    expect(getToolCallSummary('generate_html', {})).toBe('Generate HTML');
+  });
+
+  it('formats read_html_guidelines tool calls', () => {
+    expect(getToolCallSummary('read_html_guidelines', {})).toBe('Read HTML guidelines');
+  });
+
+  it('falls back to tool name for unknown tools', () => {
+    expect(getToolCallSummary('UnknownTool', {})).toBe('UnknownTool');
   });
 });
 
@@ -63,14 +106,14 @@ describe('simplifyToolCallMarkdown', () => {
     const content = [
       'Before',
       '',
-      'Called the Bash tool with the following input: {"command":"pnpm lint"}',
+      'Called the Read tool with the following input: {"path":"/src/index.ts"}',
       '',
       '',
       'Done',
     ].join('\n');
 
     expect(simplifyToolCallMarkdown(content)).toBe(
-      ['Before', '', '- Run pnpm lint', '', 'Done'].join('\n'),
+      ['Before', '', '- Read /src/index.ts', '', 'Done'].join('\n'),
     );
   });
 });
