@@ -5,6 +5,8 @@
 export interface MiniAppContext {
   /** Resolved absolute paths for this MiniApp */
   paths: MiniAppPaths;
+  /** Launch args for active or restored windows of this MiniApp. */
+  launchArgs: Array<Record<string, unknown>>;
   /** Scoped key-value storage */
   storage: StorageHook;
   /** Filesystem access scoped to the authenticated user's home directory */

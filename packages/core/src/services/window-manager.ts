@@ -313,10 +313,19 @@ export class WindowManagerService {
   /**
    * Activate persisted MiniApps on startup.
    */
-  async activatePersistedMiniApps(activate: (miniAppId: string) => Promise<void>): Promise<void> {
-    const activeMiniAppIds = new Set(this.state.windows.map((w) => w.miniAppId));
-    for (const miniAppId of activeMiniAppIds) {
-      await activate(miniAppId);
+  async activatePersistedMiniApps(
+    activate: (miniAppId: string, launchArgs: Array<Record<string, unknown>>) => Promise<void>,
+  ): Promise<void> {
+    const windowsByMiniApp = new Map<string, Array<Record<string, unknown>>>();
+
+    for (const window of this.state.windows) {
+      const launchArgs = windowsByMiniApp.get(window.miniAppId) ?? [];
+      launchArgs.push(window.args ?? {});
+      windowsByMiniApp.set(window.miniAppId, launchArgs);
+    }
+
+    for (const [miniAppId, launchArgs] of windowsByMiniApp) {
+      await activate(miniAppId, launchArgs);
     }
   }
 

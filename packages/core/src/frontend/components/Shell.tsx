@@ -603,7 +603,7 @@ export function Shell() {
         case 'open': {
           if (!miniAppId || !title) break;
           // Activate the miniapp on the server
-          void httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`);
+          void httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, { args });
           resultWindowId = store.openWindow(miniAppId, title, args);
           break;
         }
@@ -697,7 +697,9 @@ export function Shell() {
 
       void (async () => {
         try {
-          await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`);
+          await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {
+            args,
+          });
           const manifest = manifests.find((m) => m.id === miniAppId);
           const title = manifest?.name ?? miniAppId;
           useWindowManager.getState().openWindow(miniAppId, title, args);
@@ -717,7 +719,7 @@ export function Shell() {
     async (miniAppId: string) => {
       try {
         // Activate on server
-        await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`);
+        await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {});
         // Find the manifest to get the title
         const manifest = manifests.find((m) => m.id === miniAppId);
         const title = manifest?.name ?? miniAppId;

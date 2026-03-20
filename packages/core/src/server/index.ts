@@ -69,10 +69,10 @@ export async function createServer(options: ServerOptions) {
   // MiniApps on their behalf.
   let currentWsUsername: string | null = null;
 
-  windowManager.activatePersistedMiniApps(async (miniAppId) => {
+  windowManager.activatePersistedMiniApps(async (miniAppId, launchArgs) => {
     // During startup restore, use the admin user as the default owner.
     // In practice, persisted windows will be re-associated when the user logs in.
-    await registry.activate(miniAppId, 'admin');
+    await registry.activate(miniAppId, 'admin', { launchArgs });
   });
 
   // ─── Pending requests for action invocations brokered to the frontend ───
@@ -239,8 +239,8 @@ export async function createServer(options: ServerOptions) {
         windowManager.switchUser(join(getUserHomeDir(username), '.storage', 'window-state.json'));
         setPreferenceUser(username);
 
-        await windowManager.activatePersistedMiniApps(async (miniAppId) => {
-          await registry.activate(miniAppId, username);
+        await windowManager.activatePersistedMiniApps(async (miniAppId, launchArgs) => {
+          await registry.activate(miniAppId, username, { launchArgs });
         });
 
         // Send AI history on connect
@@ -683,12 +683,16 @@ export async function createServer(options: ServerOptions) {
   });
 
   // REST API: Activate a MiniApp (scoped to authenticated user)
-  app.post<{ Params: { id: string } }>('/api/miniapps/:id/activate', async (req) => {
-    const { id } = req.params;
-    const username = req.user!.username;
-    await registry.activate(id, username);
-    return { id, activated: true };
-  });
+  app.post<{ Params: { id: string }; Body: { args?: Record<string, unknown> } }>(
+    '/api/miniapps/:id/activate',
+    async (req) => {
+      const { id } = req.params;
+      const username = req.user!.username;
+      const launchArgs = req.body?.args ? [req.body.args] : [];
+      await registry.activate(id, username, { launchArgs });
+      return { id, activated: true };
+    },
+  );
 
   // REST API: Deactivate a MiniApp (scoped to authenticated user)
   app.post<{ Params: { id: string } }>('/api/miniapps/:id/deactivate', async (req) => {

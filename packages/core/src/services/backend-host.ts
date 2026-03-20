@@ -62,6 +62,7 @@ async function handleActivate(msg: ActivateMessage): Promise<void> {
 
   const context: MiniAppContext = {
     paths: msg.paths,
+    launchArgs: Array.isArray(msg.launchArgs) ? msg.launchArgs : [],
     storage: createStorageHook(msg.paths.storage),
     fs: createFileSystemHook(resolveUserHomeDir(msg.paths.data)),
     messaging: createChildMessagingHook(msg.miniAppId),
