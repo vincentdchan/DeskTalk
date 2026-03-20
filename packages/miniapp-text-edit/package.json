@@ -1,0 +1,31 @@
+{
+  "name": "@desktalk/miniapp-text-edit",
+  "version": "0.1.0",
+  "type": "module",
+  "icon": "./icons/miniapp-text-edit-icon.png",
+  "exports": {
+    "./backend": {
+      "types": "./dist/backend.d.ts",
+      "import": "./dist/backend.js"
+    },
+    "./frontend": {
+      "types": "./dist/frontend.d.ts",
+      "import": "./dist/frontend.js"
+    }
+  },
+  "scripts": {
+    "build": "desktalk-build",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@desktalk/sdk": "workspace:*",
+    "monaco-editor": "^0.52.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
+  }
+}
