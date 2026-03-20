@@ -373,18 +373,6 @@ export function Shell() {
   useDesktopBounds(desktopRef);
   useKeyboardShortcuts();
 
-  // Cancel drag on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && useDragStore.getState().isDragging) {
-        useDragStore.getState().cancelDrag();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   useEffect(() => {
     const handleBridgeStateRequest = (event: Event) => {
       const detail = (event as CustomEvent<BridgeStateRequestDetail>).detail;

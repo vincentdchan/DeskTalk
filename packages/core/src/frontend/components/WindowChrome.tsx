@@ -85,6 +85,27 @@ export function WindowChrome({
       const startY = e.clientY;
       dragGestureRef.current = { startX, startY, activated: false };
 
+      // During a drag the cursor travels over iframes embedded inside other
+      // windows.  Iframes swallow mouse events, which causes the document-level
+      // mousemove/mouseup listeners to stop firing.  To prevent this we inject
+      // a temporary <style> that sets `pointer-events: none` on all iframes
+      // while the drag is active.
+      let iframeBlocker: HTMLStyleElement | null = null;
+
+      const cleanup = () => {
+        dragGestureRef.current = null;
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('keydown', handleKeyDown);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+
+        if (iframeBlocker) {
+          iframeBlocker.remove();
+          iframeBlocker = null;
+        }
+      };
+
       const handleMouseMove = (moveEvent: MouseEvent) => {
         const gesture = dragGestureRef.current;
         if (!gesture) return;
@@ -95,16 +116,17 @@ export function WindowChrome({
         if (!gesture.activated && Math.sqrt(dx * dx + dy * dy) >= DRAG_DEAD_ZONE) {
           gesture.activated = true;
           useDragStore.getState().startDrag(win.id);
+
+          // Block iframes from stealing pointer events for the duration of the drag
+          iframeBlocker = document.createElement('style');
+          iframeBlocker.textContent = 'iframe { pointer-events: none !important; }';
+          document.head.appendChild(iframeBlocker);
         }
       };
 
       const handleMouseUp = () => {
         const gesture = dragGestureRef.current;
-        dragGestureRef.current = null;
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
+        cleanup();
 
         if (gesture?.activated) {
           // Finish drag — the Shell/DropZoneOverlay will handle the drop result
@@ -122,8 +144,16 @@ export function WindowChrome({
         }
       };
 
+      const handleKeyDown = (keyEvent: KeyboardEvent) => {
+        if (keyEvent.key === 'Escape') {
+          cleanup();
+          useDragStore.getState().cancelDrag();
+        }
+      };
+
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('keydown', handleKeyDown);
       document.body.style.cursor = 'grabbing';
       document.body.style.userSelect = 'none';
     },
