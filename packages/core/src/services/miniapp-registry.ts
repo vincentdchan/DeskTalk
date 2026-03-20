@@ -66,6 +66,12 @@ function readMiniAppMetadata(packageRoot: string): MiniAppBuildMetadata {
 class MiniAppRegistry {
   private entries = new Map<string, MiniAppEntry>();
 
+  private normalizeLaunchArgs(
+    launchArgs?: Array<Record<string, unknown>>,
+  ): Array<Record<string, unknown>> {
+    return Array.isArray(launchArgs) ? launchArgs : [];
+  }
+
   /**
    * Register a MiniApp module (built-in or third-party).
    */
@@ -94,7 +100,11 @@ class MiniAppRegistry {
    * The process is keyed by `miniAppId:username` so each user gets their own
    * backend instance with isolated data paths.
    */
-  async activate(id: string, username: string): Promise<void> {
+  async activate(
+    id: string,
+    username: string,
+    options?: { launchArgs?: Array<Record<string, unknown>> },
+  ): Promise<void> {
     const entry = this.entries.get(id);
     if (!entry) {
       throw new Error(`MiniApp not found: ${id}`);
@@ -108,7 +118,15 @@ class MiniAppRegistry {
     const paths = resolveMiniAppPaths(id, username);
     const locale = String(getStoredPreference('general.language') ?? 'en');
 
-    await processManager.spawn(processKey, entry.backendPath, entry.packageRoot, paths, locale, id);
+    await processManager.spawn(
+      processKey,
+      entry.backendPath,
+      entry.packageRoot,
+      paths,
+      locale,
+      id,
+      this.normalizeLaunchArgs(options?.launchArgs),
+    );
   }
 
   /**

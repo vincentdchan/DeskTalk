@@ -17,6 +17,7 @@ interface PreviewToolbarProps {
   onNext?: () => void;
   /** Shown in stream mode when content is still arriving. */
   streaming?: boolean;
+  onRefreshFromFile?: () => void;
 }
 
 export function PreviewToolbar({
@@ -32,6 +33,7 @@ export function PreviewToolbar({
   onPrevious,
   onNext,
   streaming,
+  onRefreshFromFile,
 }: PreviewToolbarProps) {
   // HTML and stream modes: show only the title (and an optional streaming indicator)
   if (mode === 'html' || mode === 'stream') {
@@ -41,6 +43,15 @@ export function PreviewToolbar({
           {filename}
         </span>
         {streaming && <span className={styles.zoomIndicator}>Streaming...</span>}
+        {!streaming && onRefreshFromFile ? (
+          <button
+            className={styles.refreshBtn}
+            onClick={onRefreshFromFile}
+            title="Refresh from file"
+          >
+            Refresh
+          </button>
+        ) : null}
       </div>
     );
   }

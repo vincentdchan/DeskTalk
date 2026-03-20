@@ -6,8 +6,15 @@ import { ChatMessageItem } from './ChatMessageItem';
 import { CommandInput } from './CommandInput';
 import styles from './InfoPanel.module.scss';
 
+interface QueuedPrompt {
+  id: string;
+  source: 'text' | 'voice';
+  text: string;
+}
+
 export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsReady: boolean }) {
   const [input, setInput] = useState('');
+  const [queuedPrompts, setQueuedPrompts] = useState<QueuedPrompt[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sentVoiceUtteranceIdsRef = useRef<Set<string>>(new Set());
   const pendingVoicePromptsRef = useRef<Array<{ utteranceId: string; text: string }>>([]);
@@ -97,14 +104,45 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     }
   }, [isAiRunning, flushPendingVoicePrompts]);
 
+  useEffect(() => {
+    if (
+      isAiRunning ||
+      !socket ||
+      socket.readyState !== WebSocket.OPEN ||
+      queuedPrompts.length === 0
+    ) {
+      return;
+    }
+
+    const [nextPrompt] = queuedPrompts;
+    const didSend = submitPrompt(nextPrompt.text, nextPrompt.source, socket);
+    if (didSend) {
+      setQueuedPrompts((prev) => prev.slice(1));
+    }
+  }, [isAiRunning, queuedPrompts, socket, submitPrompt]);
+
   const handleSend = useCallback(() => {
     const text = input.trim();
     if (!text || !socket) return;
+
+    if (isAiRunning) {
+      setQueuedPrompts((prev) => [
+        ...prev,
+        {
+          id: `queued-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          source: 'text',
+          text,
+        },
+      ]);
+      setInput('');
+      return;
+    }
+
     const didSend = submitPrompt(text, 'text', socket);
     if (didSend) {
       setInput('');
     }
-  }, [input, submitPrompt, socket]);
+  }, [input, isAiRunning, submitPrompt, socket]);
 
   const handleVoiceToggle = useCallback(() => {
     if (isVoiceActive) {
@@ -117,7 +155,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   // Auto-scroll messages area when new content arrives
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, transcripts, partialText]);
+  }, [messages, queuedPrompts, transcripts, partialText]);
 
   return (
     <div className={styles.infoPanel}>
@@ -130,7 +168,10 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
 
       <div className={styles.messages}>
         {/* Chat messages */}
-        {messages.length === 0 && transcripts.length === 0 && !partialText ? (
+        {messages.length === 0 &&
+        queuedPrompts.length === 0 &&
+        transcripts.length === 0 &&
+        !partialText ? (
           <div className={styles.placeholder}>
             Ask the AI to interact with your MiniApps, or use voice input
           </div>
@@ -150,6 +191,15 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
                 />
               );
             })}
+            {queuedPrompts.map((prompt, index) => (
+              <div key={prompt.id} className={styles.queuedMessage}>
+                <div className={styles.queuedMessageHeader}>
+                  <span className={styles.queuedSpeaker}>ME</span>
+                  <span className={styles.queuedBadge}>{index === 0 ? 'next' : 'queued'}</span>
+                </div>
+                <div className={styles.queuedMessageBody}>{prompt.text}</div>
+              </div>
+            ))}
           </>
         )}
 
@@ -191,6 +241,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
         onChange={setInput}
         onSubmit={handleSend}
         isAiRunning={isAiRunning}
+        queuedCount={queuedPrompts.length}
         isVoiceActive={isVoiceActive}
         onVoiceToggle={handleVoiceToggle}
         modelLabel={modelLabel}

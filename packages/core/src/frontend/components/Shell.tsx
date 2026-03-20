@@ -13,8 +13,10 @@ import { ActionsBar } from './ActionsBar';
 import { ConnectionOverlay } from './ConnectionOverlay';
 import { WindowChrome } from './WindowChrome';
 import { SplitResizer } from './SplitResizer';
+import { DropZoneOverlay } from './DropZoneOverlay';
 import { InfoPanel } from './InfoPanel';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
+import { useDragStore } from '../stores/drag-store';
 import { loadMiniAppModule } from '../miniapp-runtime';
 import type { MiniAppFrontendModule } from '../miniapp-runtime';
 import { httpClient } from '../http-client';
@@ -275,12 +277,14 @@ function useDesktopBounds(desktopRef: React.RefObject<HTMLDivElement | null>) {
 function WindowTile({
   win,
   isOverlayMaximized = false,
+  draggable = false,
 }: {
   win: WindowState;
   isOverlayMaximized?: boolean;
+  draggable?: boolean;
 }) {
   return (
-    <WindowChrome window={win} isOverlayMaximized={isOverlayMaximized}>
+    <WindowChrome window={win} isOverlayMaximized={isOverlayMaximized} draggable={draggable}>
       <MiniAppWindow miniAppId={win.miniAppId} windowId={win.id} args={win.args} />
     </WindowChrome>
   );
@@ -290,10 +294,12 @@ function TilingTreeView({
   node,
   windowsById,
   path = [],
+  canDrag = false,
 }: {
   node: TilingNode;
   windowsById: Map<string, WindowState>;
   path?: TreePath;
+  canDrag?: boolean;
 }) {
   if (node.type === 'leaf') {
     const win = windowsById.get(node.windowId);
@@ -303,7 +309,7 @@ function TilingTreeView({
 
     return (
       <div className={styles.tileLeaf}>
-        <WindowTile win={win} isOverlayMaximized={win.maximized} />
+        <WindowTile win={win} isOverlayMaximized={win.maximized} draggable={canDrag} />
       </div>
     );
   }
@@ -328,11 +334,21 @@ function TilingTreeView({
   return (
     <div className={splitClassName} style={containerStyle}>
       <div className={styles.tilePane}>
-        <TilingTreeView node={first} windowsById={windowsById} path={[...path, 0]} />
+        <TilingTreeView
+          node={first}
+          windowsById={windowsById}
+          path={[...path, 0]}
+          canDrag={canDrag}
+        />
       </div>
       <SplitResizer path={path} split={node.split} ratio={node.ratio} />
       <div className={styles.tilePane}>
-        <TilingTreeView node={second} windowsById={windowsById} path={[...path, 1]} />
+        <TilingTreeView
+          node={second}
+          windowsById={windowsById}
+          path={[...path, 1]}
+          canDrag={canDrag}
+        />
       </div>
     </div>
   );
@@ -347,6 +363,8 @@ export function Shell() {
   const fullscreenWindowId = useWindowManager((s) => s.fullscreenWindowId);
   const setWindowActions = useWindowManager((s) => s.setWindowActions);
 
+  const isDragging = useDragStore((s) => s.isDragging);
+
   const [manifests, setManifests] = useState<MiniAppManifest[]>([]);
   const [assistantRatio, setAssistantRatio] = useState(ASSISTANT_DEFAULT_RATIO);
   const actionHandlersRef = useRef<Map<string, Map<string, ActionHandler>>>(new Map());
@@ -354,6 +372,37 @@ export function Shell() {
   const desktopRef = useRef<HTMLDivElement>(null);
   useDesktopBounds(desktopRef);
   useKeyboardShortcuts();
+
+  // Detect clicks inside iframes for focus tracking.
+  // When an iframe receives focus the parent window blurs.  At that moment
+  // document.activeElement points to the <iframe> element.  We walk up from
+  // it to find the ancestor WindowChrome (via data-window-id) and focus the
+  // corresponding window in the store.
+  useEffect(() => {
+    const handleWindowBlur = () => {
+      // Use a rAF so the browser has time to update document.activeElement
+      requestAnimationFrame(() => {
+        const active = document.activeElement;
+        if (!active || active.tagName !== 'IFRAME') return;
+
+        const chromeEl = active.closest<HTMLElement>('[data-window-id]');
+        if (!chromeEl) return;
+
+        const windowId = chromeEl.dataset.windowId;
+        if (!windowId) return;
+
+        const state = useWindowManager.getState();
+        if (state.focusedWindowId !== windowId) {
+          state.focusWindow(windowId);
+        }
+      });
+    };
+
+    window.addEventListener('blur', handleWindowBlur);
+    return () => {
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, []);
 
   useEffect(() => {
     const handleBridgeStateRequest = (event: Event) => {
@@ -603,7 +652,7 @@ export function Shell() {
         case 'open': {
           if (!miniAppId || !title) break;
           // Activate the miniapp on the server
-          void httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`);
+          void httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, { args });
           resultWindowId = store.openWindow(miniAppId, title, args);
           break;
         }
@@ -697,7 +746,9 @@ export function Shell() {
 
       void (async () => {
         try {
-          await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`);
+          await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {
+            args,
+          });
           const manifest = manifests.find((m) => m.id === miniAppId);
           const title = manifest?.name ?? miniAppId;
           useWindowManager.getState().openWindow(miniAppId, title, args);
@@ -717,7 +768,7 @@ export function Shell() {
     async (miniAppId: string) => {
       try {
         // Activate on server
-        await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`);
+        await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {});
         // Find the manifest to get the title
         const manifest = manifests.find((m) => m.id === miniAppId);
         const title = manifest?.name ?? miniAppId;
@@ -741,7 +792,16 @@ export function Shell() {
 
       <div className={styles.content} style={shellLayoutStyle}>
         <div ref={desktopRef} className={styles.desktop}>
-          {wsReady ? tree && <TilingTreeView node={tree} windowsById={windowsById} /> : null}
+          {wsReady
+            ? tree && (
+                <TilingTreeView
+                  node={tree}
+                  windowsById={windowsById}
+                  canDrag={tree.type === 'container'}
+                />
+              )
+            : null}
+          {isDragging && <DropZoneOverlay desktopRef={desktopRef} />}
         </div>
 
         <SplitResizer

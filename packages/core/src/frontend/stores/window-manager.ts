@@ -14,8 +14,9 @@ import {
   findNeighbor,
   containsWindow,
   setRatioAtPath,
+  relocateWindow as relocateWindowInTree,
 } from '../tiling-tree';
-import type { TileRect, Direction, SplitBar, TreePath } from '../tiling-tree';
+import type { TileRect, Direction, SplitBar, TreePath, DropEdge } from '../tiling-tree';
 
 const TILE_GAP = 4;
 
@@ -148,6 +149,7 @@ interface WindowManagerState {
   focusNth: (n: number) => void;
   setDesktopBounds: (bounds: { x: number; y: number; width: number; height: number }) => void;
   setNodeRatio: (path: TreePath, ratio: number) => void;
+  relocateWindow: (sourceWindowId: string, targetWindowId: string, edge: DropEdge) => void;
 
   // Action management
   setFocusedWindowActions: (actions: ActionDefinition[]) => void;
@@ -604,6 +606,34 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
       tree: newTree,
       tileRects: rects,
       splitBars: bars,
+    });
+
+    syncToBackend();
+  },
+
+  relocateWindow(sourceWindowId: string, targetWindowId: string, edge: DropEdge) {
+    const state = get();
+    if (!state.tree) return;
+
+    const newTree = relocateWindowInTree(state.tree, sourceWindowId, targetWindowId, edge);
+    if (newTree === state.tree) return; // no-op (same ref means nothing changed)
+
+    const { rects, bars } = recomputeLayout(newTree, state.desktopBounds);
+    const updatedWindows = updateWindowRectsFromTree(
+      state.windows,
+      rects,
+      sourceWindowId, // Focus the relocated window
+      null, // Exit fullscreen
+    );
+
+    set({
+      windows: updatedWindows,
+      tree: newTree,
+      focusedWindowId: sourceWindowId,
+      fullscreenWindowId: null,
+      tileRects: rects,
+      splitBars: bars,
+      focusedWindowActions: state.windowActions[sourceWindowId] ?? [],
     });
 
     syncToBackend();

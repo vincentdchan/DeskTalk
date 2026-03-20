@@ -6,6 +6,7 @@ import { useWindowId } from '@desktalk/sdk';
 import type {
   PreviewFile,
   HtmlPreviewFile,
+  StreamedHtmlSnapshot,
   PreviewMode,
   SiblingList,
   PreviewBridgeExecPayload,
@@ -96,6 +97,7 @@ function PreviewApp({
   // ─── Stream mode state ──────────────────────────────────────────────────
   const [streamHtml, setStreamHtml] = useState('');
   const [streaming, setStreaming] = useState(mode === 'stream');
+  const [streamSnapshot, setStreamSnapshot] = useState<StreamedHtmlSnapshot | null>(null);
   const [pendingBridgeConfirm, setPendingBridgeConfirm] = useState<{
     confirmationRequestId: string;
     bridgeRequestId: string;
@@ -108,6 +110,14 @@ function PreviewApp({
   // ─── Backend commands ───────────────────────────────────────────────────
   const openFile = useCommand<{ path: string }, PreviewFile>('preview.open');
   const openHtmlFile = useCommand<{ path: string }, HtmlPreviewFile>('preview.open-html');
+  const loadStreamedHtml = useCommand<
+    { streamId: string; title: string },
+    StreamedHtmlSnapshot | null
+  >('preview.stream.load-html');
+  const saveStreamedHtml = useCommand<
+    { streamId: string; title: string; content: string },
+    StreamedHtmlSnapshot
+  >('preview.stream.save-html');
   const getSiblings = useCommand<{ path: string }, SiblingList>('preview.siblings');
   const nextFile = useCommand<{ currentPath: string }, PreviewFile>('preview.next');
   const previousFile = useCommand<{ currentPath: string }, PreviewFile>('preview.previous');
@@ -122,16 +132,38 @@ function PreviewApp({
     PreviewBridgeExecResponse
   >('preview.bridge.exec.confirm');
 
+  const streamHtmlRef = useRef(streamHtml);
+
+  useEffect(() => {
+    streamHtmlRef.current = streamHtml;
+  }, [streamHtml]);
+
   // ─── Stream event listeners ─────────────────────────────────────────────
 
   useEvent<{ streamId: string; chunk: string }>('preview.html-chunk', (data) => {
     if (mode !== 'stream' || data.streamId !== streamId) return;
-    setStreamHtml((prev) => prev + data.chunk);
+    setStreamHtml((prev) => {
+      const next = prev + data.chunk;
+      streamHtmlRef.current = next;
+      return next;
+    });
   });
 
   useEvent<{ streamId: string }>('preview.html-done', (data) => {
     if (mode !== 'stream' || data.streamId !== streamId) return;
     setStreaming(false);
+    if (!streamId || !streamTitle) {
+      return;
+    }
+    void saveStreamedHtml({
+      streamId,
+      title: streamTitle,
+      content: streamHtmlRef.current,
+    })
+      .then(setStreamSnapshot)
+      .catch((saveError) => {
+        console.error('Failed to save streamed HTML:', saveError);
+      });
   });
 
   // ─── Load file on mount ─────────────────────────────────────────────────
@@ -158,6 +190,34 @@ function PreviewApp({
     }
     // Stream mode doesn't load a file — it waits for events
   }, []);
+
+  useEffect(() => {
+    if (mode !== 'stream' || !streamId || !streamTitle) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void loadStreamedHtml({ streamId, title: streamTitle })
+      .then((snapshot) => {
+        if (cancelled || !snapshot) {
+          return;
+        }
+        setStreamHtml(snapshot.content);
+        streamHtmlRef.current = snapshot.content;
+        setStreamSnapshot(snapshot);
+        setStreaming(false);
+      })
+      .catch((loadError) => {
+        if (!cancelled) {
+          console.error('Failed to load streamed HTML snapshot:', loadError);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadStreamedHtml, mode, streamId, streamTitle]);
 
   useEffect(() => {
     if (mode !== 'stream' || !streamId || !bridgeToken) {
@@ -428,6 +488,26 @@ function PreviewApp({
     [bridgeToken, confirmBridgeCommand, pendingBridgeConfirm, streamId],
   );
 
+  const handleRefreshFromFile = useCallback(() => {
+    if (!streamId || !streamTitle) {
+      return;
+    }
+
+    void loadStreamedHtml({ streamId, title: streamTitle })
+      .then((snapshot) => {
+        if (!snapshot) {
+          throw new Error('Saved streamed HTML file was not found.');
+        }
+        setStreamHtml(snapshot.content);
+        streamHtmlRef.current = snapshot.content;
+        setStreamSnapshot(snapshot);
+      })
+      .catch((loadError) => {
+        console.error('Failed to refresh streamed HTML from file:', loadError);
+        setError((loadError as Error).message);
+      });
+  }, [loadStreamedHtml, streamId, streamTitle]);
+
   // ─── Render ─────────────────────────────────────────────────────────────
 
   return (
@@ -497,7 +577,12 @@ function PreviewApp({
         ) : (
           /* stream mode */
           <>
-            <PreviewToolbar filename={displayTitle} mode="stream" streaming={streaming} />
+            <PreviewToolbar
+              filename={displayTitle}
+              mode="stream"
+              streaming={streaming}
+              onRefreshFromFile={!streaming && streamSnapshot ? handleRefreshFromFile : undefined}
+            />
             <HtmlViewport
               html={streamHtml}
               streaming={streaming}

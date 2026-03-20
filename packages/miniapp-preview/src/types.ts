@@ -15,6 +15,12 @@ export interface HtmlPreviewFile {
   content: string; // Full HTML content as UTF-8 string
 }
 
+export interface StreamedHtmlSnapshot {
+  name: string;
+  path: string;
+  content: string;
+}
+
 export interface SiblingList {
   files: SiblingEntry[];
   currentIndex: number; // Index of the current file in the list

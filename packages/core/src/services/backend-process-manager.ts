@@ -87,6 +87,7 @@ class BackendProcessManager {
     paths: MiniAppPaths,
     locale: string,
     miniAppId?: string,
+    launchArgs: Array<Record<string, unknown>> = [],
   ): Promise<void> {
     if (this.processes.has(processKey)) {
       return; // already running
@@ -149,6 +150,7 @@ class BackendProcessManager {
       backendPath,
       packageRoot,
       paths,
+      launchArgs,
       locale,
       loggerConfig: this.loggerConfig!,
     };

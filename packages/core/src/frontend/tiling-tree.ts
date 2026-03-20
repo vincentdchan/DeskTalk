@@ -335,6 +335,109 @@ export function rotateSplit(node: TilingNode, windowId: string): TilingNode {
   return node;
 }
 
+// ─── Relocate (drag-to-reorder) ─────────────────────────────────────────────
+
+export type DropEdge = 'left' | 'right' | 'top' | 'bottom' | 'center';
+
+/**
+ * Insert `newWindowId` as a neighbor of `targetWindowId` at the specified edge.
+ *
+ * Unlike `insertWindow` (which always puts the new window as the second child),
+ * this function controls child ordering based on the edge:
+ * - `left` / `top`: new window is children[0], target is children[1]
+ * - `right` / `bottom`: target is children[0], new window is children[1]
+ */
+export function insertWindowAtEdge(
+  node: TilingNode,
+  targetWindowId: string,
+  newWindowId: string,
+  edge: 'left' | 'right' | 'top' | 'bottom',
+): TilingNode {
+  if (node.type === 'leaf') {
+    if (node.windowId !== targetWindowId) return node;
+
+    const split: 'horizontal' | 'vertical' =
+      edge === 'left' || edge === 'right' ? 'horizontal' : 'vertical';
+
+    const first: LeafNode =
+      edge === 'left' || edge === 'top'
+        ? { type: 'leaf', windowId: newWindowId }
+        : { type: 'leaf', windowId: targetWindowId };
+
+    const second: LeafNode =
+      edge === 'left' || edge === 'top'
+        ? { type: 'leaf', windowId: targetWindowId }
+        : { type: 'leaf', windowId: newWindowId };
+
+    return {
+      type: 'container',
+      split,
+      ratio: 0.5,
+      children: [first, second],
+    };
+  }
+
+  // Recurse into whichever subtree contains the target
+  if (containsWindow(node.children[0], targetWindowId)) {
+    return {
+      ...node,
+      children: [
+        insertWindowAtEdge(node.children[0], targetWindowId, newWindowId, edge),
+        node.children[1],
+      ],
+    };
+  }
+
+  return {
+    ...node,
+    children: [
+      node.children[0],
+      insertWindowAtEdge(node.children[1], targetWindowId, newWindowId, edge),
+    ],
+  };
+}
+
+/**
+ * Relocate a window from its current position to a new position relative to
+ * a target window.
+ *
+ * - `center`: swaps the source and target (delegates to `swapWindows`).
+ * - `left`/`right`/`top`/`bottom`: removes the source from the tree, then
+ *   inserts it adjacent to the target on the specified edge.
+ *
+ * Returns the original tree unchanged if source === target or either window
+ * is not found in the tree.
+ */
+export function relocateWindow(
+  tree: TilingNode,
+  sourceWindowId: string,
+  targetWindowId: string,
+  edge: DropEdge,
+): TilingNode {
+  // No-op: same window
+  if (sourceWindowId === targetWindowId) return tree;
+
+  // Both windows must exist
+  if (!containsWindow(tree, sourceWindowId) || !containsWindow(tree, targetWindowId)) {
+    return tree;
+  }
+
+  // Center = swap
+  if (edge === 'center') {
+    return swapWindows(tree, sourceWindowId, targetWindowId);
+  }
+
+  // 1. Remove source from the tree
+  const treeAfterRemoval = removeWindow(tree, sourceWindowId);
+  if (!treeAfterRemoval) {
+    // Should not happen since the target is still in the tree
+    return tree;
+  }
+
+  // 2. Insert source adjacent to the target at the specified edge
+  return insertWindowAtEdge(treeAfterRemoval, targetWindowId, sourceWindowId, edge);
+}
+
 // ─── Directional Navigation ─────────────────────────────────────────────────
 
 export type Direction = 'left' | 'right' | 'up' | 'down';

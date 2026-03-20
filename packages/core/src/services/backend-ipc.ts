@@ -1,6 +1,10 @@
 import type { MiniAppPaths } from '@desktalk/sdk';
 import type { LoggerConfig } from './logger';
 
+export interface LaunchWindowArgs {
+  [key: string]: unknown;
+}
+
 // ─── Main → Child Messages ──────────────────────────────────────────────────
 
 /** Tell the child process to import and activate a MiniApp backend. */
@@ -13,6 +17,8 @@ export interface ActivateMessage {
   packageRoot: string;
   /** Pre-resolved MiniApp paths (data, storage, log, cache). */
   paths: MiniAppPaths;
+  /** Launch args for the active or restored windows of this MiniApp. */
+  launchArgs: LaunchWindowArgs[];
   /** Locale string (e.g. "en", "zh-CN"). */
   locale: string;
   /** Logger configuration so the child can recreate an equivalent pino instance. */

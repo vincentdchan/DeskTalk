@@ -68,6 +68,49 @@
   text-align: center;
 }
 
+.queuedMessage {
+  padding: 12px 16px;
+  border-left: 3px solid
+    color-mix(in oklab, var(--dt-warning, var(--dt-accent)) 70%, var(--dt-border));
+  background: color-mix(in oklab, var(--dt-warning, var(--dt-accent)) 8%, var(--dt-bg));
+  color: color-mix(in oklab, var(--dt-text) 85%, var(--dt-text-secondary));
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.3;
+  opacity: 0.9;
+}
+
+.queuedMessageHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.queuedSpeaker {
+  color: color-mix(in oklab, var(--dt-warning, var(--dt-accent)) 70%, var(--dt-text));
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.queuedBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--dt-surface);
+  color: var(--dt-text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: lowercase;
+}
+
+.queuedMessageBody {
+  word-break: break-word;
+}
+
 .partialTranscript {
   display: flex;
   align-items: center;
