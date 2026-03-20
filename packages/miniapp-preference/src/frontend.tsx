@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { MiniAppFrontendContext } from '@desktalk/sdk';
+import type { MiniAppFrontendActivation, MiniAppFrontendContext } from '@desktalk/sdk';
 import { useCommand, useEvent, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
 import { CATEGORIES, getSchemasByCategory, getDefaultConfig } from './schema';
 import type { Config } from './schema';
@@ -10,12 +10,16 @@ import { PreferenceRow } from './components/PreferenceRow';
 import { PreferenceActions } from './components/PreferenceActions';
 import styles from './styles/PreferenceApp.module.css';
 
+const COMPACT_NAV_WIDTH = 720;
+
 function PreferenceApp() {
   // ─── State ───────────────────────────────────────────────────────────────
   const [config, setConfig] = useState<Config>(getDefaultConfig());
   const [activeCategory, setActiveCategory] = useState<string>(CATEGORIES[0]);
   const [notification, setNotification] = useState<string | null>(null);
+  const [compactNav, setCompactNav] = useState(false);
   const notificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   // ─── Backend commands ────────────────────────────────────────────────────
   const getAllSettings = useCommand<void, Config>('preferences.getAll');
@@ -36,6 +40,26 @@ function PreferenceApp() {
   useEffect(() => {
     fetchConfig();
   }, [fetchConfig]);
+
+  useEffect(() => {
+    if (!rootRef.current) return;
+
+    const updateLayout = (width: number) => {
+      setCompactNav(width <= COMPACT_NAV_WIDTH);
+    };
+
+    updateLayout(rootRef.current.clientWidth);
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      updateLayout(entry.contentRect.width);
+    });
+
+    observer.observe(rootRef.current);
+
+    return () => observer.disconnect();
+  }, []);
 
   // ─── Listen for change events ────────────────────────────────────────────
   useEvent<{ key: string; value: string | number | boolean; requiresRestart: boolean }>(
@@ -103,9 +127,13 @@ function PreferenceApp() {
 
   return (
     <PreferenceActions onConfigChanged={fetchConfig}>
-      <div className={styles.root}>
+      <div ref={rootRef} className={`${styles.root}${compactNav ? ` ${styles.rootCompact}` : ''}`}>
         {/* Sidebar */}
-        <PreferenceCategoryList activeCategory={activeCategory} onSelect={setActiveCategory} />
+        <PreferenceCategoryList
+          activeCategory={activeCategory}
+          onSelect={setActiveCategory}
+          compact={compactNav}
+        />
 
         {/* Settings panel */}
         <div className={styles.settingsPanel}>
@@ -133,10 +161,8 @@ function PreferenceApp() {
   );
 }
 
-let root: ReturnType<typeof createRoot> | null = null;
-
-export function activate(ctx: MiniAppFrontendContext): void {
-  root = createRoot(ctx.root);
+export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation {
+  const root = createRoot(ctx.root);
   root.render(
     <WindowIdProvider windowId={ctx.windowId}>
       <MiniAppIdProvider miniAppId={ctx.miniAppId}>
@@ -144,9 +170,10 @@ export function activate(ctx: MiniAppFrontendContext): void {
       </MiniAppIdProvider>
     </WindowIdProvider>,
   );
-}
 
-export function deactivate(): void {
-  root?.unmount();
-  root = null;
+  return {
+    deactivate() {
+      root.unmount();
+    },
+  };
 }

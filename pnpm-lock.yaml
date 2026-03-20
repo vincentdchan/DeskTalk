@@ -59,6 +59,9 @@ importers:
       '@desktalk/sdk':
         specifier: workspace:*
         version: link:../sdk
+      '@desktalk/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@fastify/cookie':
         specifier: ^11.0.2
         version: 11.0.2
@@ -98,6 +101,9 @@ importers:
       fastify:
         specifier: ^5.0.0
         version: 5.8.2
+      partial-json:
+        specifier: ^0.1.7
+        version: 0.1.7
       pino:
         specifier: ^10.3.1
         version: 10.3.1
@@ -225,6 +231,9 @@ importers:
         specifier: ^19.0.0
         version: 19.2.4(react@19.2.4)
     devDependencies:
+      '@desktalk/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.14
@@ -349,6 +358,12 @@ importers:
       vitest:
         specifier: ^3.0.0
         version: 3.2.4(@types/debug@4.1.12)(@types/node@22.19.15)(lightningcss@1.32.0)(sass@1.98.0)(yaml@2.8.2)
+
+  packages/ui:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
 
 packages:
 

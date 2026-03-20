@@ -1,5 +1,4 @@
 import styles from './DockIcon.module.scss';
-import { Tooltip } from './Tooltip';
 
 interface DockIconProps {
   icon: string;
@@ -20,7 +19,7 @@ export function DockIcon({ icon, iconPng, className, tooltip }: DockIconProps) {
   );
 
   if (tooltip) {
-    return <Tooltip content={tooltip}>{content}</Tooltip>;
+    return <dt-tooltip content={tooltip}>{content}</dt-tooltip>;
   }
 
   return content;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { MiniAppFrontendContext } from '@desktalk/sdk';
+import type { MiniAppFrontendActivation, MiniAppFrontendContext } from '@desktalk/sdk';
 import { useCommand, useOpenMiniApp, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
 import type { FileEntry, SortColumn, SortDirection } from './types';
 import { FileBreadcrumb } from './components/FileBreadcrumb';
@@ -527,10 +527,8 @@ function FileExplorerApp() {
   );
 }
 
-let root: ReturnType<typeof createRoot> | null = null;
-
-export function activate(ctx: MiniAppFrontendContext): void {
-  root = createRoot(ctx.root);
+export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation {
+  const root = createRoot(ctx.root);
   root.render(
     <WindowIdProvider windowId={ctx.windowId}>
       <MiniAppIdProvider miniAppId={ctx.miniAppId}>
@@ -538,9 +536,10 @@ export function activate(ctx: MiniAppFrontendContext): void {
       </MiniAppIdProvider>
     </WindowIdProvider>,
   );
-}
 
-export function deactivate(): void {
-  root?.unmount();
-  root = null;
+  return {
+    deactivate() {
+      root.unmount();
+    },
+  };
 }

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { MiniAppFrontendContext } from '@desktalk/sdk';
+import type { MiniAppFrontendActivation, MiniAppFrontendContext } from '@desktalk/sdk';
 import { useCommand, useEvent, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
 import { useWindowId } from '@desktalk/sdk';
 import type {
@@ -523,16 +523,14 @@ function PreviewApp({
   );
 }
 
-let root: ReturnType<typeof createRoot> | null = null;
-
-export function activate(ctx: MiniAppFrontendContext): void {
+export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation {
   const mode = detectMode(ctx.args);
   const initialPath = typeof ctx.args?.path === 'string' ? ctx.args.path : undefined;
   const streamId = typeof ctx.args?.streamId === 'string' ? ctx.args.streamId : undefined;
   const streamTitle = typeof ctx.args?.title === 'string' ? ctx.args.title : undefined;
   const bridgeToken = typeof ctx.args?.bridgeToken === 'string' ? ctx.args.bridgeToken : undefined;
 
-  root = createRoot(ctx.root);
+  const root = createRoot(ctx.root);
   root.render(
     <WindowIdProvider windowId={ctx.windowId}>
       <MiniAppIdProvider miniAppId={ctx.miniAppId}>
@@ -546,9 +544,10 @@ export function activate(ctx: MiniAppFrontendContext): void {
       </MiniAppIdProvider>
     </WindowIdProvider>,
   );
-}
 
-export function deactivate(): void {
-  root?.unmount();
-  root = null;
+  return {
+    deactivate() {
+      root.unmount();
+    },
+  };
 }

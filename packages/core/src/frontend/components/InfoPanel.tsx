@@ -18,10 +18,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const activeRequestId = useChatSession((s) => s.activeRequestId);
   const modelLabel = useChatSession((s) => s.modelLabel);
   const tokenCount = useChatSession((s) => s.tokenCount);
-  const providerOptions = useChatSession((s) => s.providerOptions);
-  const selectedProvider = useChatSession((s) => s.selectedProvider);
   const loadProviders = useChatSession((s) => s.loadProviders);
-  const setSelectedProvider = useChatSession((s) => s.setSelectedProvider);
   const submitPrompt = useChatSession((s) => s.submitPrompt);
   const handleAiEvent = useChatSession((s) => s.handleAiEvent);
 
@@ -36,10 +33,11 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const isVoiceActive = voiceStatus !== 'idle' && voiceStatus !== 'error';
   const activeAssistantMessageId = activeRequestId ? `assistant-${activeRequestId}` : null;
 
-  // Load providers on mount
+  // Load the current provider preference when the panel mounts or reconnects.
   useEffect(() => {
+    if (!wsReady) return;
     void loadProviders();
-  }, [loadProviders]);
+  }, [loadProviders, wsReady]);
 
   // Listen for AI events from the WebSocket
   useEffect(() => {
@@ -126,24 +124,6 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
       <div className={styles.header}>
         <span>AI Assistant</span>
         <div className={styles.headerControls}>
-          {providerOptions.length > 0 && (
-            <label className={styles.providerPicker}>
-              <span className={styles.providerLabel}>Provider</span>
-              <select
-                className={styles.providerSelect}
-                value={selectedProvider}
-                onChange={(event) => setSelectedProvider(event.target.value)}
-                disabled={isAiRunning}
-              >
-                {providerOptions.map((provider) => (
-                  <option key={provider.id} value={provider.id}>
-                    {provider.label}
-                    {provider.configured ? '' : ' (setup needed)'}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
           {tokenCount > 0 && <span className={styles.tokenCount}>{tokenCount} tokens</span>}
         </div>
       </div>

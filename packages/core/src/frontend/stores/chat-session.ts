@@ -57,12 +57,11 @@ export interface ChatSessionState {
   tokenCount: number;
   /** Available AI provider options */
   providerOptions: AiProviderOption[];
-  /** Currently selected provider ID */
+  /** Provider ID resolved from current preferences */
   selectedProvider: string;
 
   // Actions
   loadProviders: () => Promise<void>;
-  setSelectedProvider: (providerId: string) => void;
   submitPrompt: (text: string, source: 'text' | 'voice', socket: WebSocket) => boolean;
   handleAiEvent: (event: AiEventMessage) => void;
 }
@@ -89,11 +88,9 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
     try {
       const { data: payload } = await httpClient.get<AiProviderResponse>('/api/ai/providers');
 
-      const state = get();
-      const provider = state.selectedProvider || payload.defaultProvider;
       set({
         providerOptions: payload.providers,
-        selectedProvider: provider,
+        selectedProvider: payload.defaultProvider,
         modelLabel: getProviderStatusLabel(payload.defaultProvider, payload.providers),
       });
     } catch {
@@ -103,14 +100,6 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
         modelLabel: 'not configured',
       });
     }
-  },
-
-  setSelectedProvider(providerId: string) {
-    const state = get();
-    set({
-      selectedProvider: providerId,
-      modelLabel: getProviderStatusLabel(providerId, state.providerOptions),
-    });
   },
 
   submitPrompt(text: string, source: 'text' | 'voice' = 'text', socket: WebSocket) {
@@ -138,7 +127,6 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
         requestId,
         text,
         source,
-        ...(state.selectedProvider ? { provider: state.selectedProvider } : {}),
       }),
     );
 

@@ -47,6 +47,26 @@ const pendingRequests: Map<
 > = new Map();
 const eventListeners: Map<string, Set<(data: unknown) => void>> = new Map();
 
+/**
+ * Short-lived buffer for events that arrive before any `useEvent` listener
+ * has registered for a given event name. When a listener subscribes via
+ * `useEvent`, buffered events are replayed immediately and removed.
+ *
+ * This solves the race condition where the server broadcasts events (e.g.
+ * `preview.html-chunk`) right after opening a window, but the React
+ * component hasn't mounted and registered its listeners yet.
+ *
+ * Each entry is auto-expired after `EVENT_BUFFER_TTL_MS` to prevent leaks.
+ */
+const eventBuffer: Map<string, { data: unknown; timer: ReturnType<typeof setTimeout> }[]> =
+  new Map();
+
+/** Maximum age (ms) of a buffered event before it is discarded. */
+const EVENT_BUFFER_TTL_MS = 5_000;
+
+/** Maximum number of buffered events per event name. */
+const EVENT_BUFFER_MAX_PER_EVENT = 200;
+
 let requestIdCounter = 0;
 
 function getNextRequestId(): string {
@@ -87,9 +107,33 @@ export function initMessaging(ws: WebSocket): void {
         }
 
         const listeners = eventListeners.get(msg.event);
-        if (listeners) {
+        if (listeners && listeners.size > 0) {
           for (const listener of listeners) {
             listener(msg.data);
+          }
+        } else {
+          // No listener registered yet — buffer the event for replay when
+          // a `useEvent` hook subscribes. This handles the race where a
+          // window is opened and events are broadcast before the React
+          // component mounts.
+          if (!eventBuffer.has(msg.event)) {
+            eventBuffer.set(msg.event, []);
+          }
+          const buf = eventBuffer.get(msg.event)!;
+          const timer = setTimeout(() => {
+            // Remove this specific entry when it expires
+            const entries = eventBuffer.get(msg.event);
+            if (entries) {
+              const idx = entries.findIndex((e) => e.timer === timer);
+              if (idx !== -1) entries.splice(idx, 1);
+              if (entries.length === 0) eventBuffer.delete(msg.event);
+            }
+          }, EVENT_BUFFER_TTL_MS);
+          buf.push({ data: msg.data, timer });
+          // Cap the buffer size to avoid unbounded growth
+          while (buf.length > EVENT_BUFFER_MAX_PER_EVENT) {
+            const removed = buf.shift()!;
+            clearTimeout(removed.timer);
           }
         }
       }
@@ -165,6 +209,21 @@ export function useEvent<T>(event: string, handler: (data: T) => void): void {
       eventListeners.set(event, new Set());
     }
     eventListeners.get(event)!.add(wrappedHandler);
+
+    // Replay any buffered events that arrived before this listener registered.
+    const buffered = eventBuffer.get(event);
+    if (buffered && buffered.length > 0) {
+      const toReplay = [...buffered];
+      // Clear the buffer and cancel expiry timers
+      for (const entry of toReplay) {
+        clearTimeout(entry.timer);
+      }
+      eventBuffer.delete(event);
+      // Replay in original order
+      for (const entry of toReplay) {
+        wrappedHandler(entry.data);
+      }
+    }
 
     return () => {
       eventListeners.get(event)?.delete(wrappedHandler);

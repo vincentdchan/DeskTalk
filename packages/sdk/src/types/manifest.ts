@@ -24,6 +24,14 @@ export interface MiniAppManifest {
 export type MiniAppBackendActivation = Record<string, never>;
 
 /**
+ * Returned from the frontend activate() so each window owns its own cleanup.
+ * This keeps MiniApps safe when multiple windows of the same MiniApp are open.
+ */
+export interface MiniAppFrontendActivation {
+  deactivate(): void;
+}
+
+/**
  * Context provided to the frontend activate() function.
  * Contains the root DOM element and metadata for the MiniApp window.
  */
@@ -41,7 +49,8 @@ export interface MiniAppFrontendContext {
 /**
  * @deprecated Use MiniAppBackendActivation instead. The old activate() returned
  * a React component, but the new architecture separates backend and frontend
- * into two entry files. The frontend entry exports activate/deactivate hooks.
+ * into two entry files. The frontend entry exports activate()/deactivate()
+ * lifecycle handlers per mounted window.
  */
 export interface MiniAppActivation {
   /** Root React component rendered inside the DeskTalk window */

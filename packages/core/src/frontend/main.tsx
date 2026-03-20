@@ -9,6 +9,7 @@ import { LoginPage } from './components/LoginPage';
 import { OnboardPage } from './components/OnboardPage';
 import { httpClient } from './http-client';
 import { applyTheme, DEFAULT_THEME_PREFERENCES, type ThemePreferences } from './theme';
+import '@desktalk/ui'; // registers <dt-tooltip> and future web components globally
 import './styles/global.scss';
 
 interface I18nCatalogResponse {

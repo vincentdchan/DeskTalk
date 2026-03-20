@@ -150,6 +150,7 @@ export async function createServer(options: ServerOptions) {
     invokeWindowAction,
     sendAiCommand,
     () => currentWsUsername ?? 'admin',
+    log.child({ scope: 'ai-session' }),
   );
 
   // ─── Plugins ──────────────────────────────────────────────────────────────
