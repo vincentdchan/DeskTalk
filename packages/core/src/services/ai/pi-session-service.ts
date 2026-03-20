@@ -110,6 +110,73 @@ function stripDesktopContext(text: string): string {
   return text.replace(DESKTOP_CONTEXT_RE, '').trim();
 }
 
+/**
+ * Build a short summary of generated HTML content for the conversation history.
+ *
+ * This replaces the full HTML string in `ToolCall.arguments.content` so that:
+ * 1. The LLM doesn't re-read (and anchor on) its own previous output.
+ * 2. We save tokens on every subsequent round-trip.
+ *
+ * The summary preserves the document structure (headings, dt-card titles,
+ * tag counts) so the LLM still knows *what* it generated, just not the
+ * exact markup.
+ */
+function summarizeHtml(html: string): string {
+  const lines: string[] = [];
+
+  // Byte length
+  const bytes = Buffer.byteLength(html, 'utf-8');
+  const sizeLabel = bytes >= 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${bytes} B`;
+  lines.push(`[HTML content removed from context to save tokens — ${sizeLabel}]`);
+
+  // Extract <title>
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (titleMatch) {
+    lines.push(`Title: ${titleMatch[1].trim()}`);
+  }
+
+  // Count dt-card elements
+  const cardMatches = html.match(/<dt-card[\s>]/gi);
+  if (cardMatches) {
+    lines.push(`Sections: ${cardMatches.length} dt-card(s)`);
+  }
+
+  // Extract headings (h1–h6 text, up to 8)
+  const headingRe = /<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi;
+  const headings: string[] = [];
+  let hMatch: RegExpExecArray | null;
+  while ((hMatch = headingRe.exec(html)) !== null && headings.length < 8) {
+    const text = hMatch[2].replace(/<[^>]+>/g, '').trim();
+    if (text) headings.push(`  h${hMatch[1]}: ${text}`);
+  }
+  if (headings.length > 0) {
+    lines.push(`Headings:\n${headings.join('\n')}`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Scrub `generate_html` tool-call arguments in an assistant message so the
+ * full HTML is not re-sent to the LLM on subsequent turns.
+ *
+ * Mutates `message.content` in-place — this must be called synchronously in
+ * the `message_end` subscriber, **before** session persistence runs.
+ */
+function scrubHtmlToolCallArgs(message: AssistantMessage): void {
+  for (const block of message.content) {
+    if (
+      block.type === 'toolCall' &&
+      (block as ToolCall).name === 'generate_html' &&
+      typeof (block as ToolCall).arguments?.content === 'string'
+    ) {
+      const toolCall = block as ToolCall;
+      const originalHtml: string = toolCall.arguments.content;
+      toolCall.arguments.content = summarizeHtml(originalHtml);
+    }
+  }
+}
+
 function getMessageText(message: BasicUserMessage | BasicAssistantMessage): string {
   if (message.role === 'user') {
     if (typeof message.content === 'string') {
@@ -529,6 +596,14 @@ export class PiSessionService {
 
         if (isAssistantMessage(event.message as BasicAgentMessage)) {
           const message = event.message as unknown as BasicAssistantMessage;
+
+          // Scrub large HTML content from generate_html tool calls so it
+          // is not re-sent on every subsequent LLM round-trip.  This runs
+          // synchronously before session persistence (step 8c in the event
+          // pipeline) so both in-memory state and the session file reflect
+          // the summarised version.
+          scrubHtmlToolCallArgs(event.message as unknown as AssistantMessage);
+
           onEvent({
             type: 'message_end',
             text: getMessageText(message),
