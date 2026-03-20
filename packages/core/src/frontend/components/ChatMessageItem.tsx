@@ -1,6 +1,7 @@
 import React from 'react';
 import { Streamdown } from 'streamdown';
 import type { ChatMessage } from '../stores/chat-session';
+import { simplifyToolCallMarkdown } from '../utils/tool-call-summary';
 import styles from './ChatMessageItem.module.scss';
 
 export type { ChatMessage };
@@ -8,7 +9,7 @@ export type { ChatMessage };
 function MarkdownMessage({ content, isStreaming }: { content: string; isStreaming: boolean }) {
   return (
     <Streamdown className={styles.markdownContent} isAnimating={isStreaming} animated>
-      {content}
+      {simplifyToolCallMarkdown(content)}
     </Streamdown>
   );
 }

@@ -7,6 +7,7 @@ export interface CommandInputProps {
   onChange: (value: string) => void;
   onSubmit: () => void;
   isAiRunning: boolean;
+  queuedCount: number;
   isVoiceActive: boolean;
   onVoiceToggle: () => void;
   modelLabel: string;
@@ -18,6 +19,7 @@ export function CommandInput({
   onChange,
   onSubmit,
   isAiRunning,
+  queuedCount,
   isVoiceActive,
   onVoiceToggle,
   modelLabel,
@@ -42,8 +44,12 @@ export function CommandInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isAiRunning ? 'AI is thinking...' : 'Ask the AI...'}
-          disabled={isAiRunning}
+          placeholder={
+            isAiRunning
+              ? 'AI is thinking... press Enter to queue the next message'
+              : 'Ask the AI...'
+          }
+          disabled={!wsReady}
         />
         <dt-tooltip content={isVoiceActive ? 'Stop voice input' : 'Start voice input'}>
           <button
@@ -56,6 +62,7 @@ export function CommandInput({
       </div>
       <div className={styles.statusRow}>
         <span className={styles.statusItem}>{wsReady ? modelLabel : 'offline'}</span>
+        {queuedCount > 0 && <span className={styles.statusItem}>{queuedCount} queued</span>}
       </div>
     </div>
   );
