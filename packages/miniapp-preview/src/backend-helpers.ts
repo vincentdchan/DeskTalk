@@ -1,5 +1,5 @@
-import { readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import type { StreamedHtmlSnapshot } from './types';
 
 const SUPPORTED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
@@ -40,16 +40,41 @@ export function sanitizeTitleSegment(title: string): string {
   return safe || 'preview';
 }
 
-export function getStreamedFileName(streamId: string, title: string): string {
-  return `${streamId}-${sanitizeTitleSegment(title)}.html`;
+export function getStreamedDirectoryName(streamId: string, title: string): string {
+  return `${sanitizeTitleSegment(title)}_${streamId}`;
+}
+
+export function getStreamedFileName(): string {
+  return 'index.html';
 }
 
 export function getStreamedRelativePath(streamId: string, title: string): string {
-  return `streamed/${getStreamedFileName(streamId, title)}`;
+  return `streamed/${getStreamedDirectoryName(streamId, title)}/${getStreamedFileName()}`;
 }
 
 export function getStreamedAbsolutePath(dataDir: string, streamId: string, title: string): string {
-  return join(dataDir, 'streamed', getStreamedFileName(streamId, title));
+  return join(
+    dataDir,
+    'streamed',
+    getStreamedDirectoryName(streamId, title),
+    getStreamedFileName(),
+  );
+}
+
+export function getLegacyStreamedFileName(streamId: string, title: string): string {
+  return `${streamId}-${sanitizeTitleSegment(title)}.html`;
+}
+
+export function getLegacyStreamedRelativePath(streamId: string, title: string): string {
+  return `streamed/${getLegacyStreamedFileName(streamId, title)}`;
+}
+
+export function getLegacyStreamedAbsolutePath(
+  dataDir: string,
+  streamId: string,
+  title: string,
+): string {
+  return join(dataDir, 'streamed', getLegacyStreamedFileName(streamId, title));
 }
 
 export async function loadStreamedHtml(
@@ -63,6 +88,20 @@ export async function loadStreamedHtml(
     return {
       name: fileName(path),
       path: getStreamedRelativePath(streamId, title),
+      content,
+    };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error;
+    }
+  }
+
+  const legacyPath = getLegacyStreamedAbsolutePath(dataDir, streamId, title);
+  try {
+    const content = await readFile(legacyPath, 'utf8');
+    return {
+      name: fileName(legacyPath),
+      path: getLegacyStreamedRelativePath(streamId, title),
       content,
     };
   } catch (error) {
@@ -80,6 +119,7 @@ export async function saveStreamedHtml(
   content: string,
 ): Promise<StreamedHtmlSnapshot> {
   const path = getStreamedAbsolutePath(dataDir, streamId, title);
+  await mkdir(dirname(path), { recursive: true });
   await writeFile(path, content, 'utf8');
   return {
     name: fileName(path),

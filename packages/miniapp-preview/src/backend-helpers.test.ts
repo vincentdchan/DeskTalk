@@ -1,9 +1,12 @@
-import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   getStreamedAbsolutePath,
+  getLegacyStreamedAbsolutePath,
+  getLegacyStreamedRelativePath,
+  getStreamedDirectoryName,
   getStreamedFileName,
   getStreamedRelativePath,
   isSupported,
@@ -29,16 +32,16 @@ describe('backend helpers', () => {
 
   it('sanitizes streamed html filenames consistently', () => {
     expect(sanitizeTitleSegment('  Revenue Report: Q1/Q2  ')).toBe('revenue-report-q1q2');
-    expect(getStreamedFileName('stream-42', '  Revenue Report: Q1/Q2  ')).toBe(
-      'stream-42-revenue-report-q1q2.html',
+    expect(getStreamedDirectoryName('stream-42', '  Revenue Report: Q1/Q2  ')).toBe(
+      'revenue-report-q1q2_stream-42',
     );
+    expect(getStreamedFileName()).toBe('index.html');
     expect(getStreamedRelativePath('stream-42', '  Revenue Report: Q1/Q2  ')).toBe(
-      'streamed/stream-42-revenue-report-q1q2.html',
+      'streamed/revenue-report-q1q2_stream-42/index.html',
     );
   });
 
   it('saves and reloads streamed html snapshots', async () => {
-    await mkdir(join(dataDir, 'streamed'), { recursive: true });
     const snapshot = await saveStreamedHtml(
       dataDir,
       'stream-7',
@@ -47,8 +50,8 @@ describe('backend helpers', () => {
     );
 
     expect(snapshot).toEqual({
-      name: 'stream-7-dashboard-demo.html',
-      path: 'streamed/stream-7-dashboard-demo.html',
+      name: 'index.html',
+      path: 'streamed/dashboard-demo_stream-7/index.html',
       content: '<html>ok</html>',
     });
 
@@ -61,6 +64,18 @@ describe('backend helpers', () => {
 
   it('returns null when a streamed html snapshot is missing', async () => {
     await expect(loadStreamedHtml(dataDir, 'stream-missing', 'Nope')).resolves.toBeNull();
+  });
+
+  it('loads legacy streamed html snapshots for backward compatibility', async () => {
+    await mkdir(join(dataDir, 'streamed'), { recursive: true });
+    const legacyPath = getLegacyStreamedAbsolutePath(dataDir, 'stream-9', 'Legacy Demo');
+    await writeFile(legacyPath, '<html>legacy</html>', 'utf8');
+
+    await expect(loadStreamedHtml(dataDir, 'stream-9', 'Legacy Demo')).resolves.toEqual({
+      name: 'stream-9-legacy-demo.html',
+      path: getLegacyStreamedRelativePath('stream-9', 'Legacy Demo'),
+      content: '<html>legacy</html>',
+    });
   });
 
   it('detects supported image extensions and png dimensions', () => {

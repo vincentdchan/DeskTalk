@@ -44,7 +44,7 @@ The AI assistant can generate visual HTML content via the `generate_html` tool. 
 2. The core opens a Preview window with `args: { streamId, title }` (no `path`).
 3. As HTML chunks stream in, the core emits `preview.html-chunk` events to the Preview frontend.
 4. Preview renders the accumulating HTML in a sandboxed iframe, updating live as chunks arrive.
-5. When streaming completes, Preview writes the final HTML into its data directory at `streamed/<streamId>-<title>.html`.
+5. When streaming completes, Preview writes the final HTML into its data directory at `streamed/<title>_<streamId>/index.html`.
 6. Preview shows a refresh button that reloads the finished document from the saved file.
 7. On restart, Preview restores the streamed window and reloads the saved HTML snapshot from disk.
 
@@ -202,4 +202,4 @@ When the AI generates HTML via the `generate_html` tool:
 4. The Preview frontend listens for `preview.html-chunk` events matching its `streamId`, accumulates the HTML string, and writes it into the iframe via `srcdoc`.
 5. When the tool execution completes, it emits `preview.html-done` with `{ streamId }`.
 6. The Preview frontend stops listening, saves the final HTML into its data store, and marks the document as fully loaded.
-7. If the app is restored after a restart, the Preview frontend reloads the saved `streamed/<streamId>-<title>.html` file and shows it again.
+7. If the app is restored after a restart, the Preview frontend reloads the saved `streamed/<title>_<streamId>/index.html` snapshot and shows it again.
