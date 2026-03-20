@@ -4,6 +4,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "jsx": "preserve",
+    "declarationDir": "./dist",
     "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
   "include": ["src"],

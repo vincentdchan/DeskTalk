@@ -361,6 +361,9 @@ importers:
 
   packages/ui:
     devDependencies:
+      esbuild:
+        specifier: ^0.24.0
+        version: 0.24.2
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
