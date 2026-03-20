@@ -103,6 +103,7 @@ export function createGenerateHtmlTool(options: GenerateHtmlToolOptions): ToolDe
       'Use this tool when the user asks you to show, visualize, display, or render something visually.',
       'Provide a complete, self-contained HTML document including <html>, <head>, and <body> tags.',
       'Generated previews automatically receive a `window.DeskTalk` bridge for reading safe desktop state and running constrained commands.',
+      'The bridge exposes `exec` / `execute` — both accept either a shell string (`window.DeskTalk.exec("ls -la")`) or explicit arguments (`window.DeskTalk.exec("ls", ["-la"])`).',
       'Before using custom styling, call read_html_guidelines if you need the full DeskTalk token and class reference.',
     ],
     parameters: generateHtmlSchema,

@@ -59,4 +59,40 @@ describe('analyzeProgram', () => {
     expect(result.level).toBe('warn');
     expect(result.reason).toContain('rm');
   });
+
+  // ── Shell interpreter -c analysis ──────────────────────────────────────
+
+  it('analyzes the inner command of sh -c', () => {
+    const result = analyzeProgram('sh', ['-c', 'rm -rf /']);
+
+    expect(result.level).toBe('block');
+    expect(result.reason).toContain('filesystem root');
+  });
+
+  it('warns on sh -c with a dangerous inner program', () => {
+    const result = analyzeProgram('bash', ['-c', 'sudo whoami']);
+
+    expect(result.level).toBe('warn');
+    expect(result.reason).toContain('privileges');
+  });
+
+  it('allows safe commands through sh -c', () => {
+    const result = analyzeProgram('sh', ['-c', 'top -l 1 -n 0 | head -12']);
+
+    expect(result.level).toBe('safe');
+  });
+
+  it('blocks destructive programs embedded in sh -c', () => {
+    const result = analyzeProgram('zsh', ['-c', 'reboot']);
+
+    expect(result.level).toBe('block');
+    expect(result.reason).toContain('reboot');
+  });
+
+  it('skips env assignments to find the real program in sh -c', () => {
+    const result = analyzeProgram('sh', ['-c', 'FOO=bar sudo ls']);
+
+    expect(result.level).toBe('warn');
+    expect(result.reason).toContain('privileges');
+  });
 });
