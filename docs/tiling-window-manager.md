@@ -14,10 +14,11 @@ This proposal replaces the floating model with a **tiling window manager** inspi
 
 1. **Automatic tiling** -- windows fill the workspace with no gaps or overlaps.
 2. **Keyboard-first navigation** -- all operations are available via shortcuts.
-3. **Fullscreen toggle** -- any window can go fullscreen and return to its tile.
-4. **Single-window simplicity** -- when only one window is open it fills the entire workspace.
-5. **Backward compatibility** -- the MiniApp API (`WindowState`, `openWindow`, `closeWindow`, `focusWindow`) stays the same from a MiniApp's perspective; tiling is purely a core concern.
-6. **AI compatibility** -- the AI's `list_actions` / `invoke_action` pipeline is unaffected; desktop context just reports the tiling layout instead of pixel positions.
+3. **Mouse-driven rearrangement** -- drag a window's title bar to relocate it to a new split position in any tile, similar to VSCode's editor drag-to-split.
+4. **Fullscreen toggle** -- any window can go fullscreen and return to its tile.
+5. **Single-window simplicity** -- when only one window is open it fills the entire workspace.
+6. **Backward compatibility** -- the MiniApp API (`WindowState`, `openWindow`, `closeWindow`, `focusWindow`) stays the same from a MiniApp's perspective; tiling is purely a core concern.
+7. **AI compatibility** -- the AI's `list_actions` / `invoke_action` pipeline is unaffected; desktop context just reports the tiling layout instead of pixel positions.
 
 ## Non-Goals
 
@@ -25,6 +26,7 @@ This proposal replaces the floating model with a **tiling window manager** inspi
 - Multiple workspaces / virtual desktops (may be added later).
 - Tabbed containers (may be added later).
 - Floating window escape hatch (all windows tile; the maximize/fullscreen toggle covers the primary use case for a single expanded window).
+- Touch / trackpad drag gestures (may be added later by migrating to pointer events).
 
 ---
 
@@ -257,7 +259,8 @@ The `gap` parameter (default ~4px) adds spacing between tiles for visual separat
 
 ### WindowChrome Changes
 
-- **Remove** drag-to-move and resize-handle interactions. Tiles are positioned by the tree, not by user dragging.
+- **Remove** free-form drag-to-move and resize-handle interactions. Tiles are positioned by the tree, not by arbitrary user dragging.
+- **Add** drag-to-reorder: the title bar acts as a drag handle for relocating the window to a different position in the tiling tree (see [Drag-to-Reorder](#drag-to-reorder-mouse-driven-layout-rearrangement) section).
 - **Keep** the title bar with traffic-light buttons (close, minimize, fullscreen-toggle replacing maximize).
 - **Position** each window with `position: absolute` using the computed `TileRect` values, with CSS transitions for smooth rearrangement.
 - **Fullscreen** window gets `inset: 0` on the Window Area (same as old maximize, but explicitly toggled).
@@ -299,6 +302,185 @@ This hook is mounted once in `Shell`. It reads from and dispatches to the `useWi
 
 - `Option` (Alt) is chosen because macOS reserves `Cmd` for system shortcuts, and `Ctrl` is commonly used by terminal-based MiniApps.
 - If a MiniApp's internal input field is focused, shortcuts should be suppressed when the event target is an `<input>`, `<textarea>`, or `[contenteditable]` element, unless the MiniApp explicitly opts in.
+
+---
+
+## Drag-to-Reorder (Mouse-Driven Layout Rearrangement)
+
+Keyboard shortcuts (`Option + Shift + H/J/K/L`) allow swapping a window with its spatial neighbor, but mouse users expect to rearrange layouts by dragging -- similar to how VSCode lets you drag an editor tab to split into a new area. This section specifies a drag-to-reorder system that complements the existing keyboard workflow.
+
+### Interaction Flow
+
+1. **Drag start.** The user presses and holds the mouse button on a window's **title bar** (the `.chrome` div). After the cursor moves beyond a 5 px dead-zone threshold, drag mode activates. The title bar already has `user-select: none`, so text selection is not a concern. Traffic-light buttons are excluded from drag initiation (clicks on them continue to close/fullscreen as before).
+
+2. **Drag in progress.** While dragging:
+   - The source window's tile gets a reduced-opacity treatment (e.g. `opacity: 0.5`, dashed border) to indicate it is being moved.
+   - A transparent **drop-zone overlay** appears on top of every _other_ tile in the layout. As the cursor moves over a tile, the overlay highlights which **edge zone** the cursor is in, showing the user where the window will land.
+   - If the cursor leaves the desktop area or returns to the source tile, no drop zone is highlighted.
+
+3. **Drop.** On mouse-up:
+   - If a valid drop zone is highlighted, the tree is restructured to relocate the source window to the target position.
+   - If no valid drop zone is highlighted (e.g. the user released the mouse outside any tile, or back on the source tile), the drag is cancelled with no tree change.
+   - Layout recomputation, backend sync, and focus transfer happen in the same store transaction as other tree mutations.
+
+4. **Cancel.** Pressing `Escape` during a drag cancels it immediately.
+
+### Drop Zone Geometry
+
+Each target tile is divided into five hit zones based on the cursor's position relative to the tile's bounding rect:
+
+```
+┌──────────────────────┐
+│         top           │  ← topmost 30% of tile height
+├────┬────────────┬─────┤
+│    │            │     │
+│ L  │   center   │  R  │  ← middle 40% height × middle 40% width
+│    │            │     │
+├────┴────────────┴─────┤
+│        bottom         │  ← bottommost 30% of tile height
+└──────────────────────┘
+       ↑           ↑
+   leftmost 30%  rightmost 30%
+   of tile width of tile width
+```
+
+Edge zones overlap at the corners; corners belong to the **top** or **bottom** zone (vertical edges take priority in overlap regions, matching VSCode behavior).
+
+| Zone     | Visual indicator                           | Tree operation                        |
+| -------- | ------------------------------------------ | ------------------------------------- |
+| `left`   | Highlight the left half of the tile        | Horizontal split, source on the left  |
+| `right`  | Highlight the right half of the tile       | Horizontal split, source on the right |
+| `top`    | Highlight the top half of the tile         | Vertical split, source on top         |
+| `bottom` | Highlight the bottom half of the tile      | Vertical split, source on the bottom  |
+| `center` | Highlight the entire tile (swap indicator) | Swap source and target positions      |
+
+The visual indicator is a semi-transparent rectangle (`var(--dt-accent)` at ~20% opacity, `2px dashed var(--dt-accent)` border) drawn over the corresponding region. A ~100 ms CSS transition smooths zone changes as the cursor moves.
+
+### Tree Operation: `relocateWindow`
+
+A new pure function is added to `tiling-tree.ts`:
+
+```ts
+function relocateWindow(
+  tree: TilingNode,
+  sourceWindowId: string,
+  targetWindowId: string,
+  edge: 'left' | 'right' | 'top' | 'bottom' | 'center',
+): TilingNode;
+```
+
+**Behavior by edge:**
+
+- **`center`**: Delegates to the existing `swapWindows(tree, sourceWindowId, targetWindowId)`.
+- **`left` / `right` / `top` / `bottom`**:
+  1. Remove the source leaf from the tree using `removeWindow(tree, sourceWindowId)`. The source's sibling is promoted to replace the parent container (standard removal semantics).
+  2. Find the target leaf in the resulting tree.
+  3. Replace the target leaf with a new container whose:
+     - `split` is `'horizontal'` for `left`/`right`, `'vertical'` for `top`/`bottom`.
+     - `children` order depends on the edge: for `left` or `top`, source is `children[0]` and target is `children[1]`; for `right` or `bottom`, target is `children[0]` and source is `children[1]`.
+     - `ratio` defaults to `0.5`.
+
+This is a composition of existing primitives (`removeWindow` + a targeted `insertWindow` variant), ensuring the tree invariants (binary, no empty containers) are preserved.
+
+**Edge cases:**
+
+| Scenario                                                | Behavior                                                                                                                                                                                            |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source and target are the same window                   | No-op (cancelled by the drag system before reaching the tree function).                                                                                                                             |
+| Source and target are siblings                          | Removal promotes the target, then the target is split again with the source. The net effect is that the source moves to the specified edge of the target, potentially changing the split direction. |
+| Only one window in the tree                             | Drag is disabled (no valid drop targets).                                                                                                                                                           |
+| Source is the only child after removal leaves null tree | Cannot happen -- there must be at least the target window remaining.                                                                                                                                |
+
+### Drag State Store
+
+Drag state is **transient and high-frequency** (updated every mouse move). To avoid unnecessary backend syncs and layout recomputations on each cursor movement, drag state lives in a **separate Zustand store** (`useDragStore`), isolated from the main `useWindowManager`:
+
+```ts
+interface DragState {
+  isDragging: boolean;
+  dragWindowId: string | null;
+  dragStartPos: { x: number; y: number } | null;
+  dropTarget: {
+    windowId: string;
+    edge: 'left' | 'right' | 'top' | 'bottom' | 'center';
+  } | null;
+}
+
+interface DragActions {
+  startDrag(windowId: string, mousePos: { x: number; y: number }): void;
+  updateDropTarget(windowId: string, edge: DragState['dropTarget']['edge']): void;
+  clearDropTarget(): void;
+  executeDrop(): void; // calls useWindowManager.getState().relocateWindow(...)
+  cancelDrag(): void;
+}
+```
+
+Only `executeDrop` crosses into `useWindowManager` -- all other drag actions are local state changes that only affect overlay rendering.
+
+### Component Changes
+
+#### `WindowChrome.tsx`
+
+- Add a `mousedown` handler on the `.chrome` div (excluding traffic-light buttons).
+- On `mousedown`, record the start position. Attach `mousemove` and `mouseup` listeners to `document`.
+- After the cursor exceeds the 5 px dead-zone threshold, call `useDragStore.getState().startDrag(windowId, pos)`.
+- On `mouseup`, call `executeDrop()` or `cancelDrag()` depending on whether a valid `dropTarget` exists.
+- Clean up document-level listeners on drop, cancel, or component unmount.
+- When the current window is being dragged (`isDragging && dragWindowId === win.id`), apply a `.dragging` CSS class to reduce opacity and show a dashed border.
+
+#### `DropZoneOverlay.tsx` (new component)
+
+- Rendered by `Shell` as a sibling of the tiling tree, **above** it in z-order but below the fullscreen overlay.
+- Only mounts when `useDragStore(s => s.isDragging)` is true.
+- Reads `tileRects` from `useWindowManager` to know the pixel position of every tile.
+- For each tile (excluding the source window's tile), renders an invisible overlay div at the tile's rect.
+- On `mousemove` over each overlay div, computes which edge zone the cursor is in and calls `updateDropTarget(targetWindowId, edge)`.
+- Renders the visual highlight indicator based on the current `dropTarget`.
+
+#### `DropZoneOverlay.module.scss` (new stylesheet)
+
+Colocated with the component. Provides:
+
+- `.overlay` -- fixed/absolute positioned container covering the desktop area, `pointer-events: none`.
+- `.tileZone` -- per-tile overlay positioned at the tile's rect, `pointer-events: all`.
+- `.highlight` -- the accent-colored indicator, positioned to cover the relevant half (or whole) of the tile. Uses `background: var(--dt-accent)` at 20% opacity, dashed border, ~100 ms transition.
+
+#### `Shell.tsx`
+
+- Import and conditionally render `<DropZoneOverlay />` when `useDragStore(s => s.isDragging)` is true.
+- Add a `keydown` listener for `Escape` that calls `cancelDrag()` during an active drag.
+
+#### `WindowChrome.module.scss`
+
+- Add a `.dragging` class: `opacity: 0.5; border: 2px dashed var(--dt-accent);`
+
+### Store Action: `relocateWindow`
+
+A new action is added to `useWindowManager`:
+
+```ts
+relocateWindow(
+  sourceWindowId: string,
+  targetWindowId: string,
+  edge: 'left' | 'right' | 'top' | 'bottom' | 'center',
+): void;
+```
+
+This action:
+
+1. Calls the pure `relocateWindow()` tree function.
+2. Recomputes layout via `recomputeLayout()`.
+3. Updates `windows` metadata via `updateWindowRectsFromTree()`.
+4. Focuses the relocated window.
+5. Syncs to backend via `syncToBackend()`.
+
+### Edge Cases and Constraints
+
+- **Single window:** Drag is not initiated when only one window exists (nothing to drop onto).
+- **Fullscreen mode:** If a window is fullscreened, drag is disabled. Alternatively, starting a drag exits fullscreen first.
+- **Minimum tile size:** The existing `clampRatio` (min 0.15) prevents tiles from becoming too narrow after relocation. No additional minimum-size enforcement is needed for the initial implementation.
+- **Animation:** The CSS Grid layout in `Shell` already transitions smoothly when `grid-template-columns` / `grid-template-rows` change. The relocation will animate naturally via the existing grid-based rendering.
+- **Touch support:** Out of scope for the initial implementation. The pointer-capture pattern can be extended to `pointerdown`/`pointermove`/`pointerup` events later for touch device support.
 
 ---
 
@@ -386,6 +568,41 @@ This gives the AI a clearer mental model of the spatial arrangement.
 - Handle edge cases (minimized windows, single window, empty workspace).
 - Update sync payload and backend persistence format.
 
+### Phase 6: Drag-to-Reorder
+
+Adds mouse-driven layout rearrangement (VSCode-style drag-to-split).
+
+#### Phase 6a: Tree Operation
+
+- Implement `relocateWindow()` in `tiling-tree.ts`.
+- Unit test all five edge values (`left`, `right`, `top`, `bottom`, `center`), sibling relocation, and error cases.
+
+#### Phase 6b: Drag State Store
+
+- Create `useDragStore` (transient Zustand store).
+- Implement `startDrag`, `updateDropTarget`, `clearDropTarget`, `executeDrop`, `cancelDrag` actions.
+
+#### Phase 6c: Drag Initiation
+
+- Add `mousedown` handler to `WindowChrome` title bar.
+- Implement dead-zone threshold (5 px) before entering drag mode.
+- Attach `mousemove`/`mouseup` listeners to `document` during drag.
+- Add `.dragging` CSS class for visual feedback on source window.
+
+#### Phase 6d: Drop Zone Overlay
+
+- Create `DropZoneOverlay` component with colocated `.module.scss`.
+- Implement five-zone hit detection per tile (left/right/top/bottom/center).
+- Render accent-colored highlight indicator showing the drop target area.
+- Mount overlay in `Shell` when `isDragging` is true.
+
+#### Phase 6e: Wiring and Integration
+
+- Add `relocateWindow` action to `useWindowManager` store.
+- Wire `executeDrop` to call the store action.
+- Add `Escape` key handler for drag cancellation.
+- Handle edge cases: single window, fullscreen mode, drop on self.
+
 ---
 
 ## Open Questions
@@ -394,3 +611,6 @@ This gives the AI a clearer mental model of the spatial arrangement.
 2. **Split direction indicator** -- should there be a visual indicator showing which direction the next split will go?
 3. **Workspace numbers** -- `Option + 1/2/3` is mapped to "focus Nth window" today. If we add virtual desktops, this mapping changes. Should we reserve these for future workspace switching and use a different shortcut for Nth-window focus?
 4. **Maximum splits** -- should there be a limit on how many levels deep the tree can go? In practice, browser performance and available screen space are the natural limits.
+5. **Drag ghost preview** -- should a translucent clone of the title bar follow the cursor during drag? The initial implementation uses only opacity reduction on the source tile, but a floating ghost (like VSCode) could improve discoverability. Consider adding this as a polish enhancement.
+6. **Touch and pointer events** -- the initial drag implementation uses `mousedown`/`mousemove`/`mouseup`. Should this be migrated to `pointerdown`/`pointermove`/`pointerup` to support trackpad and touch devices from the start?
+7. **Cross-drop-zone animation** -- should the highlight indicator animate between zones as the cursor moves across a tile, or snap instantly? A short CSS transition (~100 ms) is specified, but this may feel sluggish if zone boundaries are crossed rapidly.

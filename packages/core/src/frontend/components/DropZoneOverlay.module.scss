@@ -1,0 +1,26 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.tileZone {
+  position: absolute;
+  pointer-events: all;
+}
+
+.highlight {
+  position: absolute;
+  background: color-mix(in oklab, var(--dt-accent) 20%, transparent);
+  border: 2px dashed var(--dt-accent);
+  border-radius: 2px;
+  transition:
+    left 0.1s ease,
+    top 0.1s ease,
+    right 0.1s ease,
+    bottom 0.1s ease,
+    width 0.1s ease,
+    height 0.1s ease;
+  pointer-events: none;
+}

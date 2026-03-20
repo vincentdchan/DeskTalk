@@ -13,8 +13,10 @@ import { ActionsBar } from './ActionsBar';
 import { ConnectionOverlay } from './ConnectionOverlay';
 import { WindowChrome } from './WindowChrome';
 import { SplitResizer } from './SplitResizer';
+import { DropZoneOverlay } from './DropZoneOverlay';
 import { InfoPanel } from './InfoPanel';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
+import { useDragStore } from '../stores/drag-store';
 import { loadMiniAppModule } from '../miniapp-runtime';
 import type { MiniAppFrontendModule } from '../miniapp-runtime';
 import { httpClient } from '../http-client';
@@ -275,12 +277,14 @@ function useDesktopBounds(desktopRef: React.RefObject<HTMLDivElement | null>) {
 function WindowTile({
   win,
   isOverlayMaximized = false,
+  draggable = false,
 }: {
   win: WindowState;
   isOverlayMaximized?: boolean;
+  draggable?: boolean;
 }) {
   return (
-    <WindowChrome window={win} isOverlayMaximized={isOverlayMaximized}>
+    <WindowChrome window={win} isOverlayMaximized={isOverlayMaximized} draggable={draggable}>
       <MiniAppWindow miniAppId={win.miniAppId} windowId={win.id} args={win.args} />
     </WindowChrome>
   );
@@ -290,10 +294,12 @@ function TilingTreeView({
   node,
   windowsById,
   path = [],
+  canDrag = false,
 }: {
   node: TilingNode;
   windowsById: Map<string, WindowState>;
   path?: TreePath;
+  canDrag?: boolean;
 }) {
   if (node.type === 'leaf') {
     const win = windowsById.get(node.windowId);
@@ -303,7 +309,7 @@ function TilingTreeView({
 
     return (
       <div className={styles.tileLeaf}>
-        <WindowTile win={win} isOverlayMaximized={win.maximized} />
+        <WindowTile win={win} isOverlayMaximized={win.maximized} draggable={canDrag} />
       </div>
     );
   }
@@ -328,11 +334,21 @@ function TilingTreeView({
   return (
     <div className={splitClassName} style={containerStyle}>
       <div className={styles.tilePane}>
-        <TilingTreeView node={first} windowsById={windowsById} path={[...path, 0]} />
+        <TilingTreeView
+          node={first}
+          windowsById={windowsById}
+          path={[...path, 0]}
+          canDrag={canDrag}
+        />
       </div>
       <SplitResizer path={path} split={node.split} ratio={node.ratio} />
       <div className={styles.tilePane}>
-        <TilingTreeView node={second} windowsById={windowsById} path={[...path, 1]} />
+        <TilingTreeView
+          node={second}
+          windowsById={windowsById}
+          path={[...path, 1]}
+          canDrag={canDrag}
+        />
       </div>
     </div>
   );
@@ -347,6 +363,8 @@ export function Shell() {
   const fullscreenWindowId = useWindowManager((s) => s.fullscreenWindowId);
   const setWindowActions = useWindowManager((s) => s.setWindowActions);
 
+  const isDragging = useDragStore((s) => s.isDragging);
+
   const [manifests, setManifests] = useState<MiniAppManifest[]>([]);
   const [assistantRatio, setAssistantRatio] = useState(ASSISTANT_DEFAULT_RATIO);
   const actionHandlersRef = useRef<Map<string, Map<string, ActionHandler>>>(new Map());
@@ -354,6 +372,18 @@ export function Shell() {
   const desktopRef = useRef<HTMLDivElement>(null);
   useDesktopBounds(desktopRef);
   useKeyboardShortcuts();
+
+  // Cancel drag on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && useDragStore.getState().isDragging) {
+        useDragStore.getState().cancelDrag();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const handleBridgeStateRequest = (event: Event) => {
@@ -743,7 +773,16 @@ export function Shell() {
 
       <div className={styles.content} style={shellLayoutStyle}>
         <div ref={desktopRef} className={styles.desktop}>
-          {wsReady ? tree && <TilingTreeView node={tree} windowsById={windowsById} /> : null}
+          {wsReady
+            ? tree && (
+                <TilingTreeView
+                  node={tree}
+                  windowsById={windowsById}
+                  canDrag={tree.type === 'container'}
+                />
+              )
+            : null}
+          {isDragging && <DropZoneOverlay desktopRef={desktopRef} />}
         </div>
 
         <SplitResizer
