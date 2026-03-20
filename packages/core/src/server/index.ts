@@ -19,7 +19,11 @@ import {
   getStoredPreferenceForUser,
   setPreferenceUser,
 } from '../services/preferences';
-import { DEFAULT_THEME_PREFERENCES } from '../services/theme-css';
+import {
+  DEFAULT_THEME_PREFERENCES,
+  generateThemeCSS,
+  HTML_BASE_STYLESHEET,
+} from '../services/theme-css';
 import { loadMergedLocaleMessages } from '../services/i18n';
 import { getWorkspacePaths, getUserHomeDir, ensureUserHome } from '../services/workspace';
 import { VoiceSession } from '../services/voice/voice-session';
@@ -179,6 +183,7 @@ export async function createServer(options: ServerOptions) {
     '/api/setup',
     '/api/preferences/public',
     '/api/ui/desktalk-ui.js',
+    '/api/ui/desktalk-theme.css',
   ]);
 
   app.addHook('onRequest', async (req, reply) => {
@@ -672,6 +677,35 @@ export async function createServer(options: ServerOptions) {
     reply.header('ETag', etag);
     return reply.send(body);
   });
+
+  // ─── Serve the DeskTalk theme + base CSS for generated HTML iframes ─────
+  // Query params `accent` and `theme` encode the user's current preferences
+  // so each configuration gets a distinct cacheable URL.
+
+  const themeCssCache = new Map<string, { body: string; etag: string }>();
+
+  app.get<{ Querystring: { accent?: string; theme?: string } }>(
+    '/api/ui/desktalk-theme.css',
+    async (req, reply) => {
+      const accent = req.query.accent ?? DEFAULT_THEME_PREFERENCES.accentColor;
+      const theme = req.query.theme === 'light' ? 'light' : DEFAULT_THEME_PREFERENCES.theme;
+      const cacheKey = `${accent}|${theme}`;
+
+      let cached = themeCssCache.get(cacheKey);
+      if (!cached) {
+        const themeCSS = generateThemeCSS({ accentColor: accent, theme });
+        const body = `${themeCSS}\n${HTML_BASE_STYLESHEET}`;
+        const etag = `"theme-${Buffer.byteLength(body).toString(36)}"`;
+        cached = { body, etag };
+        themeCssCache.set(cacheKey, cached);
+      }
+
+      reply.header('Content-Type', 'text/css; charset=utf-8');
+      reply.header('Cache-Control', 'public, max-age=86400, immutable');
+      reply.header('ETag', cached.etag);
+      return reply.send(cached.body);
+    },
+  );
 
   app.get('/api/preferences/public', async (req) => {
     const requestUser = req.user;
