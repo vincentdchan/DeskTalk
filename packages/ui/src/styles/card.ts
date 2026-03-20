@@ -22,6 +22,7 @@ export const CARD_CSS = /* css */ `
   padding: 20px;
   color: var(--dt-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  margin-bottom: 12px;
 }
 
 :host([variant="outlined"]) .${CARD_CLS} {
