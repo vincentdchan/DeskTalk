@@ -10,6 +10,7 @@ import {
   type ThemePreferences,
 } from '../theme-css';
 import { createHtmlBridgeScript } from './html-bridge-script';
+import { UI_BUNDLE_SCRIPT_TAG } from './html-ui-script';
 import type { HtmlStreamCoordinator } from './html-stream-coordinator';
 
 const generateHtmlSchema = Type.Object({
@@ -102,6 +103,7 @@ export function createGenerateHtmlTool(options: GenerateHtmlToolOptions): ToolDe
     promptGuidelines: [
       'Use this tool when the user asks you to show, visualize, display, or render something visually.',
       'Provide a complete, self-contained HTML document including <html>, <head>, and <body> tags.',
+      'DeskTalk web components (`<dt-card>`, `<dt-tooltip>`, etc.) are automatically available in generated HTML — use `<dt-card>` for all card/panel layouts instead of `<div class="card">` or custom card CSS.',
       'Generated previews automatically receive a `window.DeskTalk` bridge for reading safe desktop state and running constrained commands.',
       'The bridge exposes `exec` / `execute` — both accept either a shell string (`window.DeskTalk.exec("ls -la")`) or explicit arguments (`window.DeskTalk.exec("ls", ["-la"])`).',
       'Before using custom styling, call read_html_guidelines if you need the full DeskTalk token and class reference.',
@@ -144,7 +146,7 @@ export function createGenerateHtmlTool(options: GenerateHtmlToolOptions): ToolDe
       const themedHtml = injectThemeIntoHtml(input.content, themePreferences);
       const bridgedHtml = injectIntoHtmlHead(
         themedHtml,
-        createHtmlBridgeScript(streamId, bridgeToken),
+        UI_BUNDLE_SCRIPT_TAG + '\n' + createHtmlBridgeScript(streamId, bridgeToken),
       );
 
       // Ensure the preview MiniApp is activated

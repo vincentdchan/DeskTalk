@@ -9,6 +9,7 @@ import {
   type ThemePreferences,
 } from '../theme-css';
 import { createHtmlBridgeScript } from './html-bridge-script';
+import { UI_BUNDLE_SCRIPT_TAG } from './html-ui-script';
 import type { SendAiCommand } from './desktop-tool';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -383,7 +384,14 @@ export class HtmlStreamCoordinator {
     // spec, duplicate <html>/<head> tags are dropped). The LLM's <head>
     // children (like <title>, <meta>, additional <style>) are adopted into
     // the already-open <head>.
-    const preamble = '<!DOCTYPE html><html><head>\n' + themeStyle + '\n' + bridgeScript + '\n';
+    const preamble =
+      '<!DOCTYPE html><html><head>\n' +
+      themeStyle +
+      '\n' +
+      UI_BUNDLE_SCRIPT_TAG +
+      '\n' +
+      bridgeScript +
+      '\n';
 
     broadcastEvent('preview', 'preview.html-chunk', {
       streamId: session.streamId,

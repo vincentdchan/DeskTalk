@@ -3,6 +3,8 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyWebsocket from '@fastify/websocket';
 import fastifyStatic from '@fastify/static';
 import { createReadStream } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
@@ -176,6 +178,7 @@ export async function createServer(options: ServerOptions) {
     '/api/setup/status',
     '/api/setup',
     '/api/preferences/public',
+    '/api/ui/desktalk-ui.js',
   ]);
 
   app.addHook('onRequest', async (req, reply) => {
@@ -641,6 +644,34 @@ export async function createServer(options: ServerOptions) {
       return reply.send(image);
     },
   );
+
+  // ─── Serve the @desktalk/ui UMD bundle for generated HTML iframes ───────
+  // This lets AI-generated HTML load DeskTalk web components (<dt-card>, etc.)
+  // via a <script> tag without needing an external CDN.
+
+  const require = createRequire(import.meta.url);
+  const uiBundlePath = join(
+    dirname(require.resolve('@desktalk/ui/package.json')),
+    'dist',
+    'index.umd.js',
+  );
+  let uiBundleCache: { body: Buffer; etag: string } | null = null;
+
+  async function getUiBundle(): Promise<{ body: Buffer; etag: string }> {
+    if (uiBundleCache) return uiBundleCache;
+    const body = await readFile(uiBundlePath);
+    const etag = `"ui-${body.length.toString(36)}"`;
+    uiBundleCache = { body, etag };
+    return uiBundleCache;
+  }
+
+  app.get('/api/ui/desktalk-ui.js', async (_req, reply) => {
+    const { body, etag } = await getUiBundle();
+    reply.header('Content-Type', 'application/javascript; charset=utf-8');
+    reply.header('Cache-Control', 'public, max-age=86400, immutable');
+    reply.header('ETag', etag);
+    return reply.send(body);
+  });
 
   app.get('/api/preferences/public', async (req) => {
     const requestUser = req.user;
