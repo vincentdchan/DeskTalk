@@ -39,6 +39,25 @@ const commands: SlashCommandDefinition[] = [
     },
   },
   {
+    name: 'title',
+    description: 'Rename the current AI session',
+    execute(ctx, args) {
+      const title = args.trim();
+      if (!title) {
+        ctx.addSystemMessage('Usage: /title <new session title>');
+        return true;
+      }
+
+      ctx.socket.send(
+        JSON.stringify({
+          type: 'ai:sessions:rename',
+          title,
+        }),
+      );
+      return true;
+    },
+  },
+  {
     name: 'help',
     description: 'Show available slash commands',
     execute(ctx) {

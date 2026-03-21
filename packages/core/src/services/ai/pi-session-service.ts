@@ -531,6 +531,24 @@ export class PiSessionService {
     return true;
   }
 
+  async renameCurrentSession(title: string): Promise<ChatSessionSummary> {
+    const nextTitle = normalizeSessionTitle(title) || 'New session';
+    this.session.sessionManager.appendSessionInfo(nextTitle);
+
+    const summary = (await this.listSessions()).find(
+      (session) => session.id === this.getSessionId(),
+    );
+
+    return (
+      summary ?? {
+        id: this.getSessionId(),
+        label: nextTitle,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+    );
+  }
+
   private maybeAssignSessionTitle(inputText: string): void {
     if (this.session.sessionManager.getSessionName()) {
       return;

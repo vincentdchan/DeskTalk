@@ -427,6 +427,30 @@ export async function createServer(options: ServerOptions) {
             sessionId: piSessionService.getSessionId(),
             sessions: await piSessionService.listSessions(),
           });
+        } else if (msg.type === 'ai:sessions:rename') {
+          const title = typeof msg.title === 'string' ? msg.title.trim() : '';
+          if (activeAiRequestId) {
+            sendAiEvent({
+              type: 'error',
+              message: 'Wait for the current AI response to finish before renaming sessions.',
+            });
+            return;
+          }
+
+          if (!title) {
+            sendAiEvent({
+              type: 'error',
+              message: 'A session title is required.',
+            });
+            return;
+          }
+
+          await piSessionService.renameCurrentSession(title);
+          sendAiEvent({
+            type: 'sessions_sync',
+            sessionId: piSessionService.getSessionId(),
+            sessions: await piSessionService.listSessions(),
+          });
         } else if (msg.type === 'ai:prompt') {
           const requestId = typeof msg.requestId === 'string' ? msg.requestId : `ai-${Date.now()}`;
           const text = typeof msg.text === 'string' ? msg.text.trim() : '';
