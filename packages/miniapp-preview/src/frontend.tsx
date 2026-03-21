@@ -8,6 +8,7 @@ import type {
   HtmlPreviewFile,
   StreamedHtmlSnapshot,
   PreviewMode,
+  PreviewActionState,
   SiblingList,
   PreviewBridgeExecPayload,
   PreviewBridgeExecResponse,
@@ -352,6 +353,42 @@ function PreviewApp({
         ? (htmlFile?.name ?? 'Loading...')
         : (currentFile?.name ?? '');
 
+  const previewActionState: PreviewActionState =
+    mode === 'image'
+      ? {
+          mode,
+          streaming: false,
+          file: currentFile
+            ? {
+                name: currentFile.name,
+                path: currentFile.path,
+                kind: 'image',
+                mimeType: currentFile.mimeType,
+              }
+            : null,
+        }
+      : mode === 'html'
+        ? {
+            mode,
+            streaming: false,
+            file: htmlFile
+              ? {
+                  name: htmlFile.name,
+                  path: htmlFile.path,
+                  kind: 'html',
+                }
+              : null,
+          }
+        : {
+            mode,
+            streaming,
+            file: {
+              name: streamSnapshot?.name ?? displayTitle,
+              path: streamSnapshot?.path ?? null,
+              kind: 'stream',
+            },
+          };
+
   const resolveBridgeState = useCallback(
     (payload: PreviewBridgeGetStatePayload): unknown => {
       switch (payload.selector) {
@@ -530,8 +567,7 @@ function PreviewApp({
 
   return (
     <PreviewActions
-      currentFile={currentFile}
-      mode={mode}
+      state={previewActionState}
       onFileOpened={handleFileOpened}
       onZoomIn={handleZoomIn}
       onZoomOut={handleZoomOut}

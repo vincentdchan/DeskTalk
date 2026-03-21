@@ -106,6 +106,7 @@ When `streamId` is present, Preview enters streaming HTML mode and listens for c
 
 | Action        | Description                             | Parameters                                     |
 | ------------- | --------------------------------------- | ---------------------------------------------- |
+| Get State     | Return the current mode and opened file | --                                             |
 | Open File     | Open an image or HTML file for preview  | path                                           |
 | Zoom In       | Increase zoom level by one step         | --                                             |
 | Zoom Out      | Decrease zoom level by one step         | --                                             |
@@ -137,10 +138,10 @@ Operates within the authenticated user's home directory via `ctx.fs` (`<data>/ho
 
 These events are emitted by the core (not the Preview backend) when the AI `generate_html` tool streams content:
 
-| Event              | Payload             | Description                                                |
-| ------------------ | ------------------- | ---------------------------------------------------------- |
-| preview.html-chunk | { streamId, chunk } | A chunk of HTML content to append to the streaming iframe  |
-| preview.html-done  | { streamId }        | Streaming is complete; the HTML document is fully received |
+| Event              | Payload             | Description                                               |
+| ------------------ | ------------------- | --------------------------------------------------------- |
+| preview.html-chunk | { streamId, chunk } | A chunk of HTML content to append to the streaming iframe |
+| preview.html-done  | { streamId, html? } | Streaming is complete; may include the raw final HTML     |
 
 ### Data Model
 
@@ -169,7 +170,22 @@ interface SiblingEntry {
   name: string;
   path: string; // Relative to root
 }
+
+interface PreviewOpenedFileState {
+  name: string;
+  path: string | null;
+  kind: 'image' | 'html' | 'stream';
+  mimeType?: string;
+}
+
+interface PreviewActionState {
+  mode: 'image' | 'html' | 'stream';
+  streaming: boolean;
+  file: PreviewOpenedFileState | null;
+}
 ```
+
+`Get State` returns `PreviewActionState`, so the agent can inspect the current preview mode and the currently opened file. In stream mode, `path` is the saved snapshot path when available, otherwise `null` until the snapshot is written.
 
 ### Supported MIME Types
 
@@ -200,6 +216,6 @@ When the AI generates HTML via the `generate_html` tool:
 2. The tool generates a unique `streamId` and calls `sendAiCommand({ action: 'open', miniAppId: 'preview', args: { streamId, title } })` to open a Preview window.
 3. As the LLM streams `content` text deltas, the tool emits `preview.html-chunk` events with `{ streamId, chunk }` via the core's WebSocket broadcast.
 4. The Preview frontend listens for `preview.html-chunk` events matching its `streamId`, accumulates the HTML string, and writes it into the iframe via `srcdoc`.
-5. When the tool execution completes, it emits `preview.html-done` with `{ streamId }`.
+5. When the tool execution completes, it emits `preview.html-done` with `{ streamId, html? }`.
 6. The Preview frontend stops listening, saves the final HTML into its data store, and marks the document as fully loaded.
 7. If the app is restored after a restart, the Preview frontend reloads the saved `streamed/<title>_<streamId>/index.html` snapshot and shows it again.

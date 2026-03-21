@@ -31,6 +31,19 @@ export interface SiblingEntry {
   path: string; // Relative to root
 }
 
+export interface PreviewOpenedFileState {
+  name: string;
+  path: string | null;
+  kind: 'image' | 'html' | 'stream';
+  mimeType?: string;
+}
+
+export interface PreviewActionState {
+  mode: PreviewMode;
+  streaming: boolean;
+  file: PreviewOpenedFileState | null;
+}
+
 export type PreviewBridgeStateSelector =
   | 'desktop.summary'
   | 'desktop.windows'
