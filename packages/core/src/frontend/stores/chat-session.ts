@@ -24,6 +24,8 @@ export interface ChatMessage {
   timestamp?: number;
   /** When present, this message represents a tool call (rendered as a standalone row). */
   toolCall?: ToolCallInfo;
+  /** Chain-of-thought / extended thinking text from the model (if available). */
+  thinkingContent?: string;
 }
 
 export interface AiProviderOption {
@@ -51,12 +53,14 @@ export interface AiEventMessage {
     | 'sessions_sync'
     | 'message_start'
     | 'message_update'
+    | 'thinking_update'
     | 'message_end'
     | 'tool_call'
     | 'error';
   requestId?: string;
   sessionId?: string;
   text?: string;
+  thinkingText?: string;
   message?: string;
   model?: string;
   provider?: string;
@@ -273,6 +277,15 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
         }
         return { messages: next };
       });
+    } else if (event.type === 'thinking_update') {
+      set((prev) => {
+        const next = [...prev.messages];
+        const lastIndex = next.length - 1;
+        if (lastIndex >= 0 && next[lastIndex].role === 'assistant' && !next[lastIndex].toolCall) {
+          next[lastIndex] = { ...next[lastIndex], thinkingContent: event.thinkingText ?? '' };
+        }
+        return { messages: next };
+      });
     } else if (event.type === 'tool_call') {
       // Insert a tool call message just before the current streaming assistant message
       set((prev) => {
@@ -310,7 +323,7 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
         if (endedRequestId) {
           const targetId = `assistant-${endedRequestId}`;
           const idx = messages.findIndex((m) => m.id === targetId);
-          if (idx >= 0 && !messages[idx].content) {
+          if (idx >= 0 && !messages[idx].content && !messages[idx].thinkingContent) {
             messages = [...messages.slice(0, idx), ...messages.slice(idx + 1)];
           }
         }

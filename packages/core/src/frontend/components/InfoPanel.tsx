@@ -284,8 +284,9 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
         ) : (
           <>
             {messages.map((msg) => {
-              const isEmptyAssistant = msg.role === 'assistant' && !msg.content;
               const isActiveAssistantMessage = msg.id === activeAssistantMessageId;
+              const isEmptyAssistant =
+                msg.role === 'assistant' && !msg.content && !msg.thinkingContent;
               const isThinking = isEmptyAssistant && isAiRunning && isActiveAssistantMessage;
 
               return (

@@ -53,6 +53,8 @@ export interface HistoryMessage {
   totalTokens?: number;
   /** When present, this message represents a tool call (rendered as a standalone row). */
   toolCall?: ToolCallInfo;
+  /** Chain-of-thought / extended thinking text from the model (if available). */
+  thinkingContent?: string;
 }
 
 export interface PromptInput {
@@ -666,25 +668,34 @@ export class PiSessionService {
 
         // Walk through content blocks and emit separate entries for text vs tool calls
         let textAccumulator = '';
+        let thinkingAccumulator = '';
         let blockIndex = 0;
 
         for (const block of typedMessage.content) {
-          if (block.type === 'text' && typeof block.text === 'string') {
+          if (block.type === 'thinking') {
+            const thinkingBlock = block as { type: string; thinking: string };
+            if (typeof thinkingBlock.thinking === 'string') {
+              thinkingAccumulator += thinkingBlock.thinking;
+            }
+          } else if (block.type === 'text' && typeof block.text === 'string') {
             textAccumulator += block.text;
           } else if (block.type === 'toolCall') {
             // Flush accumulated text before the tool call
             const trimmedText = textAccumulator.trim();
-            if (trimmedText) {
+            const trimmedThinking = thinkingAccumulator.trim();
+            if (trimmedText || trimmedThinking) {
               result.push({
                 id: `${baseId}:text-${blockIndex}`,
                 role,
                 content: trimmedText,
                 timestamp: typedMessage.timestamp,
                 ...assistantFields,
+                ...(trimmedThinking ? { thinkingContent: trimmedThinking } : {}),
               });
               blockIndex += 1;
             }
             textAccumulator = '';
+            thinkingAccumulator = '';
 
             // Emit tool call as a standalone message
             const toolBlock = block as {
@@ -709,13 +720,15 @@ export class PiSessionService {
 
         // Flush any remaining text after the last tool call
         const trimmedText = textAccumulator.trim();
-        if (trimmedText) {
+        const trimmedThinking = thinkingAccumulator.trim();
+        if (trimmedText || trimmedThinking) {
           result.push({
             id: blockIndex > 0 ? `${baseId}:text-${blockIndex}` : baseId,
             role,
             content: trimmedText,
             timestamp: typedMessage.timestamp,
             ...assistantFields,
+            ...(trimmedThinking ? { thinkingContent: trimmedThinking } : {}),
           });
         } else if (blockIndex === 0) {
           // No content blocks produced anything — emit empty message so the UI
@@ -741,6 +754,7 @@ export class PiSessionService {
     const { onEvent } = callbacks;
     let pendingUserSource: ChatSource | null = input.source;
     let currentAssistantText = '';
+    let currentThinkingText = '';
 
     const unsubscribe = this.session.subscribe((event: AgentSessionEvent) => {
       if (
@@ -749,6 +763,7 @@ export class PiSessionService {
       ) {
         const message = event.message as unknown as BasicAssistantMessage;
         currentAssistantText = '';
+        currentThinkingText = '';
         onEvent({
           type: 'message_start',
           provider: message.provider,
@@ -763,6 +778,16 @@ export class PiSessionService {
       ) {
         const message = event.message as unknown as BasicAssistantMessage;
         const msgEvent = event.assistantMessageEvent;
+
+        if (msgEvent.type === 'thinking_delta') {
+          currentThinkingText += msgEvent.delta;
+          onEvent({
+            type: 'thinking_update',
+            thinkingText: currentThinkingText,
+            provider: message.provider,
+            model: message.model,
+          });
+        }
 
         if (msgEvent.type === 'text_delta') {
           currentAssistantText += msgEvent.delta;
