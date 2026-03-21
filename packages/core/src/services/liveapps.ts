@@ -1,6 +1,7 @@
 import type { MiniAppManifest } from '@desktalk/sdk';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { buildLiveAppIconUrl } from './liveapp-icon';
 
 const LIVEAPP_DEFAULT_ICON = '📄';
 const LIVEAPP_TITLE_RE = /<title[^>]*>([\s\S]*?)<\/title>/i;
@@ -10,6 +11,7 @@ export interface LiveAppEntry {
   name: string;
   path: string;
   icon: string;
+  iconPng?: string;
 }
 
 function decodeHtmlEntities(value: string): string {
@@ -65,11 +67,22 @@ export function listLiveApps(userHomeDir: string): LiveAppEntry[] {
       }
 
       const title = extractLiveAppTitle(html) ?? entryName;
+      const iconPath = join(directoryPath, 'icon.png');
+      let iconPng: string | undefined;
+      if (existsSync(iconPath)) {
+        try {
+          iconPng = buildLiveAppIconUrl(entryName, statSync(iconPath).mtimeMs);
+        } catch {
+          iconPng = buildLiveAppIconUrl(entryName);
+        }
+      }
+
       return {
         id: entryName,
         name: title,
         path: `.data/liveapps/${entryName}/index.html`,
         icon: LIVEAPP_DEFAULT_ICON,
+        ...(iconPng ? { iconPng } : {}),
       } satisfies LiveAppEntry;
     })
     .filter((entry): entry is LiveAppEntry => entry !== null)

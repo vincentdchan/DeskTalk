@@ -13,4 +13,5 @@ export interface LiveAppRecord {
   name: string;
   path: string;
   icon: string;
+  iconPng?: string;
 }

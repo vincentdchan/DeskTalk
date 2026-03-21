@@ -39,6 +39,11 @@ import {
   MINIAPP_ICON_SIZES,
   parseMiniAppIconSize,
 } from '../services/miniapp-icon';
+import {
+  LIVEAPP_ICON_CACHE_CONTROL,
+  LIVEAPP_ICON_SIZES,
+  parseLiveAppIconSize,
+} from '../services/liveapp-icon';
 import { listLiveApps } from '../services/liveapps';
 import { validateSession, type PublicUser } from '../services/user-db';
 import { COOKIE_NAME, authRoutes } from './auth-routes';
@@ -714,6 +719,54 @@ export async function createServer(options: ServerOptions) {
     const username = req.user!.username;
     return listLiveApps(getUserHomeDir(username));
   });
+
+  app.get<{ Params: { id: string }; Querystring: { size?: string } }>(
+    '/api/liveapps/:id/icon',
+    async (req, reply) => {
+      const username = req.user!.username;
+      const iconFilePath = join(
+        getUserHomeDir(username),
+        '.data',
+        'liveapps',
+        req.params.id,
+        'icon.png',
+      );
+
+      try {
+        await readFile(iconFilePath);
+      } catch {
+        reply.code(404);
+        return { error: 'LiveApp icon not found' };
+      }
+
+      const size = parseLiveAppIconSize(req.query.size);
+      if (req.query.size !== undefined && size === undefined) {
+        reply.code(400);
+        return {
+          error: `Invalid icon size. Supported sizes: ${LIVEAPP_ICON_SIZES.join(', ')}`,
+        };
+      }
+
+      reply.header('Cache-Control', LIVEAPP_ICON_CACHE_CONTROL);
+      reply.type('image/png');
+
+      if (size === undefined) {
+        return reply.send(createReadStream(iconFilePath));
+      }
+
+      const image = await sharp(iconFilePath)
+        .resize({
+          width: size,
+          height: size,
+          fit: 'cover',
+          withoutEnlargement: true,
+        })
+        .png()
+        .toBuffer();
+
+      return reply.send(image);
+    },
+  );
 
   app.get<{ Params: { id: string }; Querystring: { size?: string } }>(
     '/api/miniapps/:id/icon',

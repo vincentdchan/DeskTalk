@@ -41,6 +41,11 @@ function getToolCallSummary(toolName: string, params: Record<string, unknown>): 
     return title ? `Create LiveApp: ${title}` : 'Create LiveApp';
   }
 
+  if (name === 'generate_icon') {
+    const liveAppId = typeof params.liveAppId === 'string' ? params.liveAppId : null;
+    return liveAppId ? `Generate icon: ${liveAppId}` : 'Generate icon';
+  }
+
   if (name === 'edit') {
     return displayPath ? `Edit ${displayPath}` : 'Edit file';
   }

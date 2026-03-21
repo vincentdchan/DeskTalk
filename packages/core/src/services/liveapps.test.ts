@@ -29,6 +29,7 @@ describe('liveapps', () => {
         '<html><head><title>Project Tracker</title></head><body></body></html>',
         'utf8',
       );
+      writeFileSync(join(liveAppsDir, 'project-tracker_html-stream-1', 'icon.png'), 'png', 'utf8');
       writeFileSync(
         join(liveAppsDir, 'no-title_html-stream-2', 'index.html'),
         '<html><head></head><body></body></html>',
@@ -47,6 +48,9 @@ describe('liveapps', () => {
           name: 'Project Tracker',
           path: '.data/liveapps/project-tracker_html-stream-1/index.html',
           icon: '📄',
+          iconPng: expect.stringMatching(
+            /^\/api\/liveapps\/project-tracker_html-stream-1\/icon\?size=128&v=/,
+          ),
         },
       ]);
     } finally {

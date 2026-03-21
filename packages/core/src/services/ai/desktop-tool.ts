@@ -33,6 +33,7 @@ type DesktopParams = {
 interface DesktopToolOptions {
   windowManager: WindowManagerService;
   getMiniApps: () => MiniAppManifest[];
+  getLiveApps: () => Array<{ id: string; name: string }>;
   activateMiniApp: (miniAppId: string) => void;
   sendAiCommand: SendAiCommand;
 }
@@ -49,7 +50,7 @@ function requireValue<T>(value: T | undefined, message: string): T {
 }
 
 export function createDesktopTool(options: DesktopToolOptions): ToolDefinition {
-  const { windowManager, getMiniApps, activateMiniApp, sendAiCommand } = options;
+  const { windowManager, getMiniApps, getLiveApps, activateMiniApp, sendAiCommand } = options;
 
   return {
     name: 'desktop',
@@ -77,6 +78,7 @@ export function createDesktopTool(options: DesktopToolOptions): ToolDefinition {
             windows,
             focusedWindowActions,
             availableMiniApps: getMiniApps().map((m) => ({ id: m.id, name: m.name })),
+            availableLiveApps: getLiveApps(),
           };
           return {
             content: [{ type: 'text', text: stringify(payload) }],

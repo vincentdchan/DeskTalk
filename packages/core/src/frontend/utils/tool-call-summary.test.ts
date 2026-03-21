@@ -82,6 +82,16 @@ describe('getToolCallSummary', () => {
     expect(getToolCallSummary('create_liveapp', {})).toBe('Create LiveApp');
   });
 
+  it('formats generate_icon tool calls with liveapp id', () => {
+    expect(
+      getToolCallSummary('generate_icon', { liveAppId: 'project-tracker_html-stream-1' }),
+    ).toBe('Generate icon: project-tracker_html-stream-1');
+  });
+
+  it('formats generate_icon tool calls without liveapp id', () => {
+    expect(getToolCallSummary('generate_icon', {})).toBe('Generate icon');
+  });
+
   it('formats edit tool calls with a path', () => {
     expect(getToolCallSummary('edit', { path: '/tmp/preview/index.html' })).toBe(
       'Edit /tmp/preview/index.html',

@@ -182,6 +182,7 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
       id: `liveapp:${app.id}`,
       name: app.name,
       icon: app.icon,
+      iconPng: app.iconPng,
       kind: 'liveapp' as const,
       miniAppId: 'preview',
       args: { path: app.path, liveAppId: app.id },
