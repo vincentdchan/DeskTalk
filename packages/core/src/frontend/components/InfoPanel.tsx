@@ -6,6 +6,13 @@ import { ChatMessageItem } from './ChatMessageItem';
 import { CommandInput } from './CommandInput';
 import styles from './InfoPanel.module.scss';
 
+/** Minimal interface for the `<dt-select>` web component's JS API. */
+interface DtSelectElement extends HTMLElement {
+  options: Array<{ value: string; label: string }>;
+  value: string;
+  disabled: boolean;
+}
+
 interface QueuedPrompt {
   id: string;
   source: 'text' | 'voice';
@@ -15,9 +22,8 @@ interface QueuedPrompt {
 export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsReady: boolean }) {
   const [input, setInput] = useState('');
   const [queuedPrompts, setQueuedPrompts] = useState<QueuedPrompt[]>([]);
-  const [isSessionMenuOpen, setIsSessionMenuOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const sessionMenuRef = useRef<HTMLDivElement>(null);
+  const selectRef = useRef<DtSelectElement | null>(null);
   const sentVoiceUtteranceIdsRef = useRef<Set<string>>(new Set());
   const pendingVoicePromptsRef = useRef<Array<{ utteranceId: string; text: string }>>([]);
 
@@ -46,9 +52,6 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
 
   const isVoiceActive = voiceStatus !== 'idle' && voiceStatus !== 'error';
   const activeAssistantMessageId = activeRequestId ? `assistant-${activeRequestId}` : null;
-  const currentSession = currentSessionId
-    ? (sessions.find((session) => session.id === currentSessionId) ?? null)
-    : null;
   const isSessionInteractionDisabled =
     isAiRunning || !socket || socket.readyState !== WebSocket.OPEN || !wsReady;
 
@@ -127,22 +130,40 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     sentVoiceUtteranceIdsRef.current.clear();
   }, [currentSessionId]);
 
+  // Sync options / value / disabled state to the <dt-select> web component
   useEffect(() => {
-    if (!isSessionMenuOpen) {
-      return;
-    }
+    const el = selectRef.current;
+    if (!el) return;
+    el.options = sessions.map((s) => ({ value: s.id, label: s.label }));
+  }, [sessions]);
 
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!sessionMenuRef.current?.contains(event.target as Node)) {
-        setIsSessionMenuOpen(false);
-      }
+  useEffect(() => {
+    const el = selectRef.current;
+    if (!el) return;
+    el.value = currentSessionId ?? '';
+  }, [currentSessionId]);
+
+  useEffect(() => {
+    const el = selectRef.current;
+    if (!el) return;
+    el.disabled = isSessionInteractionDisabled;
+  }, [isSessionInteractionDisabled]);
+
+  // Listen for dt-change events from <dt-select>
+  useEffect(() => {
+    const el = selectRef.current;
+    if (!el || !socket) return;
+
+    const handleChange = (e: Event) => {
+      const value = (e as CustomEvent<{ value: string }>).detail.value;
+      switchSession(value, socket);
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
+    el.addEventListener('dt-change', handleChange);
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
+      el.removeEventListener('dt-change', handleChange);
     };
-  }, [isSessionMenuOpen]);
+  }, [socket, switchSession]);
 
   useEffect(() => {
     if (
@@ -197,26 +218,12 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, queuedPrompts, transcripts, partialText]);
 
-  const handleSessionSwitch = useCallback(
-    (sessionId: string) => {
-      if (!socket) {
-        return;
-      }
-
-      if (switchSession(sessionId, socket)) {
-        setIsSessionMenuOpen(false);
-      }
-    },
-    [socket, switchSession],
-  );
-
   const handleCreateSession = useCallback(() => {
     if (!socket) {
       return;
     }
 
     if (createSession(socket)) {
-      setIsSessionMenuOpen(false);
       setInput('');
     }
   }, [createSession, socket]);
@@ -224,24 +231,13 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   return (
     <div className={styles.infoPanel}>
       <div className={styles.header}>
-        <div ref={sessionMenuRef} className={styles.headerPrimary}>
-          <div className={styles.headerLabel}>AI Assistant</div>
+        <div className={styles.headerPrimary}>
           <div className={styles.sessionControls}>
-            <button
-              type="button"
-              className={styles.sessionDropdownToggle}
-              onClick={() => setIsSessionMenuOpen((open) => !open)}
-              disabled={isSessionInteractionDisabled}
-              aria-expanded={isSessionMenuOpen}
-              aria-haspopup="menu"
-            >
-              <span className={styles.sessionDropdownLabel}>
-                {currentSession?.label ?? 'New session'}
-              </span>
-              <span className={styles.sessionDropdownChevron} aria-hidden="true">
-                v
-              </span>
-            </button>
+            <dt-select
+              ref={selectRef as React.Ref<never>}
+              placeholder="New session"
+              align="right"
+            />
             <button
               type="button"
               className={styles.newSessionButton}
@@ -252,22 +248,6 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
             >
               +
             </button>
-            {isSessionMenuOpen && (
-              <div className={styles.sessionDropdownMenu} role="menu">
-                {sessions.map((session) => (
-                  <button
-                    key={session.id}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={session.id === currentSessionId}
-                    className={`${styles.sessionMenuItem} ${session.id === currentSessionId ? styles.sessionMenuItemActive : ''}`}
-                    onClick={() => handleSessionSwitch(session.id)}
-                  >
-                    <span className={styles.sessionMenuLabel}>{session.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
         <div className={styles.headerControls}>

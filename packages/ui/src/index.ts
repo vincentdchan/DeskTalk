@@ -7,9 +7,10 @@
 
 import { DtTooltip } from './dt-tooltip';
 import { DtCard } from './dt-card';
+import { DtSelect } from './dt-select';
 import './ui-elements';
 
-export { DtTooltip, DtCard };
+export { DtTooltip, DtCard, DtSelect };
 
 // ── Auto-register ────────────────────────────────────────────────────────────
 
@@ -19,4 +20,8 @@ if (!customElements.get('dt-tooltip')) {
 
 if (!customElements.get('dt-card')) {
   customElements.define('dt-card', DtCard);
+}
+
+if (!customElements.get('dt-select')) {
+  customElements.define('dt-select', DtSelect);
 }
