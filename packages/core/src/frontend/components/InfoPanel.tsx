@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useMemoizedFn as usePersistFn } from 'ahooks';
 import 'streamdown/styles.css';
 import { useVoiceSession } from '../stores/voice-session';
 import { useChatSession, type AiEventMessage } from '../stores/chat-session';
@@ -21,7 +22,6 @@ interface QueuedPrompt {
 }
 
 export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsReady: boolean }) {
-  const [input, setInput] = useState('');
   const [queuedPrompts, setQueuedPrompts] = useState<QueuedPrompt[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const selectRef = useRef<DtSelectElement | null>(null);
@@ -41,6 +41,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const switchSession = useChatSession((s) => s.switchSession);
   const createSession = useChatSession((s) => s.createSession);
   const submitPrompt = useChatSession((s) => s.submitPrompt);
+  const clearDraftInput = useChatSession((s) => s.clearDraftInput);
   const handleAiEvent = useChatSession((s) => s.handleAiEvent);
   const clearMessages = useChatSession((s) => s.clearMessages);
   const addSystemMessage = useChatSession((s) => s.addSystemMessage);
@@ -93,7 +94,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   }, [socket, handleAiEvent]);
 
   // Voice-to-chat bridge: queue final transcripts and flush as prompts
-  const flushPendingVoicePrompts = useCallback(() => {
+  const flushPendingVoicePrompts = usePersistFn(() => {
     if (isAiRunning || !socket || socket.readyState !== WebSocket.OPEN) return;
 
     const nextPrompt = pendingVoicePromptsRef.current.shift();
@@ -103,7 +104,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     if (!didSend) {
       pendingVoicePromptsRef.current.unshift(nextPrompt);
     }
-  }, [isAiRunning, submitPrompt, socket]);
+  });
 
   useEffect(() => {
     for (const entry of transcripts) {
@@ -185,8 +186,8 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     }
   }, [isAiRunning, queuedPrompts, socket, submitPrompt]);
 
-  const handleSend = useCallback(() => {
-    const text = input.trim();
+  const handleSend = usePersistFn(() => {
+    const text = useChatSession.getState().draftInput.trim();
     if (!text || !socket) return;
 
     // Try to handle as a slash command first.
@@ -198,7 +199,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
         addSystemMessage,
       });
       if (handled) {
-        setInput('');
+        clearDraftInput();
         return;
       }
     }
@@ -212,15 +213,15 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
           text,
         },
       ]);
-      setInput('');
+      clearDraftInput();
       return;
     }
 
     const didSend = submitPrompt(text, 'text', socket);
     if (didSend) {
-      setInput('');
+      clearDraftInput();
     }
-  }, [input, isAiRunning, submitPrompt, socket, createSession, clearMessages, addSystemMessage]);
+  });
 
   const handleVoiceToggle = useCallback(() => {
     if (isVoiceActive) {
@@ -241,9 +242,9 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     }
 
     if (createSession(socket)) {
-      setInput('');
+      clearDraftInput();
     }
-  }, [createSession, socket]);
+  }, [clearDraftInput, createSession, socket]);
 
   return (
     <div className={styles.infoPanel}>
@@ -344,8 +345,6 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
       </div>
 
       <CommandInput
-        value={input}
-        onChange={setInput}
         onSubmit={handleSend}
         isAiRunning={isAiRunning}
         queuedCount={queuedPrompts.length}

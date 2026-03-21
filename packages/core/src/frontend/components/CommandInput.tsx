@@ -1,11 +1,11 @@
-import React, { useCallback, useRef, useState, useMemo, useLayoutEffect } from 'react';
+import React, { useRef, useState, useMemo, useLayoutEffect } from 'react';
+import { useMemoizedFn as usePersistFn } from 'ahooks';
+import { useChatSession } from '../stores/chat-session';
 import { MicIcon } from './MicIcon';
 import { matchCommands, getAllCommands } from '../utils/slash-commands';
 import styles from './CommandInput.module.scss';
 
 export interface CommandInputProps {
-  value: string;
-  onChange: (value: string) => void;
   onSubmit: () => void;
   isAiRunning: boolean;
   queuedCount: number;
@@ -18,8 +18,6 @@ export interface CommandInputProps {
 const MAX_TEXTAREA_HEIGHT = 200;
 
 export function CommandInput({
-  value,
-  onChange,
   onSubmit,
   isAiRunning,
   queuedCount,
@@ -28,6 +26,9 @@ export function CommandInput({
   modelLabel,
   wsReady,
 }: CommandInputProps) {
+  const value = useChatSession((state) => state.draftInput);
+  const setDraftInput = useChatSession((state) => state.setDraftInput);
+  const clearDraftInput = useChatSession((state) => state.clearDraftInput);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedIdx, setSelectedIdx] = useState(0);
 
@@ -48,51 +49,44 @@ export function CommandInput({
 
   const showSuggestions = suggestions.length > 0;
 
-  const acceptSuggestion = useCallback(
-    (idx: number) => {
-      const cmd = suggestions[idx];
-      if (!cmd) return;
-      onChange(`/${cmd.name} `);
-      setSelectedIdx(0);
-      textareaRef.current?.focus();
-    },
-    [suggestions, onChange],
-  );
+  const acceptSuggestion = usePersistFn((idx: number) => {
+    const cmd = suggestions[idx];
+    if (!cmd) return;
+    setDraftInput(`/${cmd.name} `);
+    setSelectedIdx(0);
+    textareaRef.current?.focus();
+  });
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (showSuggestions) {
-        if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          setSelectedIdx((prev) => (prev <= 0 ? suggestions.length - 1 : prev - 1));
-          return;
-        }
-        if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          setSelectedIdx((prev) => (prev >= suggestions.length - 1 ? 0 : prev + 1));
-          return;
-        }
-        if (e.key === 'Tab') {
-          e.preventDefault();
-          acceptSuggestion(selectedIdx);
-          return;
-        }
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          // Clear the slash prefix so menu closes; reset to empty.
-          onChange('');
-          setSelectedIdx(0);
-          return;
-        }
-      }
-
-      if (e.key === 'Enter' && !e.shiftKey) {
+  const handleKeyDown = usePersistFn((e: React.KeyboardEvent) => {
+    if (showSuggestions) {
+      if (e.key === 'ArrowUp') {
         e.preventDefault();
-        onSubmit();
+        setSelectedIdx((prev) => (prev <= 0 ? suggestions.length - 1 : prev - 1));
+        return;
       }
-    },
-    [onSubmit, showSuggestions, suggestions.length, selectedIdx, acceptSuggestion, onChange],
-  );
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIdx((prev) => (prev >= suggestions.length - 1 ? 0 : prev + 1));
+        return;
+      }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        acceptSuggestion(selectedIdx);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        clearDraftInput();
+        setSelectedIdx(0);
+        return;
+      }
+    }
+
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      onSubmit();
+    }
+  });
 
   // Reset the selected index whenever the suggestion list changes.
   useLayoutEffect(() => {
@@ -136,7 +130,7 @@ export function CommandInput({
           ref={textareaRef}
           className={styles.input}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => setDraftInput(e.target.value)}
           onKeyDown={handleKeyDown}
           rows={1}
           placeholder={

@@ -75,6 +75,8 @@ export interface AiEventMessage {
 export interface ChatSessionState {
   /** Chat message history */
   messages: ChatMessage[];
+  /** Local draft text shown in the command textarea. */
+  draftInput: string;
   /** Whether an AI request is in progress */
   isAiRunning: boolean;
   /** ID of the active request (null when idle) */
@@ -98,6 +100,8 @@ export interface ChatSessionState {
   switchSession: (sessionId: string, socket: WebSocket) => boolean;
   createSession: (socket: WebSocket) => boolean;
   submitPrompt: (text: string, source: 'text' | 'voice', socket: WebSocket) => boolean;
+  setDraftInput: (value: string) => void;
+  clearDraftInput: () => void;
   handleAiEvent: (event: AiEventMessage) => void;
   /** Clear all messages in the current session (client-side only). */
   clearMessages: () => void;
@@ -116,6 +120,7 @@ function getProviderStatusLabel(providerId: string, providers: AiProviderOption[
 
 export const useChatSession = create<ChatSessionState>((set, get) => ({
   messages: [],
+  draftInput: '',
   isAiRunning: false,
   activeRequestId: null,
   modelLabel: 'not configured',
@@ -238,6 +243,14 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
     );
 
     return true;
+  },
+
+  setDraftInput(value: string) {
+    set({ draftInput: value });
+  },
+
+  clearDraftInput() {
+    set({ draftInput: '' });
   },
 
   handleAiEvent(event: AiEventMessage) {

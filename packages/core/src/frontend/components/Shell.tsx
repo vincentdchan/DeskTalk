@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useEventListener } from 'ahooks';
 import type { MiniAppManifest, WindowState } from '@desktalk/sdk';
 import { initMessaging } from '@desktalk/sdk';
 import type { ActionDefinition, ActionHandler } from '@desktalk/sdk';
@@ -401,103 +402,89 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
   // document.activeElement points to the <iframe> element.  We walk up from
   // it to find the ancestor WindowChrome (via data-window-id) and focus the
   // corresponding window in the store.
-  useEffect(() => {
-    const handleWindowBlur = () => {
-      // Use a rAF so the browser has time to update document.activeElement
-      requestAnimationFrame(() => {
-        const active = document.activeElement;
-        if (!active || active.tagName !== 'IFRAME') return;
+  useEventListener('blur', () => {
+    // Use a rAF so the browser has time to update document.activeElement
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (!active || active.tagName !== 'IFRAME') return;
 
-        const chromeEl = active.closest<HTMLElement>('[data-window-id]');
-        if (!chromeEl) return;
+      const chromeEl = active.closest<HTMLElement>('[data-window-id]');
+      if (!chromeEl) return;
 
-        const windowId = chromeEl.dataset.windowId;
-        if (!windowId) return;
+      const windowId = chromeEl.dataset.windowId;
+      if (!windowId) return;
 
-        const state = useWindowManager.getState();
-        if (state.focusedWindowId !== windowId) {
-          state.focusWindow(windowId);
-        }
-      });
-    };
-
-    window.addEventListener('blur', handleWindowBlur);
-    return () => {
-      window.removeEventListener('blur', handleWindowBlur);
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleBridgeStateRequest = (event: Event) => {
-      const detail = (event as CustomEvent<BridgeStateRequestDetail>).detail;
-      if (!detail?.selector) {
-        return;
+      const state = useWindowManager.getState();
+      if (state.focusedWindowId !== windowId) {
+        state.focusWindow(windowId);
       }
+    });
+  });
 
-      const store = useWindowManager.getState();
-      const summarizeWindow = (windowData: WindowState) => ({
-        id: windowData.id,
-        miniAppId: windowData.miniAppId,
-        title: windowData.title,
-        focused: windowData.id === store.focusedWindowId,
-        maximized: windowData.id === store.fullscreenWindowId || !!windowData.maximized,
-      });
+  useEventListener('desktalk:bridge:get-state', (event: Event) => {
+    const detail = (event as CustomEvent<BridgeStateRequestDetail>).detail;
+    if (!detail?.selector) {
+      return;
+    }
 
-      try {
-        switch (detail.selector) {
-          case 'desktop.summary':
-            detail.resolve({
-              focusedWindowId: store.focusedWindowId,
-              fullscreenWindowId: store.fullscreenWindowId,
-              windows: store.windows.map(summarizeWindow),
-            });
-            return;
-          case 'desktop.windows':
-            detail.resolve(store.windows.map(summarizeWindow));
-            return;
-          case 'desktop.focusedWindow': {
-            const focusedWindow = store.windows.find(
-              (windowData) => windowData.id === store.focusedWindowId,
-            );
-            detail.resolve(focusedWindow ? summarizeWindow(focusedWindow) : null);
-            return;
-          }
-          case 'theme.current': {
-            const computedStyle = getComputedStyle(document.documentElement);
-            const tokens = [
-              '--dt-bg',
-              '--dt-bg-subtle',
-              '--dt-surface',
-              '--dt-text',
-              '--dt-text-secondary',
-              '--dt-text-muted',
-              '--dt-border',
-              '--dt-accent',
-              '--dt-danger',
-              '--dt-success',
-              '--dt-warning',
-              '--dt-info',
-            ].reduce<Record<string, string>>((acc, tokenName) => {
-              acc[tokenName] = computedStyle.getPropertyValue(tokenName).trim();
-              return acc;
-            }, {});
-            detail.resolve({
-              mode: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
-              tokens,
-            });
-            return;
-          }
+    const store = useWindowManager.getState();
+    const summarizeWindow = (windowData: WindowState) => ({
+      id: windowData.id,
+      miniAppId: windowData.miniAppId,
+      title: windowData.title,
+      focused: windowData.id === store.focusedWindowId,
+      maximized: windowData.id === store.fullscreenWindowId || !!windowData.maximized,
+    });
+
+    try {
+      switch (detail.selector) {
+        case 'desktop.summary':
+          detail.resolve({
+            focusedWindowId: store.focusedWindowId,
+            fullscreenWindowId: store.fullscreenWindowId,
+            windows: store.windows.map(summarizeWindow),
+          });
+          return;
+        case 'desktop.windows':
+          detail.resolve(store.windows.map(summarizeWindow));
+          return;
+        case 'desktop.focusedWindow': {
+          const focusedWindow = store.windows.find(
+            (windowData) => windowData.id === store.focusedWindowId,
+          );
+          detail.resolve(focusedWindow ? summarizeWindow(focusedWindow) : null);
+          return;
         }
-      } catch (error) {
-        detail.reject((error as Error).message);
+        case 'theme.current': {
+          const computedStyle = getComputedStyle(document.documentElement);
+          const tokens = [
+            '--dt-bg',
+            '--dt-bg-subtle',
+            '--dt-surface',
+            '--dt-text',
+            '--dt-text-secondary',
+            '--dt-text-muted',
+            '--dt-border',
+            '--dt-accent',
+            '--dt-danger',
+            '--dt-success',
+            '--dt-warning',
+            '--dt-info',
+          ].reduce<Record<string, string>>((acc, tokenName) => {
+            acc[tokenName] = computedStyle.getPropertyValue(tokenName).trim();
+            return acc;
+          }, {});
+          detail.resolve({
+            mode: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
+            tokens,
+          });
+          return;
+        }
       }
-    };
-
-    window.addEventListener('desktalk:bridge:get-state', handleBridgeStateRequest);
-    return () => {
-      window.removeEventListener('desktalk:bridge:get-state', handleBridgeStateRequest);
-    };
-  }, []);
+    } catch (error) {
+      detail.reject((error as Error).message);
+    }
+  });
 
   const windowsById = new Map(windows.map((win) => [win.id, win]));
   const fullscreenWindow = fullscreenWindowId ? windowsById.get(fullscreenWindowId) : undefined;
@@ -725,67 +712,53 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
   }
 
   // Listen for MiniApp action registrations from within windows
-  useEffect(() => {
-    const handleActionsChanged = (event: Event) => {
-      const customEvent = event as CustomEvent<{
-        windowId: string;
-        actions: ActionDefinition[];
-      }>;
-      if (!customEvent.detail?.windowId) return;
+  useEventListener('desktalk:actions-changed', (event: Event) => {
+    const customEvent = event as CustomEvent<{
+      windowId: string;
+      actions: ActionDefinition[];
+    }>;
+    if (!customEvent.detail?.windowId) return;
 
-      const actions = customEvent.detail.actions ?? [];
-      actionHandlersRef.current.set(
-        customEvent.detail.windowId,
-        new Map(actions.map((action) => [action.name, action.handler])),
-      );
-      reportWindowActions(
-        customEvent.detail.windowId,
-        actions.map((action) => ({
-          name: action.name,
-          description: action.description,
-          params: action.params,
-        })),
-      );
+    const actions = customEvent.detail.actions ?? [];
+    actionHandlersRef.current.set(
+      customEvent.detail.windowId,
+      new Map(actions.map((action) => [action.name, action.handler])),
+    );
+    reportWindowActions(
+      customEvent.detail.windowId,
+      actions.map((action) => ({
+        name: action.name,
+        description: action.description,
+        params: action.params,
+      })),
+    );
 
-      setWindowActions(
-        customEvent.detail.windowId,
-        buildClientActions(customEvent.detail.windowId, actions),
-      );
-    };
-
-    window.addEventListener('desktalk:actions-changed', handleActionsChanged);
-    return () => {
-      window.removeEventListener('desktalk:actions-changed', handleActionsChanged);
-    };
-  }, [buildClientActions, setWindowActions]);
+    setWindowActions(
+      customEvent.detail.windowId,
+      buildClientActions(customEvent.detail.windowId, actions),
+    );
+  });
 
   // Listen for MiniApp requests to open another MiniApp window
-  useEffect(() => {
-    const handleOpenWindow = (event: Event) => {
-      const { miniAppId, args } = (
-        event as CustomEvent<{ miniAppId: string; args?: Record<string, unknown> }>
-      ).detail;
-      if (!miniAppId) return;
+  useEventListener('desktalk:open-window', (event: Event) => {
+    const { miniAppId, args } = (
+      event as CustomEvent<{ miniAppId: string; args?: Record<string, unknown> }>
+    ).detail;
+    if (!miniAppId) return;
 
-      void (async () => {
-        try {
-          await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {
-            args,
-          });
-          const manifest = manifests.find((m) => m.id === miniAppId);
-          const title = manifest?.name ?? miniAppId;
-          useWindowManager.getState().openWindow(miniAppId, title, args);
-        } catch (err) {
-          console.error('[shell] Could not open MiniApp window:', err);
-        }
-      })();
-    };
-
-    window.addEventListener('desktalk:open-window', handleOpenWindow);
-    return () => {
-      window.removeEventListener('desktalk:open-window', handleOpenWindow);
-    };
-  }, [manifests]);
+    void (async () => {
+      try {
+        await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {
+          args,
+        });
+        const manifest = manifests.find((m) => m.id === miniAppId);
+        const title = manifest?.name ?? miniAppId;
+        useWindowManager.getState().openWindow(miniAppId, title, args);
+      } catch (err) {
+        console.error('[shell] Could not open MiniApp window:', err);
+      }
+    })();
+  });
 
   const handleLaunch = useCallback(
     async (miniAppId: string) => {
