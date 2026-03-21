@@ -21,6 +21,7 @@ import { loadMiniAppModule } from '../miniapp-runtime';
 import type { MiniAppFrontendModule } from '../miniapp-runtime';
 import { httpClient } from '../http-client';
 import type { TilingNode, TreePath } from '../tiling-tree';
+import type { ThemePreferences } from '../theme';
 import styles from './Shell.module.scss';
 
 const TILE_GAP = 4;
@@ -69,10 +70,12 @@ function MiniAppWindow({
   miniAppId,
   windowId,
   args,
+  themePreferences,
 }: {
   miniAppId: string;
   windowId: string;
   args?: Record<string, unknown>;
+  themePreferences: ThemePreferences;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +94,11 @@ function MiniAppWindow({
             miniAppId,
             windowId,
             args,
-          });
+            theme: {
+              accentColor: themePreferences.accentColor,
+              mode: themePreferences.theme,
+            },
+          } as import('@desktalk/sdk').MiniAppFrontendContext);
           setError(null);
         }
       })
@@ -112,7 +119,7 @@ function MiniAppWindow({
         });
       }
     };
-  }, [miniAppId, windowId]);
+  }, [args, miniAppId, themePreferences.accentColor, themePreferences.theme, windowId]);
 
   if (error) {
     return <MiniAppLoadError miniAppId={miniAppId} message={error} />;
@@ -276,16 +283,23 @@ function useDesktopBounds(desktopRef: React.RefObject<HTMLDivElement | null>) {
 
 function WindowTile({
   win,
+  themePreferences,
   isOverlayMaximized = false,
   draggable = false,
 }: {
   win: WindowState;
+  themePreferences: ThemePreferences;
   isOverlayMaximized?: boolean;
   draggable?: boolean;
 }) {
   return (
     <WindowChrome window={win} isOverlayMaximized={isOverlayMaximized} draggable={draggable}>
-      <MiniAppWindow miniAppId={win.miniAppId} windowId={win.id} args={win.args} />
+      <MiniAppWindow
+        miniAppId={win.miniAppId}
+        windowId={win.id}
+        args={win.args}
+        themePreferences={themePreferences}
+      />
     </WindowChrome>
   );
 }
@@ -293,11 +307,13 @@ function WindowTile({
 function TilingTreeView({
   node,
   windowsById,
+  themePreferences,
   path = [],
   canDrag = false,
 }: {
   node: TilingNode;
   windowsById: Map<string, WindowState>;
+  themePreferences: ThemePreferences;
   path?: TreePath;
   canDrag?: boolean;
 }) {
@@ -309,7 +325,12 @@ function TilingTreeView({
 
     return (
       <div className={styles.tileLeaf}>
-        <WindowTile win={win} isOverlayMaximized={win.maximized} draggable={canDrag} />
+        <WindowTile
+          win={win}
+          themePreferences={themePreferences}
+          isOverlayMaximized={win.maximized}
+          draggable={canDrag}
+        />
       </div>
     );
   }
@@ -337,6 +358,7 @@ function TilingTreeView({
         <TilingTreeView
           node={first}
           windowsById={windowsById}
+          themePreferences={themePreferences}
           path={[...path, 0]}
           canDrag={canDrag}
         />
@@ -346,6 +368,7 @@ function TilingTreeView({
         <TilingTreeView
           node={second}
           windowsById={windowsById}
+          themePreferences={themePreferences}
           path={[...path, 1]}
           canDrag={canDrag}
         />
@@ -354,7 +377,7 @@ function TilingTreeView({
   );
 }
 
-export function Shell() {
+export function Shell({ themePreferences }: { themePreferences: ThemePreferences }) {
   const { status: connectionStatus, socket, retryInSeconds } = useWebSocket();
   const wsReady = connectionStatus === 'connected';
 
@@ -797,6 +820,7 @@ export function Shell() {
                 <TilingTreeView
                   node={tree}
                   windowsById={windowsById}
+                  themePreferences={themePreferences}
                   canDrag={tree.type === 'container'}
                 />
               )

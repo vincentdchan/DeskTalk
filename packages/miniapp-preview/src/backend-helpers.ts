@@ -1,6 +1,10 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdirSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { StreamedHtmlSnapshot } from './types';
+import { stripDtInjections } from './strip-dt-injections';
+
+export { stripDtInjections } from './strip-dt-injections';
 
 const SUPPORTED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 
@@ -119,12 +123,13 @@ export async function saveStreamedHtml(
   content: string,
 ): Promise<StreamedHtmlSnapshot> {
   const path = getStreamedAbsolutePath(dataDir, streamId, title);
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, content, 'utf8');
+  const strippedContent = stripDtInjections(content);
+  mkdirSync(dirname(path), { recursive: true });
+  await writeFile(path, strippedContent, 'utf8');
   return {
     name: fileName(path),
     path: getStreamedRelativePath(streamId, title),
-    content,
+    content: strippedContent,
   };
 }
 

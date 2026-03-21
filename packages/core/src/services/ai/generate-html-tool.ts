@@ -169,7 +169,7 @@ export function createGenerateHtmlTool(options: GenerateHtmlToolOptions): ToolDe
       });
 
       // Signal that streaming is complete
-      broadcastEvent('preview', 'preview.html-done', { streamId });
+      broadcastEvent('preview', 'preview.html-done', { streamId, html: input.content });
 
       const result = {
         ok: true,

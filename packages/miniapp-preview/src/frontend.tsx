@@ -20,6 +20,7 @@ import { ImageViewport } from './components/ImageViewport';
 import { HtmlViewport } from './components/HtmlViewport';
 import { PreviewActions } from './components/PreviewActions';
 import { BridgeConfirmDialog } from './components/BridgeConfirmDialog';
+import { injectDtRuntime, type PreviewThemeRuntime } from './html-injections';
 import styles from './PreviewApp.module.css';
 
 function requestCoreBridgeState(selector: PreviewBridgeGetStatePayload['selector']): unknown {
@@ -76,12 +77,14 @@ function PreviewApp({
   streamId,
   streamTitle,
   bridgeToken,
+  theme,
 }: {
   initialPath?: string;
   mode: PreviewMode;
   streamId?: string;
   streamTitle?: string;
   bridgeToken?: string;
+  theme: PreviewThemeRuntime;
 }) {
   const windowId = useWindowId();
   // ─── Image-mode state ───────────────────────────────────────────────────
@@ -149,16 +152,17 @@ function PreviewApp({
     });
   });
 
-  useEvent<{ streamId: string }>('preview.html-done', (data) => {
+  useEvent<{ streamId: string; html?: string }>('preview.html-done', (data) => {
     if (mode !== 'stream' || data.streamId !== streamId) return;
     setStreaming(false);
     if (!streamId || !streamTitle) {
       return;
     }
+    const htmlToSave = typeof data.html === 'string' ? data.html : streamHtmlRef.current;
     void saveStreamedHtml({
       streamId,
       title: streamTitle,
-      content: streamHtmlRef.current,
+      content: htmlToSave,
     })
       .then(setStreamSnapshot)
       .catch((saveError) => {
@@ -203,8 +207,15 @@ function PreviewApp({
         if (cancelled || !snapshot) {
           return;
         }
-        setStreamHtml(snapshot.content);
-        streamHtmlRef.current = snapshot.content;
+        const nextHtml = bridgeToken
+          ? injectDtRuntime(snapshot.content, {
+              theme,
+              streamId,
+              bridgeToken,
+            })
+          : snapshot.content;
+        setStreamHtml(nextHtml);
+        streamHtmlRef.current = nextHtml;
         setStreamSnapshot(snapshot);
         setStreaming(false);
       })
@@ -217,7 +228,7 @@ function PreviewApp({
     return () => {
       cancelled = true;
     };
-  }, [loadStreamedHtml, mode, streamId, streamTitle]);
+  }, [bridgeToken, loadStreamedHtml, mode, streamId, streamTitle, theme]);
 
   useEffect(() => {
     if (mode !== 'stream' || !streamId || !bridgeToken) {
@@ -498,15 +509,22 @@ function PreviewApp({
         if (!snapshot) {
           throw new Error('Saved streamed HTML file was not found.');
         }
-        setStreamHtml(snapshot.content);
-        streamHtmlRef.current = snapshot.content;
+        const nextHtml = bridgeToken
+          ? injectDtRuntime(snapshot.content, {
+              theme,
+              streamId,
+              bridgeToken,
+            })
+          : snapshot.content;
+        setStreamHtml(nextHtml);
+        streamHtmlRef.current = nextHtml;
         setStreamSnapshot(snapshot);
       })
       .catch((loadError) => {
         console.error('Failed to refresh streamed HTML from file:', loadError);
         setError((loadError as Error).message);
       });
-  }, [loadStreamedHtml, streamId, streamTitle]);
+  }, [bridgeToken, loadStreamedHtml, streamId, streamTitle, theme]);
 
   // ─── Render ─────────────────────────────────────────────────────────────
 
@@ -609,11 +627,16 @@ function PreviewApp({
 }
 
 export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation {
+  const themedContext = ctx as MiniAppFrontendContext & { theme?: PreviewThemeRuntime };
   const mode = detectMode(ctx.args);
   const initialPath = typeof ctx.args?.path === 'string' ? ctx.args.path : undefined;
   const streamId = typeof ctx.args?.streamId === 'string' ? ctx.args.streamId : undefined;
   const streamTitle = typeof ctx.args?.title === 'string' ? ctx.args.title : undefined;
   const bridgeToken = typeof ctx.args?.bridgeToken === 'string' ? ctx.args.bridgeToken : undefined;
+  const theme: PreviewThemeRuntime = {
+    accentColor: themedContext.theme?.accentColor ?? '#7c6ff7',
+    mode: themedContext.theme?.mode === 'light' ? 'light' : 'dark',
+  };
 
   const root = createRoot(ctx.root);
   root.render(
@@ -625,6 +648,7 @@ export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation
           streamId={streamId}
           streamTitle={streamTitle}
           bridgeToken={bridgeToken}
+          theme={theme}
         />
       </MiniAppIdProvider>
     </WindowIdProvider>,

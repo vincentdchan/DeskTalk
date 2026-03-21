@@ -44,6 +44,8 @@ export interface MiniAppFrontendContext {
   windowId: string;
   /** Optional launch arguments passed when the window was opened (e.g. by the AI). */
   args?: Record<string, unknown>;
+  /** Current DeskTalk theme preferences for runtime HTML injection. */
+  theme?: { accentColor: string; mode: 'light' | 'dark' };
 }
 
 /**
