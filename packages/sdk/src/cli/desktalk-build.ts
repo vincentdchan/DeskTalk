@@ -489,6 +489,52 @@ function createLocalizeTransformPlugin(packageScope: string, sourceRoot: string)
   };
 }
 
+function copyMatchingFiles(options: {
+  sourceDir: string;
+  destDir: string;
+  include: (filePath: string) => boolean;
+}): void {
+  if (!existsSync(options.sourceDir)) {
+    return;
+  }
+
+  for (const entry of readdirSync(options.sourceDir, { withFileTypes: true })) {
+    const sourcePath = join(options.sourceDir, entry.name);
+    const destPath = join(options.destDir, entry.name);
+
+    if (entry.isDirectory()) {
+      copyMatchingFiles({
+        sourceDir: sourcePath,
+        destDir: destPath,
+        include: options.include,
+      });
+      continue;
+    }
+
+    if (!options.include(sourcePath)) {
+      continue;
+    }
+
+    mkdirSync(options.destDir, { recursive: true });
+    copyFileSync(sourcePath, destPath);
+  }
+}
+
+function createMarkdownCopyPlugin(sourceRoot: string, distRoot: string): esbuild.Plugin {
+  return {
+    name: 'desktalk-copy-markdown-assets',
+    setup(build) {
+      build.onEnd(() => {
+        copyMatchingFiles({
+          sourceDir: sourceRoot,
+          destDir: distRoot,
+          include: (filePath) => filePath.endsWith('.md'),
+        });
+      });
+    },
+  };
+}
+
 function emitI18nAssets(options: {
   packageRoot: string;
   manifest: PackageI18nManifest;
@@ -568,7 +614,10 @@ await esbuild.build({
   target: 'es2022',
   sourcemap: true,
   packages: 'external',
-  plugins: [createLocalizeTransformPlugin(packageScope, join(cwd, 'src'))],
+  plugins: [
+    createLocalizeTransformPlugin(packageScope, join(cwd, 'src')),
+    createMarkdownCopyPlugin(join(cwd, 'src'), join(cwd, 'dist')),
+  ],
 });
 
 console.log('[desktalk-build] Building frontend...');
@@ -594,6 +643,7 @@ try {
     plugins: [
       createWindowGlobalsPlugin(),
       createLocalizeTransformPlugin(packageScope, join(cwd, 'src')),
+      createMarkdownCopyPlugin(join(cwd, 'src'), join(cwd, 'dist')),
     ],
   });
 
@@ -624,6 +674,7 @@ try {
     plugins: [
       createWindowGlobalsPlugin(),
       createLocalizeTransformPlugin(packageScope, join(cwd, 'src')),
+      createMarkdownCopyPlugin(join(cwd, 'src'), join(cwd, 'dist')),
     ],
   });
 

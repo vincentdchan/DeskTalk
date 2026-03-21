@@ -52,6 +52,8 @@ This enables the AI to show charts, data visualizations, interactive demos, styl
 
 After a streamed document is saved, the AI can edit it through the core `edit` tool. The tool writes the updated file, records edit history, and emits `preview.file-changed` so the currently open Preview window can fully reload its iframe.
 
+For the exact agent workflow around generation and editing, the AI can consult `read_manual` pages such as `html/layouts`, `html/examples`, and `editing/preview`.
+
 ## UI Layout
 
 ### Image Mode

@@ -380,7 +380,15 @@ const { session } = await createAgentSession({
   authStorage,
   modelRegistry,
   tools: [readTool],
-  customTools: [desktopTool, actionTool, generateHtmlTool, editTool, undoEditTool, redoEditTool],
+  customTools: [
+    desktopTool,
+    actionTool,
+    generateHtmlTool,
+    editTool,
+    undoEditTool,
+    redoEditTool,
+    readManualTool,
+  ],
 });
 ```
 
@@ -388,15 +396,15 @@ const { session } = await createAgentSession({
 
 Pi's built-in tools stay tightly constrained in DeskTalk. The built-in `read` tool is enabled so the AI can inspect files when needed, but unrestricted filesystem and shell tools remain disabled. The AI primarily interacts with DeskTalk through custom tools:
 
-| Tool                   | Description                                                                                                        |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `desktop`              | Lists windows, exposes the focused window, and opens MiniApps.                                                     |
-| `action`               | Invokes a named action on a MiniApp window, usually the focused one.                                               |
-| `generate_html`        | Generates a self-contained HTML document and streams it into a Preview window's sandboxed iframe.                  |
-| `edit`                 | Replaces one exact text match in a managed file, records persistent history, and broadcasts Preview reload events. |
-| `undo_edit`            | Restores the previous saved version of a managed file from persistent history.                                     |
-| `redo_edit`            | Re-applies the next saved version of a managed file from persistent history.                                       |
-| `read_html_guidelines` | Returns the full HTML-generation guidance for DeskTalk previews.                                                   |
+| Tool            | Description                                                                                                        |
+| --------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `desktop`       | Lists windows, exposes the focused window, and opens MiniApps.                                                     |
+| `action`        | Invokes a named action on a MiniApp window, usually the focused one.                                               |
+| `generate_html` | Generates a self-contained HTML document and streams it into a Preview window's sandboxed iframe.                  |
+| `edit`          | Replaces one exact text match in a managed file, records persistent history, and broadcasts Preview reload events. |
+| `undo_edit`     | Restores the previous saved version of a managed file from persistent history.                                     |
+| `redo_edit`     | Re-applies the next saved version of a managed file from persistent history.                                       |
+| `read_manual`   | Returns paged DeskTalk manuals for HTML generation, desktop operations, actions, and Preview editing workflows.    |
 
 ```ts
 import { Type } from '@sinclair/typebox';

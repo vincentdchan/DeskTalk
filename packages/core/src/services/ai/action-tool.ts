@@ -43,6 +43,7 @@ export function createActionTool(options: ActionToolOptions): ToolDefinition {
       'Read the [Desktop Context] block in the user message to see available actions and their params.',
       'Provide all required params as a JSON object.',
       'If windowId is omitted, the action runs on the focused window.',
+      'Call `read_manual` with `page: "desktop/actions"` when you need the full action-invocation workflow.',
     ],
     parameters: actionSchema,
     async execute(_toolCallId, params) {

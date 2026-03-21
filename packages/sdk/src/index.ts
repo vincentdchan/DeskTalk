@@ -1,5 +1,9 @@
 // @desktalk/sdk - Shared types and React hooks for MiniApp development
 
+// ─── Utilities ───────────────────────────────────────────────────────────────
+
+export { simplifyPath } from './utils/path';
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type {

@@ -1,9 +1,12 @@
 import React from 'react';
+import { simplifyPath } from '@desktalk/sdk';
 import type { PreviewMode } from '../types';
 import styles from '../PreviewApp.module.css';
 
 interface PreviewToolbarProps {
   filename: string;
+  /** File path shown in the address bar for html/stream modes. */
+  filepath?: string;
   mode: PreviewMode;
   /** Only used in image mode. */
   zoomPercent?: number;
@@ -22,6 +25,7 @@ interface PreviewToolbarProps {
 
 export function PreviewToolbar({
   filename,
+  filepath,
   mode,
   zoomPercent,
   canGoPrev,
@@ -35,23 +39,98 @@ export function PreviewToolbar({
   streaming,
   onRefreshFromFile,
 }: PreviewToolbarProps) {
-  // HTML and stream modes: show only the title (and an optional streaming indicator)
+  // HTML and stream modes: browser-like toolbar
   if (mode === 'html' || mode === 'stream') {
     return (
       <div className={styles.toolbar}>
-        <span className={styles.filename} title={filename}>
-          {filename}
-        </span>
-        {streaming && <span className={styles.zoomIndicator}>Streaming...</span>}
-        {!streaming && onRefreshFromFile ? (
-          <button
-            className={styles.refreshBtn}
-            onClick={onRefreshFromFile}
-            title="Refresh from file"
-          >
-            Refresh
+        {/* Left: Navigation buttons */}
+        <div className={styles.browserNavGroup}>
+          {!streaming && onRefreshFromFile ? (
+            <button
+              className={styles.browserNavBtn}
+              onClick={onRefreshFromFile}
+              title="Refresh"
+              aria-label="Refresh"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+            </button>
+          ) : (
+            <button className={styles.browserNavBtn} disabled aria-hidden="true">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* Center: Address bar */}
+        <div className={styles.addressBar}>
+          {streaming ? (
+            <div className={styles.streamingIndicator}>
+              <span className={styles.streamingDot}></span>
+              <span>Streaming...</span>
+            </div>
+          ) : (
+            <>
+              <svg
+                className={styles.lockIcon}
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span className={styles.addressText} title={filepath || filename}>
+                file://{simplifyPath(filepath || filename)}
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* Right: spacer to balance layout */}
+        <div className={styles.browserNavGroup} style={{ visibility: 'hidden' }}>
+          <button className={styles.browserNavBtn} disabled>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
           </button>
-        ) : null}
+        </div>
       </div>
     );
   }

@@ -60,6 +60,7 @@ export function createDesktopTool(options: DesktopToolOptions): ToolDefinition {
     promptGuidelines: [
       'Use action="list" to get the latest window IDs and desktop state.',
       'Use action="open" with miniAppId to launch a MiniApp. Pass args to provide initial context (e.g. { path: "photos/cat.png" } for Preview). If a window with the same miniAppId and shallow-equal args already exists, it will be focused instead of opening a duplicate.',
+      'Call `read_manual` with `page: "desktop/windows"` when you need the full DeskTalk window-management reference.',
     ],
     parameters: desktopSchema,
     async execute(_toolCallId, params) {

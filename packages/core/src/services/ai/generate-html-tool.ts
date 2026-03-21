@@ -98,10 +98,10 @@ export function createGenerateHtmlTool(options: GenerateHtmlToolOptions): ToolDe
     promptGuidelines: [
       'Use this tool when the user asks you to show, visualize, display, or render something visually.',
       'Provide a complete, self-contained HTML document including <html>, <head>, and <body> tags.',
-      'Follow the HTML Generation Rules in the system prompt — use `<dt-card>` for content sections, no custom container classes, no styling headings/paragraphs.',
+      'Follow DeskTalk HTML manual guidance for `<dt-card>` usage, layout rules, and pre-styled typography.',
       'Generated previews automatically receive a `window.DeskTalk` bridge for reading safe desktop state and running constrained commands.',
       'The bridge exposes `exec` / `execute` — both accept either a shell string (`window.DeskTalk.exec("ls -la")`) or explicit arguments (`window.DeskTalk.exec("ls", ["-la"])`).',
-      'Call read_html_guidelines for the full DeskTalk token, utility-class, and component reference.',
+      'Call `read_manual` with pages such as `html/tokens`, `html/components`, `html/layouts`, `html/bridge`, or `html/examples` when you need the full DeskTalk reference.',
     ],
     parameters: generateHtmlSchema,
     async execute(_toolCallId, params) {
