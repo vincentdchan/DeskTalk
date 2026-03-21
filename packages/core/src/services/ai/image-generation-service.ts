@@ -7,7 +7,7 @@ const ICON_PROMPT_PREFIX =
   'A minimal flat-design app icon: ${description}. Single centered symbol, solid color background, rounded square, clean and modern, no text, 256x256 pixels.';
 
 const OPENAI_ICON_MODEL = 'dall-e-3';
-const OPENROUTER_ICON_MODEL = 'openai/dall-e-3';
+const OPENROUTER_ICON_MODEL = 'google/gemini-3.1-flash-image-preview';
 const GOOGLE_ICON_MODEL = 'gemini-2.0-flash-preview-image-generation';
 
 export interface GeneratedIconResult {
@@ -49,6 +49,23 @@ function decodeBase64Image(data: string): Buffer {
   return Buffer.from(data, 'base64');
 }
 
+function decodeDataUrlImage(dataUrl: string): Buffer {
+  const match = dataUrl.match(/^data:[^;]+;base64,(.+)$/);
+  if (!match) {
+    throw new Error('Provider returned an unsupported image URL format.');
+  }
+
+  return decodeBase64Image(match[1]);
+}
+
+function summarizeErrorBody(body: string): string {
+  const trimmed = body.trim();
+  if (trimmed.length <= 1000) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, 1000)}...`;
+}
+
 export class ImageGenerationService {
   private readonly modelRegistry;
   private readonly getPreference;
@@ -79,7 +96,14 @@ export class ImageGenerationService {
       throw new Error(`No base URL available for ${provider}.`);
     }
 
-    this.log.debug({ provider }, 'generating liveapp icon');
+    this.log.debug(
+      {
+        provider,
+        baseUrl,
+        promptLength: prompt.length,
+      },
+      'generating liveapp icon',
+    );
 
     switch (provider) {
       case 'openai':
@@ -95,13 +119,7 @@ export class ImageGenerationService {
         };
       case 'openrouter':
         return {
-          image: await this.generateOpenAiCompatibleIcon(
-            baseUrl,
-            apiKey,
-            OPENROUTER_ICON_MODEL,
-            prompt,
-            true,
-          ),
+          image: await this.generateOpenRouterIcon(baseUrl, apiKey, prompt),
           provider,
           model: OPENROUTER_ICON_MODEL,
         };
@@ -123,6 +141,12 @@ export class ImageGenerationService {
     prompt: string,
     isOpenRouter = false,
   ): Promise<Buffer> {
+    const endpoint = `${baseUrl}/images/generations`;
+    this.log.debug(
+      { provider: isOpenRouter ? 'openrouter' : 'openai', endpoint, model },
+      'requesting icon image',
+    );
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
@@ -133,7 +157,7 @@ export class ImageGenerationService {
       headers['X-Title'] = 'DeskTalk';
     }
 
-    const response = await fetch(`${baseUrl}/images/generations`, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -145,7 +169,18 @@ export class ImageGenerationService {
     });
 
     if (!response.ok) {
-      throw new Error(`Image request failed (${response.status}): ${await response.text()}`);
+      const errorText = summarizeErrorBody(await response.text());
+      this.log.error(
+        {
+          provider: isOpenRouter ? 'openrouter' : 'openai',
+          endpoint,
+          model,
+          status: response.status,
+          errorText,
+        },
+        'icon image request failed',
+      );
+      throw new Error(`Image request failed (${response.status}): ${errorText}`);
     }
 
     const result = (await response.json()) as {
@@ -164,24 +199,38 @@ export class ImageGenerationService {
     apiKey: string,
     prompt: string,
   ): Promise<Buffer> {
-    const response = await fetch(
-      `${baseUrl}/models/${encodeURIComponent(GOOGLE_ICON_MODEL)}:generateContent?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseModalities: ['TEXT', 'IMAGE'],
-          },
-        }),
-      },
+    const endpoint = `${baseUrl}/models/${encodeURIComponent(GOOGLE_ICON_MODEL)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    this.log.debug(
+      { provider: 'google', endpoint, model: GOOGLE_ICON_MODEL },
+      'requesting icon image',
     );
 
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseModalities: ['TEXT', 'IMAGE'],
+        },
+      }),
+    });
+
     if (!response.ok) {
-      throw new Error(`Image request failed (${response.status}): ${await response.text()}`);
+      const errorText = summarizeErrorBody(await response.text());
+      this.log.error(
+        {
+          provider: 'google',
+          endpoint,
+          model: GOOGLE_ICON_MODEL,
+          status: response.status,
+          errorText,
+        },
+        'icon image request failed',
+      );
+      throw new Error(`Image request failed (${response.status}): ${errorText}`);
     }
 
     const result = (await response.json()) as {
@@ -195,6 +244,64 @@ export class ImageGenerationService {
     }
 
     return resizeToIconPng(decodeBase64Image(base64Image));
+  }
+
+  private async generateOpenRouterIcon(
+    baseUrl: string,
+    apiKey: string,
+    prompt: string,
+  ): Promise<Buffer> {
+    const endpoint = `${baseUrl}/chat/completions`;
+    this.log.debug(
+      { provider: 'openrouter', endpoint, model: OPENROUTER_ICON_MODEL },
+      'requesting icon image',
+    );
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://desktalk.local',
+        'X-Title': 'DeskTalk',
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_ICON_MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        modalities: ['image', 'text'],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = summarizeErrorBody(await response.text());
+      this.log.error(
+        {
+          provider: 'openrouter',
+          endpoint,
+          model: OPENROUTER_ICON_MODEL,
+          status: response.status,
+          errorText,
+        },
+        'icon image request failed',
+      );
+      throw new Error(`Image request failed (${response.status}): ${errorText}`);
+    }
+
+    const result = (await response.json()) as {
+      choices?: Array<{
+        message?: {
+          images?: Array<{
+            image_url?: { url?: string };
+          }>;
+        };
+      }>;
+    };
+    const imageUrl = result.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    if (!imageUrl) {
+      throw new Error('No image data returned by OpenRouter.');
+    }
+
+    return resizeToIconPng(decodeDataUrlImage(imageUrl));
   }
 }
 

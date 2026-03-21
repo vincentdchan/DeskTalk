@@ -68,4 +68,62 @@ describe('image generation service', () => {
       'Current AI provider does not support icon generation yet: anthropic',
     );
   });
+
+  it('generates and resizes an openrouter icon from image_url data', async () => {
+    const sourceImage = await sharp({
+      create: {
+        width: 24,
+        height: 24,
+        channels: 4,
+        background: { r: 0, g: 0, b: 255, alpha: 1 },
+      },
+    })
+      .png()
+      .toBuffer();
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              images: [
+                {
+                  image_url: {
+                    url: `data:image/png;base64,${sourceImage.toString('base64')}`,
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const service = new ImageGenerationService({
+      modelRegistry: {
+        getApiKeyForProvider: async () => 'test-key',
+      } as never,
+      getPreference: async (key) => {
+        if (key === 'ai.defaultProvider') return 'openrouter';
+        return '';
+      },
+      logger: { debug: vi.fn() } as never,
+    });
+
+    const result = await service.generateIcon('a blue graph');
+    const metadata = await sharp(result.image).metadata();
+
+    expect(result.provider).toBe('openrouter');
+    expect(result.model).toBe('google/gemini-3.1-flash-image-preview');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/chat/completions',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+    expect(metadata.width).toBe(256);
+    expect(metadata.height).toBe(256);
+  });
 });
