@@ -250,41 +250,6 @@ pre {
   margin-bottom: 1em;
 }
 pre code { background: none; padding: 0; }
-button, .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  background: var(--dt-accent);
-  color: var(--dt-text-on-accent);
-  transition: background 0.15s;
-}
-button:hover, .btn:hover { background: var(--dt-accent-hover); }
-button:active, .btn:active { background: var(--dt-accent-active); }
-.card {
-  background: var(--dt-surface);
-  border: 1px solid var(--dt-border);
-  border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 16px;
-}
-.card:hover { background: var(--dt-surface-hover); }
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-.badge-danger { background: var(--dt-danger-subtle); color: var(--dt-danger); }
-.badge-success { background: var(--dt-success-subtle); color: var(--dt-success); }
-.badge-warning { background: var(--dt-warning-subtle); color: var(--dt-warning); }
-.badge-info { background: var(--dt-info-subtle); color: var(--dt-info); }
 .text-muted { color: var(--dt-text-muted); }
 .text-secondary { color: var(--dt-text-secondary); }
 .accent-bg { background: var(--dt-accent-subtle); }
