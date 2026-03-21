@@ -95,6 +95,10 @@ export interface ChatSessionState {
   createSession: (socket: WebSocket) => boolean;
   submitPrompt: (text: string, source: 'text' | 'voice', socket: WebSocket) => boolean;
   handleAiEvent: (event: AiEventMessage) => void;
+  /** Clear all messages in the current session (client-side only). */
+  clearMessages: () => void;
+  /** Inject a local-only system message into the chat history. */
+  addSystemMessage: (text: string) => void;
 }
 
 function getProviderStatusLabel(providerId: string, providers: AiProviderOption[]): string {
@@ -343,5 +347,22 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
         };
       });
     }
+  },
+
+  clearMessages() {
+    set({ messages: [], tokenCount: 0 });
+  },
+
+  addSystemMessage(text: string) {
+    set((prev) => ({
+      messages: [
+        ...prev.messages,
+        {
+          id: `system-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          role: 'assistant' as const,
+          content: text,
+        },
+      ],
+    }));
   },
 }));

@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import 'streamdown/styles.css';
 import { useVoiceSession } from '../stores/voice-session';
 import { useChatSession, type AiEventMessage } from '../stores/chat-session';
+import { tryExecuteSlashCommand } from '../utils/slash-commands';
 import { ChatMessageItem } from './ChatMessageItem';
 import { CommandInput } from './CommandInput';
 import styles from './InfoPanel.module.scss';
@@ -41,6 +42,8 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const createSession = useChatSession((s) => s.createSession);
   const submitPrompt = useChatSession((s) => s.submitPrompt);
   const handleAiEvent = useChatSession((s) => s.handleAiEvent);
+  const clearMessages = useChatSession((s) => s.clearMessages);
+  const addSystemMessage = useChatSession((s) => s.addSystemMessage);
 
   // Voice session state
   const voiceStatus = useVoiceSession((s) => s.status);
@@ -186,6 +189,20 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     const text = input.trim();
     if (!text || !socket) return;
 
+    // Try to handle as a slash command first.
+    if (text.startsWith('/')) {
+      const handled = tryExecuteSlashCommand(text, {
+        socket,
+        createSession,
+        clearMessages,
+        addSystemMessage,
+      });
+      if (handled) {
+        setInput('');
+        return;
+      }
+    }
+
     if (isAiRunning) {
       setQueuedPrompts((prev) => [
         ...prev,
@@ -203,7 +220,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     if (didSend) {
       setInput('');
     }
-  }, [input, isAiRunning, submitPrompt, socket]);
+  }, [input, isAiRunning, submitPrompt, socket, createSession, clearMessages, addSystemMessage]);
 
   const handleVoiceToggle = useCallback(() => {
     if (isVoiceActive) {
