@@ -380,6 +380,7 @@ export function StreamPreviewPane({
     <>
       <PreviewToolbar
         filename={streamTitle}
+        filepath={streamSnapshot?.path}
         mode="stream"
         streaming={streaming}
         onRefreshFromFile={!streaming && streamSnapshot ? handleRefreshFromFile : undefined}

@@ -58,7 +58,7 @@ export function HtmlPreviewPane({ initialPath, onActionStateChange }: HtmlPrevie
   if (htmlFile) {
     return (
       <>
-        <PreviewToolbar filename={htmlFile.name} mode="html" />
+        <PreviewToolbar filename={htmlFile.name} filepath={htmlFile.path} mode="html" />
         <HtmlViewport html={htmlFile.content} />
       </>
     );
