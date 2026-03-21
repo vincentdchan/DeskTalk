@@ -1,4 +1,5 @@
 import React from 'react';
+import { simplifyPath } from '@desktalk/sdk';
 import type { PreviewMode } from '../types';
 import styles from '../PreviewApp.module.css';
 
@@ -108,7 +109,7 @@ export function PreviewToolbar({
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
               </svg>
               <span className={styles.addressText} title={filepath || filename}>
-                file://{filepath || filename}
+                file://{simplifyPath(filepath || filename)}
               </span>
             </>
           )}

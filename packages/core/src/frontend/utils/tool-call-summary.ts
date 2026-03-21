@@ -1,51 +1,4 @@
-function replacePrefix(path: string, prefixLength: number, replacement: string): string {
-  const remainder = path.slice(prefixLength);
-  if (!remainder || remainder === '/' || remainder === '\\') {
-    return replacement;
-  }
-
-  if (remainder.startsWith('/') || remainder.startsWith('\\')) {
-    return `${replacement}${remainder}`;
-  }
-
-  return `${replacement}/${remainder}`;
-}
-
-function shortenDeskTalkHomePath(path: string): string | null {
-  const match = path.match(/^(.*[\\/])home[\\/][^\\/]+(?=([\\/]|$))/i);
-  if (!match || typeof match[0] !== 'string') {
-    return null;
-  }
-
-  return replacePrefix(path, match[0].length, '<dt-home>');
-}
-
-function shortenDeskTalkDataPath(path: string): string | null {
-  const match = path.match(/^(.*[\\/])(?=(home|miniapps|ai-sessions)([\\/]|$))/i);
-  if (!match || typeof match[1] !== 'string') {
-    return null;
-  }
-
-  return replacePrefix(path, match[1].length, '<dt-data>');
-}
-
-function shortenUserHomePath(path: string): string | null {
-  const match = path.match(/^((?:[A-Za-z]:)?[\\/](?:Users|home)[\\/][^\\/]+)(?=([\\/]|$))/);
-  if (!match || typeof match[1] !== 'string') {
-    return null;
-  }
-
-  return replacePrefix(path, match[1].length, '~');
-}
-
-function simplifyPath(path: string): string {
-  return (
-    shortenDeskTalkHomePath(path) ??
-    shortenDeskTalkDataPath(path) ??
-    shortenUserHomePath(path) ??
-    path
-  );
-}
+import { simplifyPath } from '@desktalk/sdk';
 
 function getToolCallSummary(toolName: string, params: Record<string, unknown>): string {
   const name = toolName.toLowerCase();
@@ -226,4 +179,4 @@ function simplifyToolCallMarkdown(content: string): string {
     .trim();
 }
 
-export { extractToolCall, getToolCallSummary, simplifyPath, simplifyToolCallMarkdown };
+export { extractToolCall, getToolCallSummary, simplifyToolCallMarkdown };
