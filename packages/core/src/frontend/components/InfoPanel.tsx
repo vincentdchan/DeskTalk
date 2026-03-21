@@ -1,10 +1,19 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useMemoizedFn as usePersistFn } from 'ahooks';
 import 'streamdown/styles.css';
 import { useVoiceSession } from '../stores/voice-session';
 import { useChatSession, type AiEventMessage } from '../stores/chat-session';
+import { tryExecuteSlashCommand } from '../utils/slash-commands';
 import { ChatMessageItem } from './ChatMessageItem';
 import { CommandInput } from './CommandInput';
 import styles from './InfoPanel.module.scss';
+
+/** Minimal interface for the `<dt-select>` web component's JS API. */
+interface DtSelectElement extends HTMLElement {
+  options: Array<{ value: string; label: string }>;
+  value: string;
+  disabled: boolean;
+}
 
 interface QueuedPrompt {
   id: string;
@@ -13,9 +22,9 @@ interface QueuedPrompt {
 }
 
 export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsReady: boolean }) {
-  const [input, setInput] = useState('');
   const [queuedPrompts, setQueuedPrompts] = useState<QueuedPrompt[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const selectRef = useRef<DtSelectElement | null>(null);
   const sentVoiceUtteranceIdsRef = useRef<Set<string>>(new Set());
   const pendingVoicePromptsRef = useRef<Array<{ utteranceId: string; text: string }>>([]);
 
@@ -25,9 +34,17 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const activeRequestId = useChatSession((s) => s.activeRequestId);
   const modelLabel = useChatSession((s) => s.modelLabel);
   const tokenCount = useChatSession((s) => s.tokenCount);
+  const currentSessionId = useChatSession((s) => s.currentSessionId);
+  const sessions = useChatSession((s) => s.sessions);
   const loadProviders = useChatSession((s) => s.loadProviders);
+  const loadSessions = useChatSession((s) => s.loadSessions);
+  const switchSession = useChatSession((s) => s.switchSession);
+  const createSession = useChatSession((s) => s.createSession);
   const submitPrompt = useChatSession((s) => s.submitPrompt);
+  const clearDraftInput = useChatSession((s) => s.clearDraftInput);
   const handleAiEvent = useChatSession((s) => s.handleAiEvent);
+  const clearMessages = useChatSession((s) => s.clearMessages);
+  const addSystemMessage = useChatSession((s) => s.addSystemMessage);
 
   // Voice session state
   const voiceStatus = useVoiceSession((s) => s.status);
@@ -39,12 +56,19 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
 
   const isVoiceActive = voiceStatus !== 'idle' && voiceStatus !== 'error';
   const activeAssistantMessageId = activeRequestId ? `assistant-${activeRequestId}` : null;
+  const isSessionInteractionDisabled =
+    isAiRunning || !socket || socket.readyState !== WebSocket.OPEN || !wsReady;
 
   // Load the current provider preference when the panel mounts or reconnects.
   useEffect(() => {
     if (!wsReady) return;
     void loadProviders();
   }, [loadProviders, wsReady]);
+
+  useEffect(() => {
+    if (!socket || !wsReady || socket.readyState !== WebSocket.OPEN) return;
+    loadSessions(socket);
+  }, [loadSessions, socket, wsReady]);
 
   // Listen for AI events from the WebSocket
   useEffect(() => {
@@ -70,7 +94,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   }, [socket, handleAiEvent]);
 
   // Voice-to-chat bridge: queue final transcripts and flush as prompts
-  const flushPendingVoicePrompts = useCallback(() => {
+  const flushPendingVoicePrompts = usePersistFn(() => {
     if (isAiRunning || !socket || socket.readyState !== WebSocket.OPEN) return;
 
     const nextPrompt = pendingVoicePromptsRef.current.shift();
@@ -80,7 +104,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     if (!didSend) {
       pendingVoicePromptsRef.current.unshift(nextPrompt);
     }
-  }, [isAiRunning, submitPrompt, socket]);
+  });
 
   useEffect(() => {
     for (const entry of transcripts) {
@@ -105,6 +129,47 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   }, [isAiRunning, flushPendingVoicePrompts]);
 
   useEffect(() => {
+    setQueuedPrompts([]);
+    pendingVoicePromptsRef.current = [];
+    sentVoiceUtteranceIdsRef.current.clear();
+  }, [currentSessionId]);
+
+  // Sync options / value / disabled state to the <dt-select> web component
+  useEffect(() => {
+    const el = selectRef.current;
+    if (!el) return;
+    el.options = sessions.map((s) => ({ value: s.id, label: s.label }));
+  }, [sessions]);
+
+  useEffect(() => {
+    const el = selectRef.current;
+    if (!el) return;
+    el.value = currentSessionId ?? '';
+  }, [currentSessionId]);
+
+  useEffect(() => {
+    const el = selectRef.current;
+    if (!el) return;
+    el.disabled = isSessionInteractionDisabled;
+  }, [isSessionInteractionDisabled]);
+
+  // Listen for dt-change events from <dt-select>
+  useEffect(() => {
+    const el = selectRef.current;
+    if (!el || !socket) return;
+
+    const handleChange = (e: Event) => {
+      const value = (e as CustomEvent<{ value: string }>).detail.value;
+      switchSession(value, socket);
+    };
+
+    el.addEventListener('dt-change', handleChange);
+    return () => {
+      el.removeEventListener('dt-change', handleChange);
+    };
+  }, [socket, switchSession]);
+
+  useEffect(() => {
     if (
       isAiRunning ||
       !socket ||
@@ -121,9 +186,23 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     }
   }, [isAiRunning, queuedPrompts, socket, submitPrompt]);
 
-  const handleSend = useCallback(() => {
-    const text = input.trim();
+  const handleSend = usePersistFn(() => {
+    const text = useChatSession.getState().draftInput.trim();
     if (!text || !socket) return;
+
+    // Try to handle as a slash command first.
+    if (text.startsWith('/')) {
+      const handled = tryExecuteSlashCommand(text, {
+        socket,
+        createSession,
+        clearMessages,
+        addSystemMessage,
+      });
+      if (handled) {
+        clearDraftInput();
+        return;
+      }
+    }
 
     if (isAiRunning) {
       setQueuedPrompts((prev) => [
@@ -134,15 +213,15 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
           text,
         },
       ]);
-      setInput('');
+      clearDraftInput();
       return;
     }
 
     const didSend = submitPrompt(text, 'text', socket);
     if (didSend) {
-      setInput('');
+      clearDraftInput();
     }
-  }, [input, isAiRunning, submitPrompt, socket]);
+  });
 
   const handleVoiceToggle = useCallback(() => {
     if (isVoiceActive) {
@@ -157,10 +236,38 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, queuedPrompts, transcripts, partialText]);
 
+  const handleCreateSession = useCallback(() => {
+    if (!socket) {
+      return;
+    }
+
+    if (createSession(socket)) {
+      clearDraftInput();
+    }
+  }, [clearDraftInput, createSession, socket]);
+
   return (
     <div className={styles.infoPanel}>
       <div className={styles.header}>
-        <span>AI Assistant</span>
+        <div className={styles.headerPrimary}>
+          <div className={styles.sessionControls}>
+            <dt-select
+              ref={selectRef as React.Ref<never>}
+              placeholder="New session"
+              align="right"
+            />
+            <button
+              type="button"
+              className={styles.newSessionButton}
+              onClick={handleCreateSession}
+              disabled={isSessionInteractionDisabled}
+              aria-label="Create new session"
+              title="Create new session"
+            >
+              +
+            </button>
+          </div>
+        </div>
         <div className={styles.headerControls}>
           {tokenCount > 0 && <span className={styles.tokenCount}>{tokenCount} tokens</span>}
         </div>
@@ -178,8 +285,9 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
         ) : (
           <>
             {messages.map((msg) => {
-              const isEmptyAssistant = msg.role === 'assistant' && !msg.content;
               const isActiveAssistantMessage = msg.id === activeAssistantMessageId;
+              const isEmptyAssistant =
+                msg.role === 'assistant' && !msg.content && !msg.thinkingContent;
               const isThinking = isEmptyAssistant && isAiRunning && isActiveAssistantMessage;
 
               return (
@@ -237,8 +345,6 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
       </div>
 
       <CommandInput
-        value={input}
-        onChange={setInput}
         onSubmit={handleSend}
         isAiRunning={isAiRunning}
         queuedCount={queuedPrompts.length}

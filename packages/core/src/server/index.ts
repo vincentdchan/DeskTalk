@@ -257,6 +257,11 @@ export async function createServer(options: ServerOptions) {
           sessionId: piSessionService.getSessionId(),
           messages: piSessionService.getHistory(),
         });
+        sendAiEvent({
+          type: 'sessions_sync',
+          sessionId: piSessionService.getSessionId(),
+          sessions: await piSessionService.listSessions(),
+        });
 
         // Send persisted window state only after MiniApp backends are ready.
         const persisted = windowManager.getPersistedState();
@@ -359,6 +364,93 @@ export async function createServer(options: ServerOptions) {
               });
             }
           }
+        } else if (msg.type === 'ai:sessions:list') {
+          sendAiEvent({
+            type: 'sessions_sync',
+            sessionId: piSessionService.getSessionId(),
+            sessions: await piSessionService.listSessions(),
+          });
+        } else if (msg.type === 'ai:sessions:create') {
+          if (activeAiRequestId) {
+            sendAiEvent({
+              type: 'error',
+              message: 'Cannot create a new session while the AI is responding.',
+            });
+            return;
+          }
+
+          await piSessionService.createNewSession();
+          sendAiEvent({
+            type: 'history_sync',
+            sessionId: piSessionService.getSessionId(),
+            messages: piSessionService.getHistory(),
+          });
+          sendAiEvent({
+            type: 'sessions_sync',
+            sessionId: piSessionService.getSessionId(),
+            sessions: await piSessionService.listSessions(),
+          });
+        } else if (msg.type === 'ai:sessions:switch') {
+          const sessionId = typeof msg.sessionId === 'string' ? msg.sessionId : '';
+          if (activeAiRequestId) {
+            sendAiEvent({
+              type: 'error',
+              message: 'Wait for the current AI response to finish before switching sessions.',
+            });
+            return;
+          }
+
+          if (!sessionId) {
+            sendAiEvent({
+              type: 'error',
+              message: 'A session ID is required to switch sessions.',
+            });
+            return;
+          }
+
+          const switched = await piSessionService.switchSession(sessionId);
+          if (!switched) {
+            sendAiEvent({
+              type: 'error',
+              message: 'The selected session could not be found.',
+            });
+            return;
+          }
+
+          sendAiEvent({
+            type: 'history_sync',
+            sessionId: piSessionService.getSessionId(),
+            messages: piSessionService.getHistory(),
+          });
+          sendAiEvent({
+            type: 'sessions_sync',
+            sessionId: piSessionService.getSessionId(),
+            sessions: await piSessionService.listSessions(),
+          });
+        } else if (msg.type === 'ai:sessions:rename') {
+          const title = typeof msg.title === 'string' ? msg.title.trim() : '';
+          if (activeAiRequestId) {
+            sendAiEvent({
+              type: 'error',
+              message: 'Wait for the current AI response to finish before renaming sessions.',
+            });
+            return;
+          }
+
+          if (!title) {
+            sendAiEvent({
+              type: 'error',
+              message: 'A session title is required.',
+            });
+            return;
+          }
+
+          await piSessionService.renameCurrentSession(title);
+          sendAiEvent({
+            type: 'sessions_sync',
+            sessionId: piSessionService.getSessionId(),
+            sessions: await piSessionService.listSessions(),
+          });
         } else if (msg.type === 'ai:prompt') {
           const requestId = typeof msg.requestId === 'string' ? msg.requestId : `ai-${Date.now()}`;
           const text = typeof msg.text === 'string' ? msg.text.trim() : '';
@@ -405,6 +497,11 @@ export async function createServer(options: ServerOptions) {
               type: 'history_sync',
               sessionId: piSessionService.getSessionId(),
               messages: piSessionService.getHistory(),
+            });
+            sendAiEvent({
+              type: 'sessions_sync',
+              sessionId: piSessionService.getSessionId(),
+              sessions: await piSessionService.listSessions(),
             });
           } catch (err) {
             sendAiEvent({

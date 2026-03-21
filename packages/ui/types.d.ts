@@ -27,11 +27,27 @@ type DtCardJSXProps = DtCardAttributes & {
   key?: string | number | null;
 };
 
+type DtSelectAttributes = Partial<{
+  value: string;
+  placeholder: string;
+  disabled: boolean;
+  align: 'left' | 'right';
+  class: string;
+  style: string | Record<string, string>;
+}>;
+
+type DtSelectJSXProps = DtSelectAttributes & {
+  children?: unknown;
+  ref?: unknown;
+  key?: string | number | null;
+};
+
 declare module 'react' {
   namespace JSX {
     interface IntrinsicElements {
       'dt-tooltip': DtTooltipJSXProps;
       'dt-card': DtCardJSXProps;
+      'dt-select': DtSelectJSXProps;
     }
   }
 }

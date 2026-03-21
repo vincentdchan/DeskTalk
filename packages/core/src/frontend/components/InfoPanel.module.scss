@@ -13,7 +13,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  padding: 10px 8px;
   border-bottom: 1px solid var(--dt-border-subtle);
   background: var(--dt-bg-subtle);
   color: var(--dt-text);
@@ -22,6 +22,60 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+.headerPrimary {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.sessionControls {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+
+  dt-select {
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+}
+
+.newSessionButton {
+  border: 1px solid var(--dt-border-subtle);
+  background: color-mix(in oklab, var(--dt-surface) 88%, transparent);
+  color: var(--dt-text);
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
+
+  &:hover:not(:disabled) {
+    border-color: color-mix(in oklab, var(--dt-accent) 35%, var(--dt-border-subtle));
+    background: color-mix(in oklab, var(--dt-surface) 94%, var(--dt-accent-ghost));
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.newSessionButton {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .headerControls {
@@ -41,6 +95,16 @@
     align-items: flex-start;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .headerPrimary {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .sessionControls {
+    width: 100%;
   }
 
   .headerControls {

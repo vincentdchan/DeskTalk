@@ -2,6 +2,7 @@ import React from 'react';
 import { Streamdown } from 'streamdown';
 import type { ChatMessage } from '../stores/chat-session';
 import { getToolCallSummary, simplifyToolCallMarkdown } from '../utils/tool-call-summary';
+import { ThinkingBlock } from './ThinkingBlock';
 import styles from './ChatMessageItem.module.scss';
 
 export type { ChatMessage };
@@ -45,11 +46,20 @@ export function ChatMessageItem({
     );
   }
 
-  const isEmptyAssistant = message.role === 'assistant' && !message.content;
+  const hasThinking = Boolean(message.thinkingContent);
+  const hasContent = Boolean(message.content);
+  const isEmptyAssistant = message.role === 'assistant' && !hasContent && !hasThinking;
 
   if (isEmptyAssistant && !isThinking) {
     return null;
   }
+
+  // Determine if thinking is still actively streaming:
+  // thinking is streaming when the AI is running, there's thinking content, but no text content yet
+  const isStreamingThinking = isStreaming && hasThinking && !hasContent;
+
+  // Show bouncing dots only when there's no content at all (no thinking, no text)
+  const showBouncingDots = isThinking && !hasThinking && !hasContent;
 
   return (
     <div className={message.role === 'user' ? styles.messageUser : styles.messageAssistant}>
@@ -59,15 +69,22 @@ export function ChatMessageItem({
           <span className={styles.voiceSourceBadge}>voice</span>
         )}
       </div>
-      {isThinking ? (
+      {hasThinking && (
+        <ThinkingBlock
+          content={message.thinkingContent!}
+          isStreaming={isStreamingThinking}
+          defaultExpanded={isStreamingThinking}
+        />
+      )}
+      {showBouncingDots ? (
         <div className={styles.thinkingIndicator}>
           <span className={styles.thinkingDot} />
           <span className={styles.thinkingDot} />
           <span className={styles.thinkingDot} />
         </div>
-      ) : (
+      ) : hasContent ? (
         <MarkdownMessage content={message.content} isStreaming={isStreaming} />
-      )}
+      ) : null}
     </div>
   );
 }
