@@ -17,7 +17,7 @@ export interface HtmlPreviewFile {
 
 export interface StreamedHtmlSnapshot {
   name: string;
-  path: string;
+  path: string; // Absolute path to the saved snapshot on disk
   content: string;
 }
 

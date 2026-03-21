@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   getStreamedAbsolutePath,
   getLegacyStreamedAbsolutePath,
-  getLegacyStreamedRelativePath,
   getStreamedDirectoryName,
   getStreamedFileName,
   getStreamedRelativePath,
@@ -52,7 +51,7 @@ describe('backend helpers', () => {
 
     expect(snapshot).toEqual({
       name: 'index.html',
-      path: 'streamed/dashboard-demo_stream-7/index.html',
+      path: getStreamedAbsolutePath(dataDir, 'stream-7', 'Dashboard Demo'),
       content: '<html>ok</html>',
     });
 
@@ -97,7 +96,7 @@ describe('backend helpers', () => {
 
     await expect(loadStreamedHtml(dataDir, 'stream-9', 'Legacy Demo')).resolves.toEqual({
       name: 'stream-9-legacy-demo.html',
-      path: getLegacyStreamedRelativePath('stream-9', 'Legacy Demo'),
+      path: getLegacyStreamedAbsolutePath(dataDir, 'stream-9', 'Legacy Demo'),
       content: '<html>legacy</html>',
     });
   });

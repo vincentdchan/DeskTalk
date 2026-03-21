@@ -44,11 +44,13 @@ The AI assistant can generate visual HTML content via the `generate_html` tool. 
 2. The core opens a Preview window with `args: { streamId, title }` (no `path`).
 3. As HTML chunks stream in, the core emits `preview.html-chunk` events to the Preview frontend.
 4. Preview renders the accumulating HTML in a sandboxed iframe, updating live as chunks arrive.
-5. When streaming completes, Preview writes the final HTML into its data directory at `streamed/<title>_<streamId>/index.html`.
+5. When streaming completes, Preview writes the final HTML into its data directory at `streamed/<title>_<streamId>/index.html` and stores the absolute file path in state.
 6. Preview shows a refresh button that reloads the finished document from the saved file.
 7. On restart, Preview restores the streamed window and reloads the saved HTML snapshot from disk.
 
 This enables the AI to show charts, data visualizations, interactive demos, styled reports, or any visual content by generating a self-contained HTML document.
+
+After a streamed document is saved, the AI can edit it through the core `edit` tool. The tool writes the updated file, records edit history, and emits `preview.file-changed` so the currently open Preview window can fully reload its iframe.
 
 ## UI Layout
 
@@ -91,7 +93,7 @@ Preview determines its mode from the launch `args`:
 | `{ streamId, title }`      | HTML  | AI `generate_html` tool          |
 | `{ path: "<image file>" }` | Image | File Explorer                    |
 
-When `streamId` is present, Preview enters streaming HTML mode and listens for chunk events. When `path` ends in `.html`, Preview reads the file from the backend and renders it in the iframe. Otherwise, Preview uses image mode.
+When `streamId` is present, Preview enters streaming HTML mode and listens for chunk events. In that mode, `Get State` exposes the saved snapshot path once the file has been written. When `path` ends in `.html`, Preview reads the file from the backend and renders it in the iframe. Otherwise, Preview uses image mode.
 
 ## Frontend Components
 
@@ -104,17 +106,19 @@ When `streamId` is present, Preview enters streaming HTML mode and listens for c
 
 ## Actions (AI-invokable)
 
-| Action        | Description                             | Parameters                                     |
-| ------------- | --------------------------------------- | ---------------------------------------------- |
-| Get State     | Return the current mode and opened file | --                                             |
-| Open File     | Open an image or HTML file for preview  | path                                           |
-| Zoom In       | Increase zoom level by one step         | --                                             |
-| Zoom Out      | Decrease zoom level by one step         | --                                             |
-| Fit to Window | Scale image to fit the viewport         | --                                             |
-| Actual Size   | Display image at 1:1 pixel ratio        | --                                             |
-| Pan           | Pan the viewport in a direction         | direction: "up" \| "down" \| "left" \| "right" |
-| Previous File | Navigate to previous image in directory | --                                             |
-| Next File     | Navigate to next image in directory     | --                                             |
+| Action        | Description                                     | Parameters                                     |
+| ------------- | ----------------------------------------------- | ---------------------------------------------- |
+| Get State     | Return the current preview mode and opened file | --                                             |
+| Open File     | Open an image or HTML file for preview          | path                                           |
+| Zoom In       | Increase zoom level by one step                 | --                                             |
+| Zoom Out      | Decrease zoom level by one step                 | --                                             |
+| Fit to Window | Scale image to fit the viewport                 | --                                             |
+| Actual Size   | Display image at 1:1 pixel ratio                | --                                             |
+| Pan           | Pan the viewport in a direction                 | direction: "up" \| "down" \| "left" \| "right" |
+| Previous File | Navigate to previous image in directory         | --                                             |
+| Next File     | Navigate to next image in directory             | --                                             |
+
+`Get State` is available in every mode. It returns `PreviewActionState`, including `file.path` when a file is open. In stream mode, `file.path` is the absolute snapshot path on disk once the save completes.
 
 ## Backend
 
@@ -136,12 +140,13 @@ Operates within the authenticated user's home directory via `ctx.fs` (`<data>/ho
 
 ### Events (MessagingHook)
 
-These events are emitted by the core (not the Preview backend) when the AI `generate_html` tool streams content:
+These events are emitted by the core (not the Preview backend) when AI tools interact with Preview content:
 
-| Event              | Payload             | Description                                               |
-| ------------------ | ------------------- | --------------------------------------------------------- |
-| preview.html-chunk | { streamId, chunk } | A chunk of HTML content to append to the streaming iframe |
-| preview.html-done  | { streamId, html? } | Streaming is complete; may include the raw final HTML     |
+| Event                | Payload               | Description                                                                   |
+| -------------------- | --------------------- | ----------------------------------------------------------------------------- |
+| preview.html-chunk   | { streamId, chunk }   | A chunk of HTML content to append to the streaming iframe                     |
+| preview.html-done    | { streamId, html? }   | Streaming is complete; includes the raw final HTML for saving                 |
+| preview.file-changed | { filePath, content } | A saved HTML file changed and the matching Preview window should fully reload |
 
 ### Data Model
 
@@ -185,7 +190,7 @@ interface PreviewActionState {
 }
 ```
 
-`Get State` returns `PreviewActionState`, so the agent can inspect the current preview mode and the currently opened file. In stream mode, `path` is the saved snapshot path when available, otherwise `null` until the snapshot is written.
+`Get State` returns `PreviewActionState`, so the agent can inspect the current preview mode and the currently opened file. In stream mode, `path` is the absolute saved snapshot path when available, otherwise `null` until the snapshot is written.
 
 ### Supported MIME Types
 
@@ -219,3 +224,22 @@ When the AI generates HTML via the `generate_html` tool:
 5. When the tool execution completes, it emits `preview.html-done` with `{ streamId, html? }`.
 6. The Preview frontend stops listening, saves the final HTML into its data store, and marks the document as fully loaded.
 7. If the app is restored after a restart, the Preview frontend reloads the saved `streamed/<title>_<streamId>/index.html` snapshot and shows it again.
+
+### Post-Generation Editing
+
+After the snapshot is saved, the AI can edit it without regenerating the whole document:
+
+1. Pi calls `Get State` on the focused Preview window and reads `file.path`.
+2. Pi reads the file and calls `edit` with `{ path, oldText, newText }`.
+3. The core records persistent history in a co-located `.history.jsonl` file and writes the updated HTML to disk.
+4. The core broadcasts `preview.file-changed` with `{ filePath, content }`.
+5. The Preview frontend matches the file path and performs a full iframe replacement render.
+6. Pi can call `undo_edit` or `redo_edit` later using the same file path.
+
+### Persistent Edit History
+
+For a file at `<dir>/index.html`, Preview-related edits store history in `<dir>/.index.html.history.jsonl`.
+
+- Each JSONL version entry stores the full file content.
+- The final pointer entry marks which version is active.
+- `undo_edit` and `redo_edit` move that pointer and restore the corresponding file content.

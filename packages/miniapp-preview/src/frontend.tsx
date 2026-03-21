@@ -70,6 +70,31 @@ function detectMode(args?: Record<string, unknown>): PreviewMode {
   return 'image';
 }
 
+function normalizePreviewPath(path: string | null | undefined): string | null {
+  if (!path) {
+    return null;
+  }
+
+  return path.replace(/\\/g, '/');
+}
+
+function matchesPreviewFilePath(
+  changedPath: string,
+  currentPath: string | null | undefined,
+): boolean {
+  const normalizedChangedPath = normalizePreviewPath(changedPath);
+  const normalizedCurrentPath = normalizePreviewPath(currentPath);
+
+  if (!normalizedChangedPath || !normalizedCurrentPath) {
+    return false;
+  }
+
+  return (
+    normalizedChangedPath === normalizedCurrentPath ||
+    normalizedChangedPath.endsWith(`/${normalizedCurrentPath}`)
+  );
+}
+
 // ─── Main component ──────────────────────────────────────────────────────────
 
 function PreviewApp({
@@ -141,6 +166,42 @@ function PreviewApp({
   useEffect(() => {
     streamHtmlRef.current = streamHtml;
   }, [streamHtml]);
+
+  useEvent<{ filePath: string; content: string }>('preview.file-changed', (data) => {
+    if (mode === 'stream' && matchesPreviewFilePath(data.filePath, streamSnapshot?.path)) {
+      const nextHtml =
+        streamId && bridgeToken
+          ? injectDtRuntime(data.content, {
+              theme,
+              streamId,
+              bridgeToken,
+            })
+          : data.content;
+      setStreamHtml(nextHtml);
+      streamHtmlRef.current = nextHtml;
+      setStreaming(false);
+      setStreamSnapshot((currentSnapshot) =>
+        currentSnapshot
+          ? {
+              ...currentSnapshot,
+              content: data.content,
+            }
+          : currentSnapshot,
+      );
+      return;
+    }
+
+    if (mode === 'html' && matchesPreviewFilePath(data.filePath, htmlFile?.path ?? initialPath)) {
+      setHtmlFile((currentFile) =>
+        currentFile
+          ? {
+              ...currentFile,
+              content: data.content,
+            }
+          : currentFile,
+      );
+    }
+  });
 
   // ─── Stream event listeners ─────────────────────────────────────────────
 

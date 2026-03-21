@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { ActionsProvider, Action, useCommand } from '@desktalk/sdk';
-import type { PreviewActionState, PreviewFile, PreviewMode } from '../types';
+import type { PreviewActionState, PreviewFile } from '../types';
 
 interface PreviewActionsProps {
   children: React.ReactNode;

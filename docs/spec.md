@@ -379,42 +379,33 @@ const { session } = await createAgentSession({
   sessionManager: SessionManager.create(process.cwd(), paths.data + '/ai-sessions/'),
   authStorage,
   modelRegistry,
-  customTools: [invokeActionTool, listActionsTool],
+  tools: [readTool],
+  customTools: [desktopTool, actionTool, generateHtmlTool, editTool, undoEditTool, redoEditTool],
 });
 ```
 
 #### Custom Tools
 
-Pi's built-in tools (`read`, `bash`, `edit`, `write`) are **disabled** for DeskTalk — the agent should not have direct filesystem or shell access. Instead, the AI interacts with DeskTalk through two custom tools:
+Pi's built-in tools stay tightly constrained in DeskTalk. The built-in `read` tool is enabled so the AI can inspect files when needed, but unrestricted filesystem and shell tools remain disabled. The AI primarily interacts with DeskTalk through custom tools:
 
-| Tool            | Description                                                                                                                                                                   |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_actions`  | Returns the list of `<Action>` declarations registered by the currently focused MiniApp window. Each entry includes the action's `name`, `description`, and parameter schema. |
-| `invoke_action` | Calls a named action with parameters. The core resolves the action handler registered by the focused MiniApp and executes it. Returns the action's result.                    |
-| `generate_html` | Generates a self-contained HTML document and streams it into a Preview window's sandboxed iframe. Used for charts, visualizations, reports, and any rich visual content.      |
+| Tool                   | Description                                                                                                        |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `desktop`              | Lists windows, exposes the focused window, and opens MiniApps.                                                     |
+| `action`               | Invokes a named action on a MiniApp window, usually the focused one.                                               |
+| `generate_html`        | Generates a self-contained HTML document and streams it into a Preview window's sandboxed iframe.                  |
+| `edit`                 | Replaces one exact text match in a managed file, records persistent history, and broadcasts Preview reload events. |
+| `undo_edit`            | Restores the previous saved version of a managed file from persistent history.                                     |
+| `redo_edit`            | Re-applies the next saved version of a managed file from persistent history.                                       |
+| `read_html_guidelines` | Returns the full HTML-generation guidance for DeskTalk previews.                                                   |
 
 ```ts
 import { Type } from '@sinclair/typebox';
 import type { ToolDefinition } from '@mariozechner/pi-coding-agent';
 
-const listActionsTool: ToolDefinition = {
-  name: 'list_actions',
-  label: 'List Actions',
-  description: 'List all actions available in the currently focused DeskTalk window.',
-  parameters: Type.Object({}),
-  execute: async () => {
-    const actions = windowManager.getFocusedWindowActions();
-    return {
-      content: [{ type: 'text', text: JSON.stringify(actions, null, 2) }],
-      details: {},
-    };
-  },
-};
-
-const invokeActionTool: ToolDefinition = {
-  name: 'invoke_action',
+const actionTool: ToolDefinition = {
+  name: 'action',
   label: 'Invoke Action',
-  description: 'Invoke a named action in the currently focused DeskTalk window.',
+  description: 'Invoke a named action in a DeskTalk window.',
   parameters: Type.Object({
     name: Type.String({ description: 'The action name to invoke' }),
     params: Type.Optional(
@@ -422,9 +413,34 @@ const invokeActionTool: ToolDefinition = {
         description: 'Parameters to pass to the action handler',
       }),
     ),
+    windowId: Type.Optional(
+      Type.String({ description: 'Target window id. Defaults to focused window.' }),
+    ),
   }),
-  execute: async (_id, { name, params }) => {
-    const result = await windowManager.invokeAction(name, params);
+  execute: async (_id, { name, params, windowId }) => {
+    const result = await windowManager.invokeAction(
+      windowId ?? windowManager.getFocusedWindowId(),
+      name,
+      params,
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result) }],
+      details: {},
+    };
+  },
+};
+
+const editTool: ToolDefinition = {
+  name: 'edit',
+  label: 'Edit File',
+  description: 'Replace one exact text match in a managed file and persist undo/redo history.',
+  parameters: Type.Object({
+    path: Type.String({ description: 'Absolute or user-home-relative path to the file to edit' }),
+    oldText: Type.String({ description: 'Exact text to replace' }),
+    newText: Type.String({ description: 'Replacement text' }),
+  }),
+  execute: async (_id, { path, oldText, newText }) => {
+    const result = await editManagedFile(path, oldText, newText);
     return {
       content: [{ type: 'text', text: JSON.stringify(result) }],
       details: {},
@@ -432,6 +448,15 @@ const invokeActionTool: ToolDefinition = {
   },
 };
 ```
+
+#### Persistent Edit History
+
+Each file edited through `edit` gets a co-located JSONL sidecar file. For `<dir>/index.html`, the history file is `<dir>/.index.html.history.jsonl`.
+
+- Each version stores the full file contents.
+- The last JSONL line stores the active history pointer.
+- `undo_edit` moves the pointer back, `redo_edit` moves it forward.
+- History persists on disk, so undo/redo survives app restarts.
 
 #### Event Streaming
 
@@ -461,12 +486,12 @@ The Info Panel is the user-facing AI interface, rendered as a permanent right-si
 
 #### Sections
 
-| Section        | Content                                                                                                            |
-| -------------- | ------------------------------------------------------------------------------------------------------------------ |
-| **Chat**       | Scrollable list of user and assistant messages. User types prompts at the bottom. Messages render Markdown.        |
-| **Thinking**   | Collapsible block showing the model's chain-of-thought when thinking is enabled.                                   |
-| **Tool Calls** | Inline indicators showing when the AI invokes `list_actions` or `invoke_action`, including parameters and results. |
-| **Status Bar** | Current model name, thinking level, token usage (input/output/cache), and estimated cost.                          |
+| Section        | Content                                                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Chat**       | Scrollable list of user and assistant messages. User types prompts at the bottom. Messages render Markdown.                                      |
+| **Thinking**   | Collapsible block showing the model's chain-of-thought when thinking is enabled.                                                                 |
+| **Tool Calls** | Inline indicators showing when the AI invokes DeskTalk tools such as `desktop`, `action`, `generate_html`, `edit`, `undo_edit`, and `redo_edit`. |
+| **Status Bar** | Current model name, thinking level, token usage (input/output/cache), and estimated cost.                                                        |
 
 #### Sending Prompts
 
@@ -509,6 +534,18 @@ This is the end-to-end flow when the AI decides to invoke a MiniApp action:
 7. The action handler uses `ctx.messaging` / `ctx.storage` to create the note and returns a result.
 8. Pi receives the tool result and generates a final text response: _"I've created a note titled 'Shopping List'."_
 9. The response streams to the Info Panel via WebSocket events.
+
+### File Edit Flow
+
+This is the typical flow when the AI edits a generated Preview document:
+
+1. The user focuses a Preview window and asks for a targeted change.
+2. Pi calls the Preview `Get State` action to discover the current file.
+3. Pi reads the file contents with the built-in `read` tool.
+4. Pi calls `edit` with `{ path, oldText, newText }`.
+5. The core writes the updated file, records persistent history, and broadcasts `preview.file-changed`.
+6. The Preview frontend detects the matching file path and performs a full iframe reload with the updated content.
+7. If needed, Pi can call `undo_edit` or `redo_edit` on the same file path.
 
 ### Authentication and Configuration
 

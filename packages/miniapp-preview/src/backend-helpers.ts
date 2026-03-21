@@ -91,7 +91,7 @@ export async function loadStreamedHtml(
     const content = await readFile(path, 'utf8');
     return {
       name: fileName(path),
-      path: getStreamedRelativePath(streamId, title),
+      path,
       content,
     };
   } catch (error) {
@@ -105,7 +105,7 @@ export async function loadStreamedHtml(
     const content = await readFile(legacyPath, 'utf8');
     return {
       name: fileName(legacyPath),
-      path: getLegacyStreamedRelativePath(streamId, title),
+      path: legacyPath,
       content,
     };
   } catch (error) {
@@ -128,7 +128,7 @@ export async function saveStreamedHtml(
   await writeFile(path, strippedContent, 'utf8');
   return {
     name: fileName(path),
-    path: getStreamedRelativePath(streamId, title),
+    path,
     content: strippedContent,
   };
 }
