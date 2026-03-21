@@ -11,7 +11,7 @@
   align-items: center;
   gap: 6px;
   width: 100%;
-  padding: 6px 10px;
+  padding: 6px 0px;
   border: none;
   background: none;
   color: var(--dt-text-muted);
@@ -21,11 +21,6 @@
   letter-spacing: 0.03em;
   cursor: pointer;
   user-select: none;
-
-  &:hover {
-    color: var(--dt-text-secondary);
-    background: color-mix(in oklab, var(--dt-surface) 50%, transparent);
-  }
 }
 
 .thinkingChevron {

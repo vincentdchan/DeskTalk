@@ -126,7 +126,14 @@ function getMessageKey(role: 'user' | 'assistant', timestamp: number): string {
  * to every user message before sending it to pi. The frontend should never
  * display this internal metadata.
  */
-const DESKTOP_CONTEXT_RE = /\[Desktop Context\][\s\S]*?\[\/Desktop Context\]\s*/;
+const DESKTOP_CONTEXT_RE =
+  /\[Desktop (?:Context|Content)\][\s\S]*?\[\/Desktop (?:Context|Content)\]\s*/;
+
+function stripSessionTitleMetadata(text: string): string {
+  return stripDesktopContext(text)
+    .replace(/^\[Desktop (?:Context|Content)\]\s*/i, '')
+    .trim();
+}
 
 function stripDesktopContext(text: string): string {
   return text.replace(DESKTOP_CONTEXT_RE, '').trim();
@@ -261,7 +268,7 @@ function shouldRegisterProviderBaseUrl(provider: string, baseUrl: string): boole
 }
 
 function normalizeSessionTitle(value: string): string {
-  return value
+  return stripSessionTitleMetadata(value)
     .replace(/\s+/g, ' ')
     .replace(/[.!?]+$/g, '')
     .trim();
