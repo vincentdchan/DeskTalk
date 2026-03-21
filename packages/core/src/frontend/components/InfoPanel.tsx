@@ -15,7 +15,9 @@ interface QueuedPrompt {
 export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsReady: boolean }) {
   const [input, setInput] = useState('');
   const [queuedPrompts, setQueuedPrompts] = useState<QueuedPrompt[]>([]);
+  const [isSessionMenuOpen, setIsSessionMenuOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const sessionMenuRef = useRef<HTMLDivElement>(null);
   const sentVoiceUtteranceIdsRef = useRef<Set<string>>(new Set());
   const pendingVoicePromptsRef = useRef<Array<{ utteranceId: string; text: string }>>([]);
 
@@ -25,7 +27,12 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const activeRequestId = useChatSession((s) => s.activeRequestId);
   const modelLabel = useChatSession((s) => s.modelLabel);
   const tokenCount = useChatSession((s) => s.tokenCount);
+  const currentSessionId = useChatSession((s) => s.currentSessionId);
+  const sessions = useChatSession((s) => s.sessions);
   const loadProviders = useChatSession((s) => s.loadProviders);
+  const loadSessions = useChatSession((s) => s.loadSessions);
+  const switchSession = useChatSession((s) => s.switchSession);
+  const createSession = useChatSession((s) => s.createSession);
   const submitPrompt = useChatSession((s) => s.submitPrompt);
   const handleAiEvent = useChatSession((s) => s.handleAiEvent);
 
@@ -39,12 +46,22 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
 
   const isVoiceActive = voiceStatus !== 'idle' && voiceStatus !== 'error';
   const activeAssistantMessageId = activeRequestId ? `assistant-${activeRequestId}` : null;
+  const currentSession = currentSessionId
+    ? (sessions.find((session) => session.id === currentSessionId) ?? null)
+    : null;
+  const isSessionInteractionDisabled =
+    isAiRunning || !socket || socket.readyState !== WebSocket.OPEN || !wsReady;
 
   // Load the current provider preference when the panel mounts or reconnects.
   useEffect(() => {
     if (!wsReady) return;
     void loadProviders();
   }, [loadProviders, wsReady]);
+
+  useEffect(() => {
+    if (!socket || !wsReady || socket.readyState !== WebSocket.OPEN) return;
+    loadSessions(socket);
+  }, [loadSessions, socket, wsReady]);
 
   // Listen for AI events from the WebSocket
   useEffect(() => {
@@ -105,6 +122,29 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   }, [isAiRunning, flushPendingVoicePrompts]);
 
   useEffect(() => {
+    setQueuedPrompts([]);
+    pendingVoicePromptsRef.current = [];
+    sentVoiceUtteranceIdsRef.current.clear();
+  }, [currentSessionId]);
+
+  useEffect(() => {
+    if (!isSessionMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!sessionMenuRef.current?.contains(event.target as Node)) {
+        setIsSessionMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, [isSessionMenuOpen]);
+
+  useEffect(() => {
     if (
       isAiRunning ||
       !socket ||
@@ -157,10 +197,79 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, queuedPrompts, transcripts, partialText]);
 
+  const handleSessionSwitch = useCallback(
+    (sessionId: string) => {
+      if (!socket) {
+        return;
+      }
+
+      if (switchSession(sessionId, socket)) {
+        setIsSessionMenuOpen(false);
+      }
+    },
+    [socket, switchSession],
+  );
+
+  const handleCreateSession = useCallback(() => {
+    if (!socket) {
+      return;
+    }
+
+    if (createSession(socket)) {
+      setIsSessionMenuOpen(false);
+      setInput('');
+    }
+  }, [createSession, socket]);
+
   return (
     <div className={styles.infoPanel}>
       <div className={styles.header}>
-        <span>AI Assistant</span>
+        <div ref={sessionMenuRef} className={styles.headerPrimary}>
+          <div className={styles.headerLabel}>AI Assistant</div>
+          <div className={styles.sessionControls}>
+            <button
+              type="button"
+              className={styles.sessionDropdownToggle}
+              onClick={() => setIsSessionMenuOpen((open) => !open)}
+              disabled={isSessionInteractionDisabled}
+              aria-expanded={isSessionMenuOpen}
+              aria-haspopup="menu"
+            >
+              <span className={styles.sessionDropdownLabel}>
+                {currentSession?.label ?? 'New session'}
+              </span>
+              <span className={styles.sessionDropdownChevron} aria-hidden="true">
+                v
+              </span>
+            </button>
+            <button
+              type="button"
+              className={styles.newSessionButton}
+              onClick={handleCreateSession}
+              disabled={isSessionInteractionDisabled}
+              aria-label="Create new session"
+              title="Create new session"
+            >
+              +
+            </button>
+            {isSessionMenuOpen && (
+              <div className={styles.sessionDropdownMenu} role="menu">
+                {sessions.map((session) => (
+                  <button
+                    key={session.id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={session.id === currentSessionId}
+                    className={`${styles.sessionMenuItem} ${session.id === currentSessionId ? styles.sessionMenuItemActive : ''}`}
+                    onClick={() => handleSessionSwitch(session.id)}
+                  >
+                    <span className={styles.sessionMenuLabel}>{session.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
         <div className={styles.headerControls}>
           {tokenCount > 0 && <span className={styles.tokenCount}>{tokenCount} tokens</span>}
         </div>

@@ -9,6 +9,8 @@ import {
   SessionManager,
   type AgentSession,
   type AgentSessionEvent,
+  type SessionInfo,
+  type ToolDefinition,
 } from '@mariozechner/pi-coding-agent';
 import { createDesktopTool, type SendAiCommand } from './desktop-tool';
 import { createActionTool } from './action-tool';
@@ -68,6 +70,13 @@ export interface AiProviderOption {
   label: string;
   configured: boolean;
   model: string;
+}
+
+export interface ChatSessionSummary {
+  id: string;
+  label: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 interface MessageMetadata {
@@ -249,40 +258,84 @@ function shouldRegisterProviderBaseUrl(provider: string, baseUrl: string): boole
   );
 }
 
+function normalizeSessionTitle(value: string): string {
+  return value
+    .replace(/\s+/g, ' ')
+    .replace(/[.!?]+$/g, '')
+    .trim();
+}
+
+function generateSessionTitle(prompt: string): string {
+  const normalized = normalizeSessionTitle(prompt)
+    .replace(/^[#>*\-\d.\s]+/, '')
+    .replace(/`+/g, '');
+
+  if (!normalized) {
+    return 'New session';
+  }
+
+  if (normalized.length <= 48) {
+    return normalized;
+  }
+
+  const truncated = normalized.slice(0, 48);
+  const lastSpace = truncated.lastIndexOf(' ');
+  const title = lastSpace >= 24 ? truncated.slice(0, lastSpace) : truncated;
+  return `${title.trim()}...`;
+}
+
+function toSessionSummary(info: SessionInfo, isCurrent: boolean): ChatSessionSummary {
+  const fallbackLabel = info.firstMessage.trim() || 'New session';
+  return {
+    id: info.id,
+    label:
+      normalizeSessionTitle(info.name ?? fallbackLabel) ||
+      (isCurrent ? 'Current session' : 'New session'),
+    createdAt: info.created.getTime(),
+    updatedAt: info.modified.getTime(),
+  };
+}
+
 export class PiSessionService {
   private readonly authStorage;
   private readonly modelRegistry;
-  private readonly sessionManager;
   private readonly metadataFilePath: string;
   private readonly getPreference: PreferenceReader;
-  private readonly session: AgentSession;
+  private session: AgentSession;
+  private readonly cwd: string;
+  private readonly sessionDir: string;
   private readonly resourceLoader: DefaultResourceLoader;
   private readonly windowManager: WindowManagerService;
   private readonly htmlStreamCoordinator: HtmlStreamCoordinator;
   private readonly log: pino.Logger;
+  private readonly customTools: ToolDefinition[];
 
   private constructor(options: {
     session: AgentSession;
     authStorage: AuthStorage;
     modelRegistry: ModelRegistry;
-    sessionManager: SessionManager;
     metadataFilePath: string;
     getPreference: PreferenceReader;
+    cwd: string;
+    sessionDir: string;
     resourceLoader: DefaultResourceLoader;
     windowManager: WindowManagerService;
     htmlStreamCoordinator: HtmlStreamCoordinator;
     logger: pino.Logger;
+    customTools: ToolDefinition[];
   }) {
     this.session = options.session;
     this.authStorage = options.authStorage;
     this.modelRegistry = options.modelRegistry;
-    this.sessionManager = options.sessionManager;
     this.metadataFilePath = options.metadataFilePath;
     this.getPreference = options.getPreference;
+    this.cwd = options.cwd;
+    this.sessionDir = options.sessionDir;
     this.resourceLoader = options.resourceLoader;
     this.windowManager = options.windowManager;
     this.htmlStreamCoordinator = options.htmlStreamCoordinator;
     this.log = options.logger;
+    this.customTools = options.customTools;
   }
 
   static async create(
@@ -401,18 +454,88 @@ export class PiSessionService {
       session,
       authStorage,
       modelRegistry,
-      sessionManager,
       metadataFilePath: join(workspacePaths.data, 'storage', 'ai-message-metadata.json'),
       getPreference,
+      cwd: process.cwd(),
+      sessionDir,
       resourceLoader,
       windowManager,
       htmlStreamCoordinator,
       logger,
+      customTools,
     });
+  }
+
+  private async createSessionWithManager(sessionManager: SessionManager): Promise<AgentSession> {
+    const { session } = await createAgentSession({
+      cwd: this.cwd,
+      authStorage: this.authStorage,
+      modelRegistry: this.modelRegistry,
+      model: this.session.model,
+      sessionManager,
+      tools: [readTool],
+      customTools: this.customTools,
+      resourceLoader: this.resourceLoader,
+    });
+
+    return session;
   }
 
   getSessionId(): string {
     return this.session.sessionId;
+  }
+
+  async listSessions(): Promise<ChatSessionSummary[]> {
+    const sessions = await SessionManager.list(this.cwd, this.sessionDir);
+    return sessions
+      .sort((left, right) => right.modified.getTime() - left.modified.getTime())
+      .map((info) => toSessionSummary(info, info.id === this.getSessionId()));
+  }
+
+  async createNewSession(): Promise<ChatSessionSummary> {
+    this.session = await this.createSessionWithManager(
+      SessionManager.create(this.cwd, this.sessionDir),
+    );
+    const summary = (await this.listSessions()).find(
+      (session) => session.id === this.getSessionId(),
+    );
+    return (
+      summary ?? {
+        id: this.getSessionId(),
+        label: 'New session',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+    );
+  }
+
+  async switchSession(sessionId: string): Promise<boolean> {
+    const sessions = await SessionManager.list(this.cwd, this.sessionDir);
+    const target = sessions.find((entry) => entry.id === sessionId);
+    if (!target) {
+      return false;
+    }
+
+    this.session = await this.createSessionWithManager(
+      SessionManager.open(target.path, this.sessionDir),
+    );
+    return true;
+  }
+
+  private maybeAssignSessionTitle(inputText: string): void {
+    if (this.session.sessionManager.getSessionName()) {
+      return;
+    }
+
+    const hasHistory = this.session.messages.some((message) => message.role === 'user');
+    if (hasHistory) {
+      return;
+    }
+
+    const title = generateSessionTitle(inputText);
+    if (title) {
+      this.session.sessionManager.appendSessionInfo(title);
+    }
   }
 
   async getProviderOptions(): Promise<{ defaultProvider: string; providers: AiProviderOption[] }> {
@@ -613,6 +736,7 @@ export class PiSessionService {
 
   async prompt(input: PromptInput, callbacks: PromptCallbacks): Promise<void> {
     await this.syncPreferences(input.provider);
+    this.maybeAssignSessionTitle(input.text);
 
     const { onEvent } = callbacks;
     let pendingUserSource: ChatSource | null = input.source;

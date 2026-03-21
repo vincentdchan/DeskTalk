@@ -33,14 +33,29 @@ export interface AiProviderOption {
   model: string;
 }
 
+export interface ChatSessionOption {
+  id: string;
+  label: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 interface AiProviderResponse {
   defaultProvider: string;
   providers: AiProviderOption[];
 }
 
 export interface AiEventMessage {
-  type: 'history_sync' | 'message_start' | 'message_update' | 'message_end' | 'tool_call' | 'error';
+  type:
+    | 'history_sync'
+    | 'sessions_sync'
+    | 'message_start'
+    | 'message_update'
+    | 'message_end'
+    | 'tool_call'
+    | 'error';
   requestId?: string;
+  sessionId?: string;
   text?: string;
   message?: string;
   model?: string;
@@ -50,6 +65,7 @@ export interface AiEventMessage {
   };
   messages?: ChatMessage[];
   toolCall?: ToolCallInfo;
+  sessions?: ChatSessionOption[];
 }
 
 export interface ChatSessionState {
@@ -67,9 +83,16 @@ export interface ChatSessionState {
   providerOptions: AiProviderOption[];
   /** Provider ID resolved from current preferences */
   selectedProvider: string;
+  /** Active persisted AI session */
+  currentSessionId: string | null;
+  /** Available persisted AI sessions */
+  sessions: ChatSessionOption[];
 
   // Actions
   loadProviders: () => Promise<void>;
+  loadSessions: (socket: WebSocket) => boolean;
+  switchSession: (sessionId: string, socket: WebSocket) => boolean;
+  createSession: (socket: WebSocket) => boolean;
   submitPrompt: (text: string, source: 'text' | 'voice', socket: WebSocket) => boolean;
   handleAiEvent: (event: AiEventMessage) => void;
 }
@@ -91,6 +114,8 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
   tokenCount: 0,
   providerOptions: [],
   selectedProvider: '',
+  currentSessionId: null,
+  sessions: [],
 
   async loadProviders() {
     try {
@@ -108,6 +133,72 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
         modelLabel: 'not configured',
       });
     }
+  },
+
+  loadSessions(socket: WebSocket) {
+    if (socket.readyState !== WebSocket.OPEN) {
+      return false;
+    }
+
+    socket.send(
+      JSON.stringify({
+        type: 'ai:sessions:list',
+      }),
+    );
+
+    return true;
+  },
+
+  switchSession(sessionId: string, socket: WebSocket) {
+    const state = get();
+    if (
+      !sessionId ||
+      socket.readyState !== WebSocket.OPEN ||
+      state.isAiRunning ||
+      state.currentSessionId === sessionId
+    ) {
+      return false;
+    }
+
+    set({
+      messages: [],
+      isAiRunning: false,
+      tokenCount: 0,
+      activeRequestId: null,
+      currentSessionId: sessionId,
+    });
+
+    socket.send(
+      JSON.stringify({
+        type: 'ai:sessions:switch',
+        sessionId,
+      }),
+    );
+
+    return true;
+  },
+
+  createSession(socket: WebSocket) {
+    const state = get();
+    if (socket.readyState !== WebSocket.OPEN || state.isAiRunning) {
+      return false;
+    }
+
+    set({
+      messages: [],
+      isAiRunning: false,
+      tokenCount: 0,
+      activeRequestId: null,
+      currentSessionId: null,
+    });
+
+    socket.send(
+      JSON.stringify({
+        type: 'ai:sessions:create',
+      }),
+    );
+
+    return true;
   },
 
   submitPrompt(text: string, source: 'text' | 'voice' = 'text', socket: WebSocket) {
@@ -144,8 +235,19 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
   handleAiEvent(event: AiEventMessage) {
     const state = get();
 
+    if (event.type === 'sessions_sync') {
+      set((prev) => ({
+        sessions: event.sessions ?? prev.sessions,
+        currentSessionId: event.sessionId ?? prev.currentSessionId,
+      }));
+      return;
+    }
+
     if (event.type === 'history_sync') {
-      set({ messages: event.messages ?? [] });
+      set((prev) => ({
+        messages: event.messages ?? [],
+        currentSessionId: event.sessionId ?? prev.currentSessionId,
+      }));
       return;
     }
 
