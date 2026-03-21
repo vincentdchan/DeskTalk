@@ -161,7 +161,7 @@ export function StreamPreviewPane({
     })
       .then(setStreamSnapshot)
       .catch((saveError) => {
-        console.error('Failed to save streamed HTML:', saveError);
+        console.error('Failed to save LiveApp HTML:', saveError);
       });
   });
 
@@ -187,7 +187,7 @@ export function StreamPreviewPane({
       })
       .catch((loadError) => {
         if (!cancelled) {
-          console.error('Failed to load streamed HTML snapshot:', loadError);
+          console.error('Failed to load LiveApp HTML snapshot:', loadError);
         }
       });
 
@@ -358,7 +358,7 @@ export function StreamPreviewPane({
     void loadStreamedHtml({ streamId, title: streamTitle })
       .then((snapshot) => {
         if (!snapshot) {
-          throw new Error('Saved streamed HTML file was not found.');
+          throw new Error('Saved LiveApp HTML file was not found.');
         }
         const nextHtml = bridgeToken
           ? injectDtRuntime(snapshot.content, {
@@ -372,7 +372,7 @@ export function StreamPreviewPane({
         setStreamSnapshot(snapshot);
       })
       .catch((loadError) => {
-        console.error('Failed to refresh streamed HTML from file:', loadError);
+        console.error('Failed to refresh LiveApp HTML from file:', loadError);
       });
   }, [bridgeToken, loadStreamedHtml, streamId, streamTitle, theme]);
 

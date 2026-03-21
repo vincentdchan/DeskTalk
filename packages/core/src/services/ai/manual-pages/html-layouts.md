@@ -1,6 +1,6 @@
 # HTML Layouts
 
-These layout rules are mandatory when using `generate_html`.
+These layout rules are mandatory when using `create_liveapp`.
 
 ## Content Sections
 

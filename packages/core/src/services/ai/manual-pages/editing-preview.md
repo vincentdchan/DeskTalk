@@ -20,4 +20,4 @@ Use this workflow when the user asks to change content already shown in a Previe
 
 ## When to Regenerate Instead
 
-Regenerate with `generate_html` only when the user wants a new visual artifact, a major redesign, or content that is not already represented by the current Preview document.
+Regenerate with `create_liveapp` only when the user wants a new visual artifact, a major redesign, or content that is not already represented by the current Preview document.

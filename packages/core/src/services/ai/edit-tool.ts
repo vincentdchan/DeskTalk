@@ -128,6 +128,12 @@ export function createEditTool(options: EditToolOptions): ToolDefinition {
         filePath: absolutePath,
         content: nextContent,
       });
+      if (absolutePath.replace(/\\/g, '/').includes('/.data/liveapps/')) {
+        broadcastEvent('preview', 'liveapps.changed', {
+          path: absolutePath,
+          reason: 'edited',
+        });
+      }
 
       const { diff, firstChangedLine } = computeDiff(
         currentContent,

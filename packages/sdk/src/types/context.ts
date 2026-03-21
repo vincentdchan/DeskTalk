@@ -32,6 +32,8 @@ export type LocalizeParam = string | number | boolean | null | undefined;
  * Platform-resolved paths for a MiniApp, provided by the core.
  */
 export interface MiniAppPaths {
+  /** Authenticated user's home directory (e.g., <data>/home/alice/) */
+  home: string;
   /** Scoped data directory (e.g., <data>/home/alice/.data/note/) */
   data: string;
   /** Scoped storage file (e.g., <data>/home/alice/.storage/note.json) */

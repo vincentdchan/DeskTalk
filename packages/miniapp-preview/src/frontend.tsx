@@ -31,6 +31,7 @@ function detectMode(args?: Record<string, unknown>): PreviewMode {
 function PreviewApp({
   initialPath,
   mode,
+  liveAppId,
   streamId,
   streamTitle,
   bridgeToken,
@@ -38,6 +39,7 @@ function PreviewApp({
 }: {
   initialPath?: string;
   mode: PreviewMode;
+  liveAppId?: string;
   streamId?: string;
   streamTitle?: string;
   bridgeToken?: string;
@@ -265,7 +267,13 @@ function PreviewApp({
             <div className={styles.emptyState}>No image open</div>
           )
         ) : mode === 'html' ? (
-          <HtmlPreviewPane initialPath={initialPath} onActionStateChange={setHtmlActionState} />
+          <HtmlPreviewPane
+            initialPath={initialPath}
+            liveAppId={liveAppId}
+            bridgeToken={bridgeToken}
+            theme={theme}
+            onActionStateChange={setHtmlActionState}
+          />
         ) : (
           <StreamPreviewPane
             streamId={streamId!}
@@ -284,6 +292,7 @@ export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation
   const themedContext = ctx as MiniAppFrontendContext & { theme?: PreviewThemeRuntime };
   const mode = detectMode(ctx.args);
   const initialPath = typeof ctx.args?.path === 'string' ? ctx.args.path : undefined;
+  const liveAppId = typeof ctx.args?.liveAppId === 'string' ? ctx.args.liveAppId : undefined;
   const streamId = typeof ctx.args?.streamId === 'string' ? ctx.args.streamId : undefined;
   const streamTitle = typeof ctx.args?.title === 'string' ? ctx.args.title : undefined;
   const bridgeToken = typeof ctx.args?.bridgeToken === 'string' ? ctx.args.bridgeToken : undefined;
@@ -299,6 +308,7 @@ export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation
         <PreviewApp
           initialPath={initialPath}
           mode={mode}
+          liveAppId={liveAppId}
           streamId={streamId}
           streamTitle={streamTitle}
           bridgeToken={bridgeToken}

@@ -42,6 +42,12 @@ export function createRedoEditTool(options: RedoEditToolOptions): ToolDefinition
         filePath: absolutePath,
         content: restoredContent,
       });
+      if (absolutePath.replace(/\\/g, '/').includes('/.data/liveapps/')) {
+        broadcastEvent('preview', 'liveapps.changed', {
+          path: absolutePath,
+          reason: 'redo',
+        });
+      }
 
       const payload = { ok: true, path: absolutePath, contentLength: restoredContent.length };
       return {

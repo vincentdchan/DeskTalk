@@ -1,24 +1,18 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { MiniAppManifest } from '@desktalk/sdk';
 import { createPortal } from 'react-dom';
 import { DockIcon } from './DockIcon';
+import type { LauncherApp } from './launcher-types';
 import styles from './LauncherPanel.module.scss';
 
 interface LauncherPanelProps {
-  manifests: MiniAppManifest[];
+  apps: LauncherApp[];
   isOpen: boolean;
   onClose: () => void;
-  onLaunch: (miniAppId: string) => void;
+  onLaunch: (app: LauncherApp) => void;
   anchorRef: React.RefObject<HTMLElement | null>;
 }
 
-export function LauncherPanel({
-  manifests,
-  isOpen,
-  onClose,
-  onLaunch,
-  anchorRef,
-}: LauncherPanelProps) {
+export function LauncherPanel({ apps, isOpen, onClose, onLaunch, anchorRef }: LauncherPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
@@ -85,13 +79,13 @@ export function LauncherPanel({
 
   return createPortal(
     <div ref={panelRef} className={styles.panel} style={position}>
-      {manifests.length === 0 && <div className={styles.empty}>No applications available</div>}
-      {manifests.map((app) => (
+      {apps.length === 0 && <div className={styles.empty}>No applications available</div>}
+      {apps.map((app) => (
         <button
           key={app.id}
           className={styles.item}
           onClick={() => {
-            onLaunch(app.id);
+            onLaunch(app);
             onClose();
           }}
         >

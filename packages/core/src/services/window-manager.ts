@@ -335,7 +335,10 @@ export class WindowManagerService {
    * This is injected per-prompt so the AI always sees the latest state
    * without polluting the cacheable system prompt.
    */
-  getDesktopContext(availableMiniApps: Array<{ id: string; name: string }>): string {
+  getDesktopContext(
+    availableMiniApps: Array<{ id: string; name: string }>,
+    availableLiveApps: Array<{ id: string; name: string }>,
+  ): string {
     const focusedWindow = this.getFocusedWindow();
 
     // ─── Layout ───────────────────────────────────────────────────────────
@@ -356,6 +359,9 @@ export class WindowManagerService {
     // ─── MiniApps ─────────────────────────────────────────────────────────
     const miniAppLines = availableMiniApps.length
       ? availableMiniApps.map((m) => `  ${m.id}: ${m.name}`)
+      : ['  (none)'];
+    const liveAppLines = availableLiveApps.length
+      ? availableLiveApps.map((app) => `  ${app.id}: ${app.name}`)
       : ['  (none)'];
 
     // ─── Actions on focused window ────────────────────────────────────────
@@ -385,6 +391,8 @@ export class WindowManagerService {
       ...layoutLines,
       'MiniApps:',
       ...miniAppLines,
+      'LiveApps:',
+      ...liveAppLines,
       ...(actionLines.length > 0
         ? [`Actions (${focusedWindow!.id}):`, ...actionLines]
         : ['Actions: (none — no focused window or no actions registered)']),

@@ -20,30 +20,35 @@ const ONE_BY_ONE_PNG_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+yF9kAAAAASUVORK5CYII=';
 
 describe('backend helpers', () => {
-  let dataDir: string;
+  let rootDir: string;
+  let homeDir: string;
+  let previewDataDir: string;
 
   beforeEach(async () => {
-    dataDir = await mkdtemp(join(tmpdir(), 'desktalk-preview-data-'));
+    rootDir = await mkdtemp(join(tmpdir(), 'desktalk-preview-data-'));
+    homeDir = join(rootDir, 'home', 'alice');
+    previewDataDir = join(homeDir, '.data', 'preview');
+    await mkdir(previewDataDir, { recursive: true });
   });
 
   afterEach(async () => {
-    await rm(dataDir, { recursive: true, force: true });
+    await rm(rootDir, { recursive: true, force: true });
   });
 
-  it('sanitizes streamed html filenames consistently', () => {
+  it('sanitizes liveapp html filenames consistently', () => {
     expect(sanitizeTitleSegment('  Revenue Report: Q1/Q2  ')).toBe('revenue-report-q1q2');
     expect(getStreamedDirectoryName('stream-42', '  Revenue Report: Q1/Q2  ')).toBe(
       'revenue-report-q1q2_stream-42',
     );
     expect(getStreamedFileName()).toBe('index.html');
     expect(getStreamedRelativePath('stream-42', '  Revenue Report: Q1/Q2  ')).toBe(
-      'streamed/revenue-report-q1q2_stream-42/index.html',
+      '.data/liveapps/revenue-report-q1q2_stream-42/index.html',
     );
   });
 
-  it('saves and reloads streamed html snapshots', async () => {
+  it('saves and reloads liveapp html snapshots', async () => {
     const snapshot = await saveStreamedHtml(
-      dataDir,
+      homeDir,
       'stream-7',
       'Dashboard Demo',
       '<html>ok</html>',
@@ -51,15 +56,15 @@ describe('backend helpers', () => {
 
     expect(snapshot).toEqual({
       name: 'index.html',
-      path: getStreamedAbsolutePath(dataDir, 'stream-7', 'Dashboard Demo'),
+      path: getStreamedAbsolutePath(homeDir, 'stream-7', 'Dashboard Demo'),
       content: '<html>ok</html>',
     });
 
-    const absolutePath = getStreamedAbsolutePath(dataDir, 'stream-7', 'Dashboard Demo');
+    const absolutePath = getStreamedAbsolutePath(homeDir, 'stream-7', 'Dashboard Demo');
     await expect(readFile(absolutePath, 'utf8')).resolves.toBe('<html>ok</html>');
-    await expect(loadStreamedHtml(dataDir, 'stream-7', 'Dashboard Demo')).resolves.toEqual(
-      snapshot,
-    );
+    await expect(
+      loadStreamedHtml(homeDir, 'stream-7', 'Dashboard Demo', previewDataDir),
+    ).resolves.toEqual(snapshot);
   });
 
   it('strips injected DeskTalk runtime tags before saving', async () => {
@@ -78,25 +83,29 @@ describe('backend helpers', () => {
 
     expect(stripDtInjections(injectedHtml)).toBe(cleanedHtml);
 
-    const snapshot = await saveStreamedHtml(dataDir, 'stream-8', 'Injected Demo', injectedHtml);
-    const absolutePath = getStreamedAbsolutePath(dataDir, 'stream-8', 'Injected Demo');
+    const snapshot = await saveStreamedHtml(homeDir, 'stream-8', 'Injected Demo', injectedHtml);
+    const absolutePath = getStreamedAbsolutePath(homeDir, 'stream-8', 'Injected Demo');
 
     expect(snapshot.content).toBe(cleanedHtml);
     await expect(readFile(absolutePath, 'utf8')).resolves.toBe(cleanedHtml);
   });
 
   it('returns null when a streamed html snapshot is missing', async () => {
-    await expect(loadStreamedHtml(dataDir, 'stream-missing', 'Nope')).resolves.toBeNull();
+    await expect(
+      loadStreamedHtml(homeDir, 'stream-missing', 'Nope', previewDataDir),
+    ).resolves.toBeNull();
   });
 
   it('loads legacy streamed html snapshots for backward compatibility', async () => {
-    await mkdir(join(dataDir, 'streamed'), { recursive: true });
-    const legacyPath = getLegacyStreamedAbsolutePath(dataDir, 'stream-9', 'Legacy Demo');
+    await mkdir(join(previewDataDir, 'streamed'), { recursive: true });
+    const legacyPath = getLegacyStreamedAbsolutePath(previewDataDir, 'stream-9', 'Legacy Demo');
     await writeFile(legacyPath, '<html>legacy</html>', 'utf8');
 
-    await expect(loadStreamedHtml(dataDir, 'stream-9', 'Legacy Demo')).resolves.toEqual({
+    await expect(
+      loadStreamedHtml(homeDir, 'stream-9', 'Legacy Demo', previewDataDir),
+    ).resolves.toEqual({
       name: 'stream-9-legacy-demo.html',
-      path: getLegacyStreamedAbsolutePath(dataDir, 'stream-9', 'Legacy Demo'),
+      path: getLegacyStreamedAbsolutePath(previewDataDir, 'stream-9', 'Legacy Demo'),
       content: '<html>legacy</html>',
     });
   });

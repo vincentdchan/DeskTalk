@@ -72,14 +72,24 @@ describe('getToolCallSummary', () => {
     expect(getToolCallSummary('action', {})).toBe('Invoke action');
   });
 
-  it('formats generate_html tool calls with title', () => {
-    expect(getToolCallSummary('generate_html', { title: 'My Dashboard' })).toBe(
-      'Generate HTML: My Dashboard',
+  it('formats create_liveapp tool calls with title', () => {
+    expect(getToolCallSummary('create_liveapp', { title: 'My Dashboard' })).toBe(
+      'Create LiveApp: My Dashboard',
     );
   });
 
-  it('formats generate_html tool calls without title', () => {
-    expect(getToolCallSummary('generate_html', {})).toBe('Generate HTML');
+  it('formats create_liveapp tool calls without title', () => {
+    expect(getToolCallSummary('create_liveapp', {})).toBe('Create LiveApp');
+  });
+
+  it('formats generate_icon tool calls with liveapp id', () => {
+    expect(
+      getToolCallSummary('generate_icon', { liveAppId: 'project-tracker_html-stream-1' }),
+    ).toBe('Generate icon: project-tracker_html-stream-1');
+  });
+
+  it('formats generate_icon tool calls without liveapp id', () => {
+    expect(getToolCallSummary('generate_icon', {})).toBe('Generate icon');
   });
 
   it('formats edit tool calls with a path', () => {

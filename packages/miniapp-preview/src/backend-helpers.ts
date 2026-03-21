@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import type { StreamedHtmlSnapshot } from './types';
 import { stripDtInjections } from './strip-dt-injections';
 
@@ -53,13 +53,14 @@ export function getStreamedFileName(): string {
 }
 
 export function getStreamedRelativePath(streamId: string, title: string): string {
-  return `streamed/${getStreamedDirectoryName(streamId, title)}/${getStreamedFileName()}`;
+  return `.data/liveapps/${getStreamedDirectoryName(streamId, title)}/${getStreamedFileName()}`;
 }
 
-export function getStreamedAbsolutePath(dataDir: string, streamId: string, title: string): string {
+export function getStreamedAbsolutePath(homeDir: string, streamId: string, title: string): string {
   return join(
-    dataDir,
-    'streamed',
+    homeDir,
+    '.data',
+    'liveapps',
     getStreamedDirectoryName(streamId, title),
     getStreamedFileName(),
   );
@@ -74,19 +75,20 @@ export function getLegacyStreamedRelativePath(streamId: string, title: string): 
 }
 
 export function getLegacyStreamedAbsolutePath(
-  dataDir: string,
+  legacyDataDir: string,
   streamId: string,
   title: string,
 ): string {
-  return join(dataDir, 'streamed', getLegacyStreamedFileName(streamId, title));
+  return join(legacyDataDir, 'streamed', getLegacyStreamedFileName(streamId, title));
 }
 
 export async function loadStreamedHtml(
-  dataDir: string,
+  homeDir: string,
   streamId: string,
   title: string,
+  legacyDataDir?: string,
 ): Promise<StreamedHtmlSnapshot | null> {
-  const path = getStreamedAbsolutePath(dataDir, streamId, title);
+  const path = getStreamedAbsolutePath(homeDir, streamId, title);
   try {
     const content = await readFile(path, 'utf8');
     return {
@@ -100,7 +102,11 @@ export async function loadStreamedHtml(
     }
   }
 
-  const legacyPath = getLegacyStreamedAbsolutePath(dataDir, streamId, title);
+  if (!legacyDataDir) {
+    return null;
+  }
+
+  const legacyPath = getLegacyStreamedAbsolutePath(legacyDataDir, streamId, title);
   try {
     const content = await readFile(legacyPath, 'utf8');
     return {
@@ -117,14 +123,16 @@ export async function loadStreamedHtml(
 }
 
 export async function saveStreamedHtml(
-  dataDir: string,
+  homeDir: string,
   streamId: string,
   title: string,
   content: string,
 ): Promise<StreamedHtmlSnapshot> {
-  const path = getStreamedAbsolutePath(dataDir, streamId, title);
+  const path = getStreamedAbsolutePath(homeDir, streamId, title);
   const strippedContent = stripDtInjections(content);
-  mkdirSync(dirname(path), { recursive: true });
+  mkdirSync(join(homeDir, '.data', 'liveapps', getStreamedDirectoryName(streamId, title)), {
+    recursive: true,
+  });
   await writeFile(path, strippedContent, 'utf8');
   return {
     name: fileName(path),

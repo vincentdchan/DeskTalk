@@ -1,15 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { MiniAppManifest } from '@desktalk/sdk';
 import { useWindowManager } from '../stores/window-manager';
 import { LauncherPanel } from './LauncherPanel';
+import type { LauncherApp } from './launcher-types';
 import styles from './ActionsBar.module.scss';
 
 interface ActionsBarProps {
-  manifests: MiniAppManifest[];
-  onLaunch: (miniAppId: string) => void;
+  apps: LauncherApp[];
+  onLaunch: (app: LauncherApp) => void;
 }
 
-export function ActionsBar({ manifests, onLaunch }: ActionsBarProps) {
+export function ActionsBar({ apps, onLaunch }: ActionsBarProps) {
   const focusedWindowId = useWindowManager((s) => s.focusedWindowId);
   const fullscreenWindowId = useWindowManager((s) => s.fullscreenWindowId);
   const focusedWindow = useWindowManager((s) => s.windows.find((w) => w.id === s.focusedWindowId));
@@ -44,7 +44,7 @@ export function ActionsBar({ manifests, onLaunch }: ActionsBarProps) {
         </button>
 
         <LauncherPanel
-          manifests={manifests}
+          apps={apps}
           isOpen={launcherOpen}
           onClose={() => setLauncherOpen(false)}
           onLaunch={onLaunch}
