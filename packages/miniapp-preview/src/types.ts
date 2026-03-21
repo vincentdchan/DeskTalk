@@ -17,7 +17,7 @@ export interface HtmlPreviewFile {
 
 export interface StreamedHtmlSnapshot {
   name: string;
-  path: string;
+  path: string; // Absolute path to the saved snapshot on disk
   content: string;
 }
 
@@ -29,6 +29,19 @@ export interface SiblingList {
 export interface SiblingEntry {
   name: string;
   path: string; // Relative to root
+}
+
+export interface PreviewOpenedFileState {
+  name: string;
+  path: string | null;
+  kind: 'image' | 'html' | 'stream';
+  mimeType?: string;
+}
+
+export interface PreviewActionState {
+  mode: PreviewMode;
+  streaming: boolean;
+  file: PreviewOpenedFileState | null;
 }
 
 export type PreviewBridgeStateSelector =

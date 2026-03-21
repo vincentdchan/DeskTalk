@@ -174,7 +174,7 @@ function App() {
 
   return (
     <I18nProvider locale={locale} messages={messages}>
-      <Shell />
+      <Shell themePreferences={themePreferences} />
     </I18nProvider>
   );
 }

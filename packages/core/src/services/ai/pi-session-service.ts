@@ -15,6 +15,10 @@ import { createActionTool } from './action-tool';
 import { createGenerateHtmlTool } from './generate-html-tool';
 import { createReadHtmlGuidelinesTool } from './html-guidelines-tool';
 import { HtmlStreamCoordinator } from './html-stream-coordinator';
+import { createEditTool } from './edit-tool';
+import { createUndoEditTool } from './undo-edit-tool';
+import { createRedoEditTool } from './redo-edit-tool';
+import { EditHistory, createManagedPathResolver } from './edit-history';
 import type { AssistantMessage, ToolCall } from '@mariozechner/pi-ai';
 import type pino from 'pino';
 import {
@@ -340,6 +344,12 @@ export class PiSessionService {
       logger: logger.child({ scope: 'html-stream' }),
     });
 
+    const resolveManagedPath = (inputPath: string) =>
+      createManagedPathResolver([join(workspacePaths.data, 'home', getCurrentUsername())])(
+        inputPath,
+      );
+    const editHistory = new EditHistory(resolveManagedPath);
+
     const customTools = [
       createDesktopTool({
         windowManager,
@@ -360,6 +370,18 @@ export class PiSessionService {
         },
         getPreference,
         streamCoordinator: htmlStreamCoordinator,
+      }),
+      createEditTool({
+        editHistory,
+        resolvePath: resolveManagedPath,
+      }),
+      createUndoEditTool({
+        editHistory,
+        resolvePath: resolveManagedPath,
+      }),
+      createRedoEditTool({
+        editHistory,
+        resolvePath: resolveManagedPath,
       }),
       createReadHtmlGuidelinesTool(),
     ];

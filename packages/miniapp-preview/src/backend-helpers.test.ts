@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   getStreamedAbsolutePath,
   getLegacyStreamedAbsolutePath,
-  getLegacyStreamedRelativePath,
   getStreamedDirectoryName,
   getStreamedFileName,
   getStreamedRelativePath,
@@ -14,6 +13,7 @@ import {
   parseImageDimensions,
   saveStreamedHtml,
   sanitizeTitleSegment,
+  stripDtInjections,
 } from './backend-helpers';
 
 const ONE_BY_ONE_PNG_BASE64 =
@@ -51,7 +51,7 @@ describe('backend helpers', () => {
 
     expect(snapshot).toEqual({
       name: 'index.html',
-      path: 'streamed/dashboard-demo_stream-7/index.html',
+      path: getStreamedAbsolutePath(dataDir, 'stream-7', 'Dashboard Demo'),
       content: '<html>ok</html>',
     });
 
@@ -60,6 +60,29 @@ describe('backend helpers', () => {
     await expect(loadStreamedHtml(dataDir, 'stream-7', 'Dashboard Demo')).resolves.toEqual(
       snapshot,
     );
+  });
+
+  it('strips injected DeskTalk runtime tags before saving', async () => {
+    const injectedHtml = [
+      '<!DOCTYPE html><html><head>',
+      '<link rel="stylesheet" href="/api/ui/desktalk-theme.css?accent=%237c6ff7&theme=dark" data-dt-theme>',
+      '<script src="/api/ui/desktalk-ui.js" data-dt-ui></script>',
+      '<script data-dt-bridge>',
+      'window.DeskTalk = {};',
+      '</script>',
+      '<!DOCTYPE html><html><head><title>Demo</title></head><body>ok</body></html>',
+    ].join('\n');
+
+    const cleanedHtml =
+      '<!DOCTYPE html><html><head><title>Demo</title></head><body>ok</body></html>';
+
+    expect(stripDtInjections(injectedHtml)).toBe(cleanedHtml);
+
+    const snapshot = await saveStreamedHtml(dataDir, 'stream-8', 'Injected Demo', injectedHtml);
+    const absolutePath = getStreamedAbsolutePath(dataDir, 'stream-8', 'Injected Demo');
+
+    expect(snapshot.content).toBe(cleanedHtml);
+    await expect(readFile(absolutePath, 'utf8')).resolves.toBe(cleanedHtml);
   });
 
   it('returns null when a streamed html snapshot is missing', async () => {
@@ -73,7 +96,7 @@ describe('backend helpers', () => {
 
     await expect(loadStreamedHtml(dataDir, 'stream-9', 'Legacy Demo')).resolves.toEqual({
       name: 'stream-9-legacy-demo.html',
-      path: getLegacyStreamedRelativePath('stream-9', 'Legacy Demo'),
+      path: getLegacyStreamedAbsolutePath(dataDir, 'stream-9', 'Legacy Demo'),
       content: '<html>legacy</html>',
     });
   });

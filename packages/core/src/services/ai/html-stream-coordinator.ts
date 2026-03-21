@@ -311,7 +311,10 @@ export class HtmlStreamCoordinator {
 
     // Signal that streaming is complete
     this.log.debug({ streamId: session.streamId }, 'finalize() — sending html-done');
-    broadcastEvent('preview', 'preview.html-done', { streamId: session.streamId });
+    broadcastEvent('preview', 'preview.html-done', {
+      streamId: session.streamId,
+      html: finalContent,
+    });
 
     session.state = 'done';
     const result = { ...session };

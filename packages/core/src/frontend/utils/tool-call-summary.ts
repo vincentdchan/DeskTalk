@@ -1,15 +1,65 @@
+function replacePrefix(path: string, prefixLength: number, replacement: string): string {
+  const remainder = path.slice(prefixLength);
+  if (!remainder || remainder === '/' || remainder === '\\') {
+    return replacement;
+  }
+
+  if (remainder.startsWith('/') || remainder.startsWith('\\')) {
+    return `${replacement}${remainder}`;
+  }
+
+  return `${replacement}/${remainder}`;
+}
+
+function shortenDeskTalkHomePath(path: string): string | null {
+  const match = path.match(/^(.*[\\/])home[\\/][^\\/]+(?=([\\/]|$))/i);
+  if (!match || typeof match[0] !== 'string') {
+    return null;
+  }
+
+  return replacePrefix(path, match[0].length, '<dt-home>');
+}
+
+function shortenDeskTalkDataPath(path: string): string | null {
+  const match = path.match(/^(.*[\\/])(?=(home|miniapps|ai-sessions)([\\/]|$))/i);
+  if (!match || typeof match[1] !== 'string') {
+    return null;
+  }
+
+  return replacePrefix(path, match[1].length, '<dt-data>');
+}
+
+function shortenUserHomePath(path: string): string | null {
+  const match = path.match(/^((?:[A-Za-z]:)?[\\/](?:Users|home)[\\/][^\\/]+)(?=([\\/]|$))/);
+  if (!match || typeof match[1] !== 'string') {
+    return null;
+  }
+
+  return replacePrefix(path, match[1].length, '~');
+}
+
+function simplifyPath(path: string): string {
+  return (
+    shortenDeskTalkHomePath(path) ??
+    shortenDeskTalkDataPath(path) ??
+    shortenUserHomePath(path) ??
+    path
+  );
+}
+
 function getToolCallSummary(toolName: string, params: Record<string, unknown>): string {
   const name = toolName.toLowerCase();
+  const filePath =
+    typeof params.path === 'string'
+      ? params.path
+      : typeof params.filePath === 'string'
+        ? params.filePath
+        : null;
+  const displayPath = filePath ? simplifyPath(filePath) : null;
 
   // Built-in read tool (pi-coding-agent) — param is `path`
   if (name === 'read') {
-    const filePath =
-      typeof params.path === 'string'
-        ? params.path
-        : typeof params.filePath === 'string'
-          ? params.filePath
-          : null;
-    return filePath ? `Read ${filePath}` : 'Read file';
+    return displayPath ? `Read ${displayPath}` : 'Read file';
   }
 
   // desktop — action-based summary
@@ -36,6 +86,18 @@ function getToolCallSummary(toolName: string, params: Record<string, unknown>): 
   if (name === 'generate_html') {
     const title = typeof params.title === 'string' ? params.title : null;
     return title ? `Generate HTML: ${title}` : 'Generate HTML';
+  }
+
+  if (name === 'edit') {
+    return displayPath ? `Edit ${displayPath}` : 'Edit file';
+  }
+
+  if (name === 'undo_edit') {
+    return displayPath ? `Undo edit ${displayPath}` : 'Undo edit';
+  }
+
+  if (name === 'redo_edit') {
+    return displayPath ? `Redo edit ${displayPath}` : 'Redo edit';
   }
 
   // read_html_guidelines — no params
@@ -139,6 +201,8 @@ function simplifyToolCallMarkdown(content: string): string {
         trimmed.startsWith('</path>') ||
         trimmed.startsWith('</type>') ||
         trimmed.startsWith('</content>') ||
+        (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+        (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
         /^\d+:\s/.test(trimmed) ||
         trimmed.startsWith('(End of file')
       ) {
@@ -162,4 +226,4 @@ function simplifyToolCallMarkdown(content: string): string {
     .trim();
 }
 
-export { extractToolCall, getToolCallSummary, simplifyToolCallMarkdown };
+export { extractToolCall, getToolCallSummary, simplifyPath, simplifyToolCallMarkdown };

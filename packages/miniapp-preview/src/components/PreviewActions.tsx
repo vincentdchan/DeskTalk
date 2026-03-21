@@ -1,11 +1,10 @@
 import React, { useCallback } from 'react';
 import { ActionsProvider, Action, useCommand } from '@desktalk/sdk';
-import type { PreviewFile, PreviewMode } from '../types';
+import type { PreviewActionState, PreviewFile } from '../types';
 
 interface PreviewActionsProps {
   children: React.ReactNode;
-  currentFile: PreviewFile | null;
-  mode: PreviewMode;
+  state: PreviewActionState;
   onFileOpened: (file: PreviewFile) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -18,8 +17,7 @@ interface PreviewActionsProps {
 
 export function PreviewActions({
   children,
-  currentFile: _currentFile,
-  mode,
+  state,
   onFileOpened,
   onZoomIn,
   onZoomOut,
@@ -41,6 +39,8 @@ export function PreviewActions({
     },
     [openFile, onFileOpened],
   );
+
+  const handleGetState = useCallback(async () => state, [state]);
 
   const handleZoomIn = useCallback(async () => {
     onZoomIn();
@@ -75,10 +75,15 @@ export function PreviewActions({
     onNext();
   }, [onNext]);
 
-  const isImage = mode === 'image';
+  const isImage = state.mode === 'image';
 
   return (
     <ActionsProvider>
+      <Action
+        name="Get State"
+        description="Get the current preview mode and opened file"
+        handler={handleGetState}
+      />
       <Action
         name="Open File"
         description="Open an image or HTML file for preview"
