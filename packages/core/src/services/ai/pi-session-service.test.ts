@@ -75,8 +75,8 @@ describe('scrubHtmlToolCallArgs', () => {
         {
           type: 'toolCall',
           id: 'tool-1',
-          name: 'read_html_guidelines',
-          arguments: { topic: 'cards' },
+          name: 'read_manual',
+          arguments: { page: 'html/layouts' },
         },
         {
           type: 'toolCall',
@@ -89,7 +89,7 @@ describe('scrubHtmlToolCallArgs', () => {
 
     scrubHtmlToolCallArgs(message);
 
-    expect((message.content[0] as ToolCall).arguments).toEqual({ topic: 'cards' });
+    expect((message.content[0] as ToolCall).arguments).toEqual({ page: 'html/layouts' });
     expect((message.content[1] as ToolCall).arguments).toEqual({ title: 'Preview' });
   });
 });

@@ -100,9 +100,9 @@ function getToolCallSummary(toolName: string, params: Record<string, unknown>): 
     return displayPath ? `Redo edit ${displayPath}` : 'Redo edit';
   }
 
-  // read_html_guidelines — no params
-  if (name === 'read_html_guidelines') {
-    return 'Read HTML guidelines';
+  if (name === 'read_manual') {
+    const page = typeof params.page === 'string' ? params.page : null;
+    return page ? `Read manual: ${page}` : 'Read manual';
   }
 
   return toolName;

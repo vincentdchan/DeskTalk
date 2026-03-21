@@ -15,7 +15,7 @@ import {
 import { createDesktopTool, type SendAiCommand } from './desktop-tool';
 import { createActionTool } from './action-tool';
 import { createGenerateHtmlTool } from './generate-html-tool';
-import { createReadHtmlGuidelinesTool } from './html-guidelines-tool';
+import { createReadManualTool } from './manual-tool';
 import { HtmlStreamCoordinator } from './html-stream-coordinator';
 import { createEditTool } from './edit-tool';
 import { createUndoEditTool } from './undo-edit-tool';
@@ -445,7 +445,7 @@ export class PiSessionService {
         editHistory,
         resolvePath: resolveManagedPath,
       }),
-      createReadHtmlGuidelinesTool(),
+      createReadManualTool(),
     ];
 
     const { session } = await createAgentSession({

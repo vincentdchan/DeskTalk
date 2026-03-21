@@ -105,8 +105,14 @@ describe('getToolCallSummary', () => {
     );
   });
 
-  it('formats read_html_guidelines tool calls', () => {
-    expect(getToolCallSummary('read_html_guidelines', {})).toBe('Read HTML guidelines');
+  it('formats read_manual tool calls without a page', () => {
+    expect(getToolCallSummary('read_manual', {})).toBe('Read manual');
+  });
+
+  it('formats read_manual tool calls with a page', () => {
+    expect(getToolCallSummary('read_manual', { page: 'html/tokens' })).toBe(
+      'Read manual: html/tokens',
+    );
   });
 
   it('falls back to tool name for unknown tools', () => {

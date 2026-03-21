@@ -92,6 +92,7 @@ export function createEditTool(options: EditToolOptions): ToolDefinition {
       'Use this after discovering the target file path from a Preview Get State action or another trusted source.',
       'Read the file first so you can provide an exact oldText match.',
       'oldText must match exactly once or the tool will fail.',
+      'Call `read_manual` with `page: "editing/preview"` when editing an existing Preview document.',
     ],
     parameters: editSchema,
     async execute(_toolCallId, params) {
