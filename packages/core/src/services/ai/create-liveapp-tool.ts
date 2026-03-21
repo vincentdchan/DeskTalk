@@ -9,14 +9,14 @@ import { createThemeLinkTag } from './html-theme-link';
 import { UI_BUNDLE_SCRIPT_TAG } from './html-ui-script';
 import type { HtmlStreamCoordinator } from './html-stream-coordinator';
 
-const generateHtmlSchema = Type.Object({
-  title: Type.String({ description: 'Window title for the generated HTML preview' }),
+const createLiveAppSchema = Type.Object({
+  title: Type.String({ description: 'Window title for the generated LiveApp' }),
   content: Type.String({
-    description: 'Complete HTML content to display. Must be a self-contained HTML document.',
+    description: 'Complete HTML content for the LiveApp. Must be a self-contained HTML document.',
   }),
 });
 
-type GenerateHtmlParams = {
+type CreateLiveAppParams = {
   title: string;
   content: string;
 };
@@ -26,7 +26,7 @@ type PreferenceReader = (
   key: string,
 ) => PreferenceValue | undefined | Promise<PreferenceValue | undefined>;
 
-interface GenerateHtmlToolOptions {
+interface CreateLiveAppToolOptions {
   sendAiCommand: SendAiCommand;
   activateMiniApp: (miniAppId: string) => void;
   getPreference: PreferenceReader;
@@ -86,26 +86,26 @@ function injectIntoHtmlHead(html: string, snippet: string): string {
   return snippet + '\n' + html;
 }
 
-export function createGenerateHtmlTool(options: GenerateHtmlToolOptions): ToolDefinition {
+export function createLiveAppTool(options: CreateLiveAppToolOptions): ToolDefinition {
   const { sendAiCommand, activateMiniApp, getPreference, streamCoordinator } = options;
 
   return {
-    name: 'generate_html',
-    label: 'Generate HTML',
+    name: 'create_liveapp',
+    label: 'Create LiveApp',
     description:
-      'Generate visual HTML content and display it in a Preview window. Use this when the user asks to show something visually — charts, diagrams, styled layouts, interactive widgets, etc.',
-    promptSnippet: 'Generate and display HTML content in a Preview window.',
+      'Create a persistent LiveApp and display it in a Preview window. Use this when the user asks to show something visually — charts, diagrams, styled layouts, interactive widgets, dashboards, or tools.',
+    promptSnippet: 'Create and display a persistent LiveApp in a Preview window.',
     promptGuidelines: [
       'Use this tool when the user asks you to show, visualize, display, or render something visually.',
       'Provide a complete, self-contained HTML document including <html>, <head>, and <body> tags.',
       'Follow DeskTalk HTML manual guidance for `<dt-card>` usage, layout rules, and pre-styled typography.',
-      'Generated previews automatically receive a `window.DeskTalk` bridge for reading safe desktop state and running constrained commands.',
+      'Created LiveApps automatically receive a `window.DeskTalk` bridge for reading safe desktop state and running constrained commands.',
       'The bridge exposes `exec` / `execute` — both accept either a shell string (`window.DeskTalk.exec("ls -la")`) or explicit arguments (`window.DeskTalk.exec("ls", ["-la"])`).',
       'Call `read_manual` with pages such as `html/tokens`, `html/components`, `html/layouts`, `html/bridge`, or `html/examples` when you need the full DeskTalk reference.',
     ],
-    parameters: generateHtmlSchema,
+    parameters: createLiveAppSchema,
     async execute(_toolCallId, params) {
-      const input = params as GenerateHtmlParams;
+      const input = params as CreateLiveAppParams;
 
       // ── Streaming path ──────────────────────────────────────────────
       // If the coordinator already streamed content via toolcall_delta,

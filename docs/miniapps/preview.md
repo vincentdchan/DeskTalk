@@ -23,7 +23,7 @@ Preview is launched from the File Explorer when a user opens a supported file, o
 ### Core — HTML Mode
 
 - Open and display `.html` files from the File Explorer in a sandboxed iframe.
-- Receive **streaming HTML** from the AI assistant (`generate_html` tool) and render it live in an iframe as chunks arrive.
+- Receive **streaming HTML** from the AI assistant (`create_liveapp` tool) and render it live in an iframe as chunks arrive.
 - The toolbar shows the document title (from the AI tool's `title` parameter or the filename).
 - No zoom/pan controls in HTML mode — the iframe handles its own scroll/layout.
 
@@ -38,13 +38,13 @@ Preview is launched from the File Explorer when a user opens a supported file, o
 
 ### Integration with AI (Streaming HTML)
 
-The AI assistant can generate visual HTML content via the `generate_html` tool. The flow is:
+The AI assistant can generate visual HTML content via the `create_liveapp` tool. The flow is:
 
-1. The AI calls `generate_html` with a `title` and begins streaming `content` (an HTML document string).
+1. The AI calls `create_liveapp` with a `title` and begins streaming `content` (an HTML document string).
 2. The core opens a Preview window with `args: { streamId, title }` (no `path`).
 3. As HTML chunks stream in, the core emits `preview.html-chunk` events to the Preview frontend.
 4. Preview renders the accumulating HTML in a sandboxed iframe, updating live as chunks arrive.
-5. When streaming completes, Preview writes the final HTML into its data directory at `streamed/<title>_<streamId>/index.html` and stores the absolute file path in state.
+5. When streaming completes, Preview writes the final HTML into the user's LiveApp directory at `<data>/home/<username>/.data/liveapps/<title>_<streamId>/index.html` and stores the absolute file path in state.
 6. Preview shows a refresh button that reloads the finished document from the saved file.
 7. On restart, Preview restores the streamed window and reloads the saved HTML snapshot from disk.
 
@@ -68,7 +68,7 @@ Toolbar (title display) | iframe viewport (full content area)
 
 - **Toolbar**: Top bar. In image mode: zoom in/out buttons, zoom percentage indicator, fit-to-window button, actual-size button, previous/next file buttons, and the current filename. In HTML mode: the document title only (no zoom/navigation controls).
 - **Image Viewport** (image mode only): Central area displaying the image. Supports mouse-wheel zoom, click-and-drag panning, and pinch-to-zoom on trackpad.
-- **HTML Viewport** (HTML mode only): A sandboxed `<iframe>` filling the content area. For streamed HTML, content updates live as chunks arrive.
+- **HTML Viewport** (HTML mode only): A sandboxed `<iframe>` filling the content area. For LiveApp HTML, content updates live as chunks arrive.
 
 ### Interactions
 
@@ -92,7 +92,7 @@ Preview determines its mode from the launch `args`:
 | Args                       | Mode  | Source                           |
 | -------------------------- | ----- | -------------------------------- |
 | `{ path: "*.html" }`       | HTML  | File Explorer (static HTML file) |
-| `{ streamId, title }`      | HTML  | AI `generate_html` tool          |
+| `{ streamId, title }`      | HTML  | AI `create_liveapp` tool         |
 | `{ path: "<image file>" }` | Image | File Explorer                    |
 
 When `streamId` is present, Preview enters streaming HTML mode and listens for chunk events. In that mode, `Get State` exposes the saved snapshot path once the file has been written. When `path` ends in `.html`, Preview reads the file from the backend and renders it in the iframe. Otherwise, Preview uses image mode.
@@ -120,7 +120,7 @@ When `streamId` is present, Preview enters streaming HTML mode and listens for c
 | Previous File | Navigate to previous image in directory         | --                                             |
 | Next File     | Navigate to next image in directory             | --                                             |
 
-`Get State` is available in every mode. It returns `PreviewActionState`, including `file.path` when a file is open. In stream mode, `file.path` is the absolute snapshot path on disk once the save completes.
+`Get State` is available in every mode. It returns `PreviewActionState`, including `file.path` when a file is open. In stream mode, `file.path` is the absolute LiveApp path on disk once the save completes.
 
 ## Backend
 
@@ -217,15 +217,15 @@ sandbox="allow-scripts allow-same-origin"
 
 ### Streaming HTML Architecture
 
-When the AI generates HTML via the `generate_html` tool:
+When the AI generates HTML via the `create_liveapp` tool:
 
-1. **`generate_html` tool** (in `pi-session-service.ts`) receives a `title` and streaming `content` from the LLM.
+1. **`create_liveapp` tool** (in `pi-session-service.ts`) receives a `title` and streaming `content` from the LLM.
 2. The tool generates a unique `streamId` and calls `sendAiCommand({ action: 'open', miniAppId: 'preview', args: { streamId, title } })` to open a Preview window.
 3. As the LLM streams `content` text deltas, the tool emits `preview.html-chunk` events with `{ streamId, chunk }` via the core's WebSocket broadcast.
 4. The Preview frontend listens for `preview.html-chunk` events matching its `streamId`, accumulates the HTML string, and writes it into the iframe via `srcdoc`.
 5. When the tool execution completes, it emits `preview.html-done` with `{ streamId, html? }`.
-6. The Preview frontend stops listening, saves the final HTML into its data store, and marks the document as fully loaded.
-7. If the app is restored after a restart, the Preview frontend reloads the saved `streamed/<title>_<streamId>/index.html` snapshot and shows it again.
+6. The Preview frontend stops listening, saves the final HTML into `<data>/home/<username>/.data/liveapps/`, and marks the document as fully loaded.
+7. If the app is restored after a restart, the Preview frontend reloads the saved `<data>/home/<username>/.data/liveapps/<title>_<streamId>/index.html` snapshot and shows it again.
 
 ### Post-Generation Editing
 

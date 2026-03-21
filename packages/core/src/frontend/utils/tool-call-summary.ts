@@ -35,10 +35,10 @@ function getToolCallSummary(toolName: string, params: Record<string, unknown>): 
     return actionName ? `Invoke ${actionName}` : 'Invoke action';
   }
 
-  // generate_html — generate visual content
-  if (name === 'generate_html') {
+  // create_liveapp — generate visual content
+  if (name === 'create_liveapp') {
     const title = typeof params.title === 'string' ? params.title : null;
-    return title ? `Generate HTML: ${title}` : 'Generate HTML';
+    return title ? `Create LiveApp: ${title}` : 'Create LiveApp';
   }
 
   if (name === 'edit') {

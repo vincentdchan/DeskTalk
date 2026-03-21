@@ -14,7 +14,7 @@ import {
 } from '@mariozechner/pi-coding-agent';
 import { createDesktopTool, type SendAiCommand } from './desktop-tool';
 import { createActionTool } from './action-tool';
-import { createGenerateHtmlTool } from './generate-html-tool';
+import { createLiveAppTool } from './create-liveapp-tool';
 import { createReadManualTool } from './manual-tool';
 import { HtmlStreamCoordinator } from './html-stream-coordinator';
 import { createEditTool } from './edit-tool';
@@ -186,7 +186,7 @@ export function summarizeHtml(html: string): string {
 }
 
 /**
- * Scrub `generate_html` tool-call arguments in an assistant message so the
+ * Scrub `create_liveapp` tool-call arguments in an assistant message so the
  * full HTML is not re-sent to the LLM on subsequent turns.
  *
  * Mutates `message.content` in-place — this must be called synchronously in
@@ -196,7 +196,7 @@ export function scrubHtmlToolCallArgs(message: AssistantMessage): void {
   for (const block of message.content) {
     if (
       block.type === 'toolCall' &&
-      (block as ToolCall).name === 'generate_html' &&
+      (block as ToolCall).name === 'create_liveapp' &&
       typeof (block as ToolCall).arguments?.content === 'string'
     ) {
       const toolCall = block as ToolCall;
@@ -425,7 +425,7 @@ export class PiSessionService {
         windowManager,
         invokeAction,
       }),
-      createGenerateHtmlTool({
+      createLiveAppTool({
         sendAiCommand,
         activateMiniApp: (miniAppId: string) => {
           registry.activate(miniAppId, getCurrentUsername());
@@ -839,9 +839,9 @@ export class PiSessionService {
           if (
             toolContent &&
             toolContent.type === 'toolCall' &&
-            toolContent.name === 'generate_html'
+            toolContent.name === 'create_liveapp'
           ) {
-            this.log.debug('detected generate_html — calling onToolcallStart()');
+            this.log.debug('detected create_liveapp — calling onToolcallStart()');
             this.htmlStreamCoordinator.onToolcallStart();
           }
         }
@@ -885,7 +885,7 @@ export class PiSessionService {
         if (isAssistantMessage(event.message as BasicAgentMessage)) {
           const message = event.message as unknown as BasicAssistantMessage;
 
-          // Scrub large HTML content from generate_html tool calls so it
+          // Scrub large HTML content from create_liveapp tool calls so it
           // is not re-sent on every subsequent LLM round-trip.  This runs
           // synchronously before session persistence (step 8c in the event
           // pipeline) so both in-memory state and the session file reflect

@@ -86,6 +86,7 @@ export function resolveMiniAppPaths(miniAppId: string, username: string): MiniAp
   const ws = getWorkspacePaths();
   const home = join(ws.data, 'home', username);
   const paths: MiniAppPaths = {
+    home,
     data: join(home, '.data', miniAppId),
     storage: join(home, '.storage', `${miniAppId}.json`),
     log: join(ws.log, username, `${miniAppId}.log`),

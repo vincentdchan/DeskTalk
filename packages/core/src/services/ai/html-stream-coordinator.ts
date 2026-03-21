@@ -89,7 +89,7 @@ export class HtmlStreamCoordinator {
   }
 
   /**
-   * Called when a `toolcall_start` event is detected for `generate_html`.
+   * Called when a `toolcall_start` event is detected for `create_liveapp`.
    * Creates a new streaming session.
    */
   onToolcallStart(): void {
@@ -246,7 +246,7 @@ export class HtmlStreamCoordinator {
   }
 
   /**
-   * Called by `generate-html-tool.ts` execute() to finalize the stream.
+   * Called by `create-liveapp-tool.ts` execute() to finalize the stream.
    *
    * Waits for all pending async work (window open, preamble, chunk sends) to
    * complete, then sends any remaining content and the done signal.
@@ -400,7 +400,7 @@ export class HtmlStreamCoordinator {
   }
 }
 
-// ─── Utility (shared with generate-html-tool) ────────────────────────────────
+// ─── Utility (shared with create-liveapp-tool) ───────────────────────────────
 
 async function readThemePreferences(getPreference: PreferenceReader): Promise<ThemePreferences> {
   const accentColor = await getPreference('general.accentColor');

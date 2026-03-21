@@ -4,7 +4,7 @@ DeskTalk injects shared UI primitives into every generated Preview document.
 
 ## Auto-Injected Assets
 
-- A `<link data-dt-theme>` stylesheet is injected automatically when `generate_html` runs.
+- A `<link data-dt-theme>` stylesheet is injected automatically when `create_liveapp` runs.
 - That stylesheet includes the full `--dt-*` token set for the current theme and accent color.
 - It also includes base styling for `body`, headings, paragraphs, links, tables, cards, buttons, badges, `code`, and `pre`.
 - A `window.DeskTalk` bridge is also injected automatically.

@@ -136,9 +136,9 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
     'preview.stream.load-html',
     async (req) => {
       if (!req?.streamId || !req?.title) {
-        throw new Error('streamId and title are required to load streamed HTML.');
+        throw new Error('streamId and title are required to load LiveApp HTML.');
       }
-      return loadStreamedHtml(ctx.paths.data, req.streamId, req.title);
+      return loadStreamedHtml(ctx.paths.home, req.streamId, req.title, ctx.paths.data);
     },
   );
 
@@ -147,10 +147,10 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
     StreamedHtmlSnapshot
   >('preview.stream.save-html', async (req) => {
     if (!req?.streamId || !req?.title) {
-      throw new Error('streamId and title are required to save streamed HTML.');
+      throw new Error('streamId and title are required to save LiveApp HTML.');
     }
-    mkdirSync(join(ctx.paths.data, 'streamed'), { recursive: true });
-    return saveStreamedHtml(ctx.paths.data, req.streamId, req.title, req.content ?? '');
+    mkdirSync(join(ctx.paths.home, '.data', 'liveapps'), { recursive: true });
+    return saveStreamedHtml(ctx.paths.home, req.streamId, req.title, req.content ?? '');
   });
 
   // ─── preview.siblings ─────────────────────────────────────────────────────

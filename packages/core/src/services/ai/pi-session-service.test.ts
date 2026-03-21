@@ -36,7 +36,7 @@ describe('summarizeHtml', () => {
 });
 
 describe('scrubHtmlToolCallArgs', () => {
-  it('replaces generate_html content with a summary in place', () => {
+  it('replaces create_liveapp content with a summary in place', () => {
     const originalHtml =
       '<html><head><title>Preview</title></head><body><h1>Hello</h1></body></html>';
     const message = {
@@ -50,7 +50,7 @@ describe('scrubHtmlToolCallArgs', () => {
         {
           type: 'toolCall',
           id: 'tool-1',
-          name: 'generate_html',
+          name: 'create_liveapp',
           arguments: { title: 'Preview', content: originalHtml },
         },
       ],
@@ -64,7 +64,7 @@ describe('scrubHtmlToolCallArgs', () => {
     expect(toolCall.arguments.content).toContain('  h1: Hello');
   });
 
-  it('ignores non-generate_html tool calls and missing content', () => {
+  it('ignores non-create_liveapp tool calls and missing content', () => {
     const message = {
       role: 'assistant',
       provider: 'openai',
@@ -81,7 +81,7 @@ describe('scrubHtmlToolCallArgs', () => {
         {
           type: 'toolCall',
           id: 'tool-2',
-          name: 'generate_html',
+          name: 'create_liveapp',
           arguments: { title: 'Preview' },
         },
       ],

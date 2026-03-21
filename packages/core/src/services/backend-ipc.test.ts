@@ -19,6 +19,7 @@ describe('backend-ipc types', () => {
       backendPath: '@desktalk/miniapp-note/backend',
       packageRoot: '/path/to/miniapp-note',
       paths: {
+        home: '/home/alice',
         data: '/data/note',
         storage: '/storage/note.json',
         log: '/logs/note.log',
@@ -96,7 +97,7 @@ describe('backend-ipc types', () => {
         miniAppId: 'todo',
         backendPath: '@desktalk/miniapp-todo/backend',
         packageRoot: '/path',
-        paths: { data: '', storage: '', log: '', cache: '' },
+        paths: { home: '', data: '', storage: '', log: '', cache: '' },
         locale: 'en',
       },
       { type: 'command:invoke', requestId: 'r1', command: 'todos.list', data: null },
