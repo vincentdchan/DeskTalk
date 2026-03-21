@@ -23,7 +23,9 @@ export const CHEVRON_CLS = 'dt-select-chevron';
 
 export const TRIGGER_CSS = /* css */ `
 :host {
-  display: inline-block;
+  display: block;
+  width: 100%;
+  min-width: 0;
   position: relative;
 }
 
@@ -33,10 +35,13 @@ export const TRIGGER_CSS = /* css */ `
 }
 
 .${TRIGGER_CLS} {
-  display: inline-flex;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   align-items: center;
   gap: 8px;
-  max-width: min(240px, 56vw);
   padding: 6px 10px;
   border: 1px solid var(--dt-border-subtle);
   border-radius: 8px;
