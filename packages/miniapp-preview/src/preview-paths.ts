@@ -6,6 +6,15 @@ export function normalizePreviewPath(path: string | null | undefined): string | 
   return path.replace(/\\/g, '/');
 }
 
+export function isLiveAppPath(path: string | null | undefined): boolean {
+  const normalizedPath = normalizePreviewPath(path);
+  if (!normalizedPath) {
+    return false;
+  }
+
+  return normalizedPath === '.data/liveapps' || normalizedPath.startsWith('.data/liveapps/');
+}
+
 export function matchesPreviewFilePath(
   changedPath: string,
   currentPath: string | null | undefined,

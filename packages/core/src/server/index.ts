@@ -39,6 +39,7 @@ import {
   MINIAPP_ICON_SIZES,
   parseMiniAppIconSize,
 } from '../services/miniapp-icon';
+import { listLiveApps } from '../services/liveapps';
 import { validateSession, type PublicUser } from '../services/user-db';
 import { COOKIE_NAME, authRoutes } from './auth-routes';
 import { adminRoutes } from './admin-routes';
@@ -707,6 +708,11 @@ export async function createServer(options: ServerOptions) {
   // REST API: Get all registered MiniApp manifests (for initial Dock load)
   app.get('/api/miniapps', async () => {
     return registry.getManifests();
+  });
+
+  app.get('/api/liveapps', async (req) => {
+    const username = req.user!.username;
+    return listLiveApps(getUserHomeDir(username));
   });
 
   app.get<{ Params: { id: string }; Querystring: { size?: string } }>(

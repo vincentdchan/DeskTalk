@@ -150,7 +150,17 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
       throw new Error('streamId and title are required to save LiveApp HTML.');
     }
     mkdirSync(join(ctx.paths.home, '.data', 'liveapps'), { recursive: true });
-    return saveStreamedHtml(ctx.paths.home, req.streamId, req.title, req.content ?? '');
+    const snapshot = await saveStreamedHtml(
+      ctx.paths.home,
+      req.streamId,
+      req.title,
+      req.content ?? '',
+    );
+    ctx.messaging.emit('liveapps.changed', {
+      path: snapshot.path,
+      reason: 'saved',
+    });
+    return snapshot;
   });
 
   // ─── preview.siblings ─────────────────────────────────────────────────────

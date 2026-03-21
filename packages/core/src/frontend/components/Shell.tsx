@@ -18,6 +18,7 @@ import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { useDragStore } from '../stores/drag-store';
 import { httpClient } from '../http-client';
 import type { ThemePreferences } from '../theme';
+import type { LauncherApp, LiveAppRecord } from './launcher-types';
 import styles from './Shell.module.scss';
 
 const TILE_GAP = 4;
@@ -72,6 +73,7 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
   const isDragging = useDragStore((s) => s.isDragging);
 
   const [manifests, setManifests] = useState<MiniAppManifest[]>([]);
+  const [liveApps, setLiveApps] = useState<LiveAppRecord[]>([]);
   const [assistantRatio, setAssistantRatio] = useState(ASSISTANT_DEFAULT_RATIO);
   const { actionHandlersRef, buildClientActions } = useWindowSync(socket);
 
@@ -122,6 +124,15 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
     zIndex: 1,
   };
 
+  const loadLiveApps = useCallback(async () => {
+    try {
+      const response = await httpClient.get<LiveAppRecord[]>('/api/liveapps');
+      setLiveApps(response.data);
+    } catch (error) {
+      console.error('[shell] Could not load LiveApps:', error);
+    }
+  }, []);
+
   // Fetch MiniApp manifests on mount
   useEffect(() => {
     let cancelled = false;
@@ -135,12 +146,47 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
       } catch (error) {
         console.error('[shell] Could not load MiniApps:', error);
       }
+
+      try {
+        const response = await httpClient.get<LiveAppRecord[]>('/api/liveapps');
+        if (!cancelled) {
+          setLiveApps(response.data);
+        }
+      } catch (error) {
+        console.error('[shell] Could not load LiveApps:', error);
+      }
     })();
 
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEventListener('desktalk:event', (event: Event) => {
+    const detail = (event as CustomEvent<{ event: string | null }>).detail;
+    if (detail?.event === 'liveapps.changed') {
+      void loadLiveApps();
+    }
+  });
+
+  const launcherApps: LauncherApp[] = [
+    ...manifests.map((manifest) => ({
+      id: `miniapp:${manifest.id}`,
+      name: manifest.name,
+      icon: manifest.icon,
+      iconPng: manifest.iconPng,
+      kind: 'miniapp' as const,
+      miniAppId: manifest.id,
+    })),
+    ...liveApps.map((app) => ({
+      id: `liveapp:${app.id}`,
+      name: app.name,
+      icon: app.icon,
+      kind: 'liveapp' as const,
+      miniAppId: 'preview',
+      args: { path: app.path, liveAppId: app.id },
+    })),
+  ].sort((a, b) => a.name.localeCompare(b.name));
 
   // Listen for MiniApp action registrations from within windows
   useEventListener('desktalk:actions-changed', (event: Event) => {
@@ -191,30 +237,31 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
     })();
   });
 
-  const handleLaunch = useCallback(
-    async (miniAppId: string) => {
-      try {
-        // Activate on server
-        await httpClient.post(`/api/miniapps/${encodeURIComponent(miniAppId)}/activate`, {});
-        // Find the manifest to get the title
-        const manifest = manifests.find((m) => m.id === miniAppId);
-        const title = manifest?.name ?? miniAppId;
-        // Open locally. The store reuses an existing window when miniAppId and args
-        // are shallow-equal; otherwise it creates a new window.
-        useWindowManager.getState().openWindow(miniAppId, title);
-      } catch (err) {
-        console.error('[shell] Could not launch MiniApp:', err);
-      }
-    },
-    [manifests],
-  );
+  const handleLaunch = useCallback(async (app: LauncherApp) => {
+    try {
+      const launchArgs =
+        app.kind === 'liveapp'
+          ? {
+              ...(app.args ?? {}),
+              bridgeToken: crypto.randomUUID(),
+            }
+          : app.args;
+
+      await httpClient.post(`/api/miniapps/${encodeURIComponent(app.miniAppId)}/activate`, {
+        args: launchArgs,
+      });
+      useWindowManager.getState().openWindow(app.miniAppId, app.name, launchArgs);
+    } catch (err) {
+      console.error('[shell] Could not launch application:', err);
+    }
+  }, []);
 
   return (
     <div className={styles.shell}>
       <ConnectionOverlay status={connectionStatus} retryInSeconds={retryInSeconds} />
 
       <div className={styles.actionsBar}>
-        <ActionsBar manifests={manifests} onLaunch={handleLaunch} />
+        <ActionsBar apps={launcherApps} onLaunch={handleLaunch} />
       </div>
 
       <div className={styles.content} style={shellLayoutStyle}>
