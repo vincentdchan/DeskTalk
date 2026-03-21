@@ -2,9 +2,27 @@
 
 ## Overview
 
-DeskTalk is a browser-based, OS-like desktop environment with an AI assistant. It is distributed as a single npm package and started via a CLI command. The application follows a MiniApp architecture — similar to how VSCode uses extensions — where each feature is an independently publishable npm package. MiniApps do **not** run their own servers; they export well-defined interfaces and interact with the host through unified communication hooks provided by the DeskTalk core.
+DeskTalk is a browser-based, OS-like desktop environment powered by an AI assistant. Users describe what they need in natural language, and the AI generates **LiveApps** — lightweight, interactive applications that run directly in the desktop. LiveApps are the primary way users create and use software in DeskTalk.
+
+The system is distributed as a single npm package and started via a CLI command. Under the hood, DeskTalk also has a **MiniApp** architecture for built-in features (Note, Todo, File Explorer, etc.), but the user-facing experience centers on AI-generated LiveApps.
 
 ## Architecture
+
+### Two App Models
+
+DeskTalk has two distinct application models:
+
+|                | LiveApp                                                     | MiniApp                                                 |
+| -------------- | ----------------------------------------------------------- | ------------------------------------------------------- |
+| **Created by** | AI assistant (via `create_liveapp`)                         | Developer (npm package)                                 |
+| **Complexity** | Single HTML document + optional co-located assets           | Full backend + frontend with process isolation          |
+| **Backend**    | None (frontend-only, with bash execution via bridge)        | Isolated Node.js child process per user                 |
+| **Build step** | None                                                        | esbuild via `desktalk-build` CLI                        |
+| **Storage**    | Auto-saved to `~/.data/liveapps/`                           | Scoped data dir, key-value store, filesystem hooks      |
+| **Discovery**  | Auto-detected by scanning directory for `index.html`        | Registered at startup from npm packages                 |
+| **Launchpad**  | Appears alongside MiniApps, display name from `<title>`     | Appears with manifest name and optional PNG icon        |
+| **Rendering**  | Sandboxed iframe hosted by Preview MiniApp                  | Own frontend module mounted into window                 |
+| **Use case**   | User-requested tools, dashboards, visualizations, utilities | Core system features (notes, files, settings, terminal) |
 
 ### High-Level Stack
 
@@ -30,26 +48,14 @@ desktalk/
     miniapp-note/          # @desktalk/miniapp-note
     miniapp-todo/          # @desktalk/miniapp-todo
     miniapp-file-explorer/ # @desktalk/miniapp-file-explorer
-    miniapp-preview/       # @desktalk/miniapp-preview
+    miniapp-preview/       # @desktalk/miniapp-preview (also serves as LiveApp renderer)
     miniapp-preference/    # @desktalk/miniapp-preference
+    miniapp-terminal/      # @desktalk/miniapp-terminal
+    miniapp-text-edit/     # @desktalk/miniapp-text-edit
   docs/
   pnpm-workspace.yaml
   package.json
 ```
-
-All packages are published under the `@desktalk` npm scope:
-
-| Package       | npm name                          |
-| ------------- | --------------------------------- |
-| Core          | `@desktalk/core`                  |
-| SDK           | `@desktalk/sdk`                   |
-| Note          | `@desktalk/miniapp-note`          |
-| Todo          | `@desktalk/miniapp-todo`          |
-| File Explorer | `@desktalk/miniapp-file-explorer` |
-| Preview       | `@desktalk/miniapp-preview`       |
-| Preference    | `@desktalk/miniapp-preference`    |
-
-The `@desktalk/core` package declares each built-in MiniApp as a dependency in its `package.json`. At build time all MiniApps are bundled together. At runtime the core discovers and registers them.
 
 ### CLI
 
@@ -57,23 +63,207 @@ The `@desktalk/core` package declares each built-in MiniApp as a dependency in i
 desktalk start [--host <host>] [--port <port>]
 ```
 
-Starts the Fastify backend server and serves the frontend. The backend uses [Fastify](https://fastify.dev) for HTTP routing, `@fastify/websocket` for real-time AI event streaming and MiniApp messaging, and `@fastify/static` to serve the React build. MiniApps never expose their own HTTP endpoints — all server-side communication goes through the core's unified hooks.
+Starts the Fastify backend server and serves the frontend. The backend uses [Fastify](https://fastify.dev) for HTTP routing, `@fastify/websocket` for real-time AI event streaming and MiniApp messaging, and `@fastify/static` to serve the React build.
+
+## LiveApp System
+
+LiveApps are the core user-facing concept in DeskTalk. A user asks the AI for something ("build me a project tracker", "show me a chart of my disk usage"), and the AI generates a LiveApp — a self-contained, interactive HTML application that appears on the desktop and persists across sessions.
+
+### What Is a LiveApp
+
+A LiveApp is:
+
+- A directory containing an `index.html` file and optional co-located assets (`.js`, `.css`, images)
+- Rendered in a sandboxed iframe hosted by the Preview MiniApp
+- Automatically saved to disk when generated
+- Auto-detected and listed in the launchpad
+- Fully interactive — can execute shell commands, read system state, and communicate with the desktop via the DeskTalk bridge
+
+A LiveApp is **not**:
+
+- A full MiniApp — it has no backend process, no manifest, no npm package
+- Static — it can run JavaScript, make fetch requests, and interact with the system via the bridge
+- Temporary — it persists on disk and survives restarts
+
+### Lifecycle
+
+```
+1. User asks the AI for something
+2. AI calls create_liveapp with title + HTML content
+3. Core saves raw HTML to ~/.data/liveapps/<dir>/index.html
+4. Preview window opens, streams themed/bridged HTML into sandboxed iframe
+5. LiveApp is now running and persisted
+
+On next launch:
+6. GET /api/liveapps scans ~/.data/liveapps/ for directories with index.html
+7. Parses <title> from each index.html for the display name
+8. LiveApps appear in the launchpad alongside MiniApps
+9. Clicking a LiveApp opens Preview with args pointing to its files
+```
+
+### File Structure
+
+```
+<data>/home/<username>/.data/liveapps/
+  my-project-tracker_html-stream-1-1711036800000/
+    index.html                          # Root document (required)
+    icon.png                            # AI-generated icon (optional, created by generate_icon)
+    chart.js                            # Optional co-located script
+    styles.css                          # Optional co-located stylesheet
+    logo.png                            # Optional co-located asset
+    .index.html.history.jsonl           # Edit history (created after AI edits)
+  disk-usage_html-stream-2-1711036801000/
+    index.html
+```
+
+The directory name follows the pattern `<sanitized-title>_<streamId>`:
+
+- `<sanitized-title>` — title lowercased, spaces replaced with `-`, non-alphanumeric characters stripped
+- `<streamId>` — auto-generated identifier like `html-stream-1-1711036800000`
+
+### Auto-Detection
+
+LiveApps are discovered by scanning the `liveapps/` directory at the user home level. Any subdirectory containing an `index.html` is treated as a LiveApp. There is no registry file or manifest — **the filesystem is the registry**.
+
+The display name shown in the launchpad is extracted from the `<title>` tag in `index.html`. If no `<title>` is found, the directory name is used as a fallback.
+
+### LiveApp Identity
+
+| Property | Source                                                              |
+| -------- | ------------------------------------------------------------------- |
+| **id**   | Directory name (e.g., `my-project-tracker_html-stream-1-...`)       |
+| **name** | `<title>` tag parsed from `index.html`                              |
+| **icon** | AI-generated `icon.png` if available; default emoji `"📄"` fallback |
+
+### Rendering
+
+LiveApps are rendered by the **Preview MiniApp** in a sandboxed iframe. When a LiveApp is launched from the launchpad:
+
+1. The core activates the Preview MiniApp (if not already running)
+2. A Preview window opens with args identifying the LiveApp (`{ liveAppId, streamId, title }`)
+3. Preview loads `index.html` from the LiveApp directory
+4. The core injects runtime resources into the HTML:
+   - **Theme CSS** — DeskTalk design tokens (`--dt-*` custom properties)
+   - **Bridge script** — `window.DeskTalk` API for system interaction
+   - **UI script** — toolbar overlay for refresh, open-in-browser, etc.
+5. The injected HTML is loaded into the sandboxed iframe
+
+The raw HTML on disk is always clean — runtime injections are stripped before saving and re-injected at load time.
+
+### The DeskTalk Bridge
+
+Every LiveApp receives a `window.DeskTalk` bridge object in its iframe context. This provides:
+
+| API                                  | Description                                                                                |
+| ------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `exec(command)` / `execute(command)` | Execute a shell command. Accepts a string (`"ls -la"`) or explicit args (`"ls", ["-la"]`). |
+| `getTheme()`                         | Read current theme preferences (accent color, light/dark mode).                            |
+| `onThemeChange(callback)`            | Subscribe to theme changes.                                                                |
+
+The bridge communicates with the core via `postMessage` and a per-session `bridgeToken` for authentication.
+
+### Multi-File LiveApps
+
+The root file is always `index.html`. For complex applications, the HTML can reference co-located files in the same directory:
+
+```html
+<!-- Scripts -->
+<script src="./app.js"></script>
+<script src="./lib/chart.min.js"></script>
+
+<!-- Stylesheets -->
+<link rel="stylesheet" href="./styles.css" />
+
+<!-- Images and assets -->
+<img src="./logo.png" alt="Logo" />
+```
+
+All paths must be relative (`./`). The Preview MiniApp serves files from the LiveApp directory to the sandboxed iframe.
+
+### Editing LiveApps
+
+The AI can modify existing LiveApps using the `edit` tool:
+
+1. User focuses a LiveApp window and asks for a change
+2. AI calls the Preview `Get State` action to discover the file path
+3. AI reads the file with the built-in `read` tool
+4. AI calls `edit` with `{ path, oldText, newText }`
+5. Core writes the updated file, records persistent edit history, and broadcasts a reload event
+6. The LiveApp iframe reloads with the updated content
+
+Edit history is stored as a co-located `.index.html.history.jsonl` file, enabling `undo_edit` and `redo_edit` across sessions.
+
+### Design Tokens
+
+LiveApps should use DeskTalk design tokens (CSS custom properties) to stay consistent with the desktop theme:
+
+```css
+/* Colors */
+var(--dt-bg)                  /* Background */
+var(--dt-bg-secondary)        /* Secondary background */
+var(--dt-text)                /* Primary text */
+var(--dt-text-muted)          /* Muted text */
+var(--dt-accent)              /* Accent color */
+var(--dt-border)              /* Border color */
+
+/* Shadows */
+var(--dt-shadow-sm)           /* Small shadow */
+var(--dt-shadow-md)           /* Medium shadow */
+
+/* Radii */
+var(--dt-radius-sm)           /* Small border radius */
+var(--dt-radius-md)           /* Medium border radius */
+```
+
+The AI is guided by a built-in manual (accessible via the `read_manual` tool) that covers tokens, components, layouts, bridge usage, and examples.
+
+### Icon Generation
+
+LiveApps can have custom AI-generated icons instead of the default `"📄"` emoji. The `generate_icon` tool is a standalone tool the AI calls explicitly after creating a LiveApp.
+
+**How it works:**
+
+1. The AI calls `generate_icon` with `{ liveAppId, description }` — e.g., `{ liveAppId: "project-tracker_html-stream-1-...", description: "a kanban board with colorful columns" }`.
+2. The tool prepends a style prefix to the description: `"A minimal flat-design app icon: ${description}. Single centered symbol, solid color background, rounded square, clean and modern, no text, 256×256 pixels."`.
+3. The tool selects an image-generation provider following the user's configured default (if it supports image generation), falling back through: OpenAI (DALL-E 3) → Google (Gemini) → OpenRouter (proxied DALL-E 3).
+4. The generated image is resized to 256×256 PNG via `sharp` and saved as `icon.png` in the LiveApp directory.
+5. Returns `{ ok: true, path: "icon.png" }` on success.
+
+**Failure behavior:**
+
+If icon generation fails (no provider configured, API error, unsupported provider), the tool returns `{ ok: false, reason: "..." }`. The AI should **not** retry or apologize — it continues its response normally. The LiveApp keeps the default emoji icon and remains fully functional.
+
+**Supported providers:**
+
+| Provider   | API                 | Notes                                        |
+| ---------- | ------------------- | -------------------------------------------- |
+| OpenAI     | DALL-E 3            | Primary — highest quality                    |
+| Google     | Gemini image output | Fallback if OpenAI unavailable               |
+| OpenRouter | Proxied DALL-E 3    | Fallback if neither OpenAI nor Google is set |
 
 ## MiniApp System
 
-The MiniApp system follows the same principles as VSCode extensions:
+DeskTalk's built-in features are implemented as **MiniApps** — heavyweight, process-isolated npm packages with dedicated backend and frontend entry points. MiniApps provide the system-level functionality that LiveApps are rendered on top of.
 
-- MiniApps are **npm packages** that export a set of well-defined interfaces.
-- They are **discovered and activated** by the core host, not self-started.
-- They communicate with the backend exclusively through **hooks provided by the core**, never by creating their own HTTP servers or routes.
-- The core is the single authority for networking, storage, and lifecycle.
-- The core enforces **permission-based access control** — certain privileged APIs (e.g., global configuration) are only available to authorized MiniApps (see [Privileged Access & Permissions](#privileged-access--permissions)).
+For the full MiniApp system architecture (registration, activation, process isolation, installation, privileged access, and permissions), see [miniapp-system.md](./miniapp-system.md). For how to develop a MiniApp, see [miniapp-development.md](./miniapp-development.md).
 
-### Workspace Directory
+### Built-in MiniApps
+
+| MiniApp       | Summary                                                                                                          |
+| ------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Note          | Markdown note-taking with YAML front matter and Milkdown editor.                                                 |
+| Todo          | Task management similar to macOS Reminders.                                                                      |
+| File Explorer | Simple filesystem browser.                                                                                       |
+| Preview       | Content viewer for images and HTML. **Also the LiveApp renderer** — hosts the sandboxed iframe for all LiveApps. |
+| Preference    | App and window configuration. Privileged — sole MiniApp with write access to global config.                      |
+| Terminal      | Terminal emulator powered by xterm.js.                                                                           |
+| Text Edit     | Plain text file editor.                                                                                          |
+
+## Workspace Directory
 
 On first launch, the core creates workspace directories following **platform-standard paths** (XDG on Linux, `Application Support` on macOS, `%APPDATA%` on Windows). Use a library like [`env-paths`](https://www.npmjs.com/package/env-paths) to resolve these at runtime.
 
-#### Platform Paths
+### Platform Paths
 
 | Purpose | Linux (XDG)                     | macOS                                     | Windows                          |
 | ------- | ------------------------------- | ----------------------------------------- | -------------------------------- |
@@ -82,153 +272,57 @@ On first launch, the core creates workspace directories following **platform-sta
 | Logs    | `~/.local/state/desktalk/logs/` | `~/Library/Logs/DeskTalk/`                | `%LOCALAPPDATA%\DeskTalk\logs\`  |
 | Cache   | `~/.cache/desktalk/`            | `~/Library/Caches/DeskTalk/`              | `%LOCALAPPDATA%\DeskTalk\cache\` |
 
-#### Directory Layout
+### Directory Layout
 
 Using `<config>`, `<data>`, `<logs>`, `<cache>` as shorthand for the platform-resolved paths:
 
 ```
 <config>/
-  config.toml                  # Global app configuration (TOML format, managed by core; privileged — only Preference MiniApp may write)
+  config.toml                  # Global app configuration (TOML format, managed by core)
 
 <data>/
   miniapps/                    # Installed third-party MiniApp packages
   home/
-    admin/
+    <username>/
       .data/
-        note/                  # @desktalk/miniapp-note private files
+        liveapps/              # AI-generated LiveApps (auto-detected)
+          my-app_stream-id/
+            index.html
+            app.js
+        note/                  # MiniApp-private data directories
         todo/
-        preference/
+        preview/
         <third-party-id>/
       .storage/
-        note.json              # @desktalk/miniapp-note key-value store (ctx.storage)
+        note.json              # MiniApp key-value stores
         todo.json
         preference.json
-        <third-party-id>.json
       .cache/
         note/
         todo/
-        preference/
-        <third-party-id>/
       documents/               # User-visible files exposed through ctx.fs
       pictures/
 
 <logs>/
   core.log
-  admin/
+  <username>/
     note.log
     todo.log
     ...
 
 <cache>/
-  ...                          # Temporary/regenerable data
+  ...
 ```
 
-| Path                                        | Purpose                                                                                                                                                                                                   | Accessed via                                              |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `<data>/home/<username>/`                   | Scoped filesystem root for MiniApps. Paths passed to `ctx.fs` resolve relative to the authenticated user's home directory.                                                                                | `ctx.fs`                                                  |
-| `<data>/home/<username>/.data/<id>/`        | MiniApp-private data directory. The core exposes the absolute path as `ctx.paths.data`.                                                                                                                   | `ctx.paths.data`                                          |
-| `<data>/home/<username>/.storage/<id>.json` | Scoped key-value store persisted as JSON.                                                                                                                                                                 | `ctx.storage`                                             |
-| `<logs>/<username>/<id>.log`                | Scoped log output.                                                                                                                                                                                        | `ctx.logger`                                              |
-| `<data>/miniapps/`                          | Installed third-party MiniApp npm packages.                                                                                                                                                               | Core only                                                 |
-| `<config>/config.toml`                      | Global app configuration (TOML). Managed by the core. **Only** the Preference MiniApp has write access via `ctx.config` (enforced by the core; see [Privileged Access](#privileged-access--permissions)). | Core (read/write) / Preference MiniApp (via `ctx.config`) |
-
-MiniApps never know or control other users' absolute paths. The core creates each user's home structure automatically, resolves all `ctx.fs` paths relative to `<data>/home/<username>/`, and still provides `ctx.paths.data` for the MiniApp's private directory inside that home.
-
-### Installation
-
-MiniApps are installed and managed via the CLI, similar to `code --install-extension`:
-
-```bash
-# Install a MiniApp from npm
-desktalk install <package-name>
-
-# Uninstall a MiniApp
-desktalk uninstall <package-name>
-
-# List installed MiniApps
-desktalk list
-```
-
-**How it works:**
-
-1. `desktalk install` runs `pnpm install <package-name>` into the MiniApp packages directory (`<data>/miniapps/`).
-2. The core reads each installed package's exported manifest to register it.
-3. Built-in MiniApps (Note, Todo, File Explorer, Preference) ship with the core package and are always available — they follow the same interfaces as third-party MiniApps.
-
-This is analogous to VSCode where built-in extensions (e.g., TypeScript, Git) coexist with marketplace extensions under the same API contract.
-
-### Privileged Access & Permissions
-
-The global configuration file (`<config>/config.toml`) stores all application settings in [TOML](https://toml.io) format. The core is the sole owner of this file — it handles all reads, writes, parsing, and serialization. MiniApps (including Preference) never touch the file directly; they go through the core's `ConfigHook` API. Because the config controls critical application behavior — server bind address, AI credentials, window defaults, dock layout, etc. — the core enforces strict access control.
-
-#### Design Principle
-
-Only the **Preference MiniApp** (`id: "preference"`) is authorized to read and write the global configuration. All other MiniApps — both built-in and third-party — are denied access. This is enforced at the core level, not by convention.
-
-#### ConfigHook (Privileged)
-
-The core provides a `ConfigHook` interface for reading and writing the global configuration. The core manages all file I/O internally (`<config>/config.toml`) — the hook exposes only a typed key-value API. This hook is **only** injected into the `MiniAppContext` when the MiniApp's manifest declares `id: "preference"`. For all other MiniApps, `ctx.config` is `undefined`.
-
-```ts
-interface ConfigHook {
-  /** Get all settings as a flat key-value map. */
-  getAll(): Promise<Config>;
-  /** Get a single setting's value. Returns undefined if not set. */
-  get(key: string): Promise<string | number | boolean | undefined>;
-  /** Set a single setting's value. Core persists to <config>/config.toml immediately. */
-  set(key: string, value: string | number | boolean): Promise<void>;
-  /** Reset a single setting to its default value. */
-  reset(key: string): Promise<void>;
-  /** Reset all settings to defaults. */
-  resetAll(): Promise<void>;
-}
-```
-
-#### Enforcement Rules
-
-| Rule                        | Description                                                                                                                                                                                                                                                                                        |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Manifest ID check**       | At activation time, the core checks `manifest.id`. Only `"preference"` receives `ctx.config`. All other IDs receive `ctx.config === undefined`.                                                                                                                                                    |
-| **Built-in only**           | The Preference MiniApp ships as a built-in package (`@desktalk/miniapp-preference`). Third-party packages cannot claim the `"preference"` ID — the core rejects duplicate IDs, and built-in MiniApps take priority over installed packages.                                                        |
-| **Command namespace guard** | The `preferences.*` command namespace is reserved. The core rejects any `ctx.messaging.onCommand('preferences.*', ...)` registration from MiniApps other than `"preference"`.                                                                                                                      |
-| **Config file permissions** | The core writes `<config>/config.toml` with restricted filesystem permissions (`0600`) so only the current user can read it. This protects sensitive values like AI API keys.                                                                                                                      |
-| **Read-only broadcast**     | When a config value changes, the core broadcasts a `config:changed` event to all MiniApps so they can react (e.g., the shell updates its theme). The event payload contains only the changed key and new value — never the full config or sensitive fields (API keys are omitted from broadcasts). |
-
-#### How Other MiniApps React to Config Changes
-
-MiniApps that need to respond to configuration changes (e.g., theme switching) subscribe to the `config:changed` event via `ctx.messaging`. They do **not** read `config.toml` directly — all file I/O is handled by the core.
-
-```ts
-// Inside any MiniApp's activate()
-ctx.messaging.onEvent(
-  'config:changed',
-  (change: { key: string; value: string | number | boolean }) => {
-    if (change.key === 'general.theme') {
-      // React to theme change
-    }
-  },
-);
-```
-
-The core also provides a read-only API for non-sensitive settings that any MiniApp can query:
-
-```ts
-// Available to all MiniApps via ctx.messaging
-ctx.messaging.onCommand('config.getPublic', async (data: { key: string }) => { ... });
-```
-
-This returns values for non-sensitive keys only (e.g., theme, language, window defaults). Requests for sensitive keys (e.g., `ai.apiKey`) return an error.
-
-### MiniApp Development
-
-For the full MiniApp development guide — package structure, exported interfaces, entry files, lifecycle, communication hooks, and the standard build toolchain — see [miniapp-development.md](./miniapp-development.md). For the app-wide localization design spanning core and MiniApps, see [i18n-proposal.md](./i18n-proposal.md).
-
-**Key design points:**
-
-- Each MiniApp has **two separate entry files**: a backend entry (`src/backend.ts`) that runs on the Node.js server, and a frontend entry (`src/frontend.tsx`) that runs in the browser.
-- The backend entry exports `manifest`, `activate(ctx)`, and `deactivate()`. It handles command registration, storage, and filesystem access.
-- The frontend entry exports an `activate(ctx)` hook that mounts its UI into the provided root element and returns a per-window cleanup handle for unmounting.
-- The `@desktalk/sdk` package provides a standard build CLI (`desktalk-build`) so MiniApp authors do not need to configure their own bundler.
+| Path                                        | Purpose                                                                                                 |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `<data>/home/<username>/.data/liveapps/`    | AI-generated LiveApps. Auto-detected by the core — each subdirectory with an `index.html` is a LiveApp. |
+| `<data>/home/<username>/`                   | Scoped filesystem root for MiniApps. Paths passed to `ctx.fs` resolve relative to this.                 |
+| `<data>/home/<username>/.data/<id>/`        | MiniApp-private data directory (`ctx.paths.data`).                                                      |
+| `<data>/home/<username>/.storage/<id>.json` | Scoped key-value store (`ctx.storage`).                                                                 |
+| `<logs>/<username>/<id>.log`                | Scoped log output (`ctx.logger`).                                                                       |
+| `<data>/miniapps/`                          | Installed third-party MiniApp npm packages.                                                             |
+| `<config>/config.toml`                      | Global app configuration (TOML). Managed by core; only Preference MiniApp has write access.             |
 
 ## Window Management
 
@@ -248,13 +342,14 @@ Window management is the central feature of DeskTalk.
 |-----------------------|
 ```
 
-| Region      | Description                                                                                                                                                                                                                                                                                |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Actions Bar | A global bar at the top of the screen, similar to the macOS Menu Bar. It is **not** part of any individual MiniApp window. It displays both **built-in window actions** (provided by the core) and **MiniApp-specific actions** (provided by the focused MiniApp via `<ActionsProvider>`). |
+| Region      | Description                                                                                                                                                                                                                                                     |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Actions Bar | A global bar at the top of the screen, similar to the macOS Menu Bar. Displays both **built-in window actions** (provided by the core) and **MiniApp-specific actions** (provided by the focused MiniApp via `<ActionsProvider>`).                              |
+| Window Area | The main workspace where MiniApp windows and LiveApp windows are rendered. Supports opening, closing, moving, resizing, focusing, and minimizing. When the desktop WebSocket bridge is connecting/reconnecting, a blocking mask prevents operating stale state. |
+| Info Panel  | A permanent right-side AI Assistant pane. Displays conversation messages, thinking state, and token/cost usage. Powered by pi.                                                                                                                                  |
+| Dock        | A macOS-style dock at the bottom listing all available MiniApps and LiveApps for quick launch.                                                                                                                                                                  |
 
 ### Built-in Window Actions
-
-The core provides a set of built-in actions that are always present in the Actions Bar for every window. These are managed by the window manager, not by MiniApps.
 
 | Action   | Description                                                                                         |
 | -------- | --------------------------------------------------------------------------------------------------- |
@@ -262,21 +357,13 @@ The core provides a set of built-in actions that are always present in the Actio
 | Minimize | Minimize the focused window to the Dock.                                                            |
 | Close    | Close the focused window. Triggers MiniApp deactivation if it was the last window for that MiniApp. |
 
-These built-in actions appear alongside any MiniApp-specific actions. For example, when a Note window is focused the Actions Bar shows: `Maximize | Minimize | Close | Create Note | Delete Note | Search Notes | ...`
-
-| Region      | Description                                                                                                                                                                                                                                                                                                                                                                   |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Window Area | The main workspace where MiniApp windows are rendered. Supports opening, closing, moving, resizing, focusing, and minimizing windows. When the desktop WebSocket bridge is still connecting or reconnecting, the shell places a blocking mask over the desktop UI so the user cannot operate stale state.                                                                     |
-| Info Panel  | A permanent right-side AI Assistant pane that displays conversation messages, thinking state, and token/cost usage. It is rendered with window chrome inside the shell layout but is not a normal MiniApp window. Powered by pi (see [AI Integration](#ai-integration)). Like the rest of the desktop shell, it is temporarily masked during desktop bridge reconnect states. |
-| Dock        | A macOS-style dock at the bottom listing all available MiniApps for quick launch.                                                                                                                                                                                                                                                                                             |
-
 ### Window Lifecycle
 
-1. User clicks a MiniApp icon in the Dock (or triggers an AI action).
+1. User clicks an app icon in the Dock/Launchpad (or triggers an AI action).
 2. The window manager checks for an existing window with the same `miniAppId` and shallow-equal launch `args`.
 3. If such a window exists, the shell focuses it instead of opening a duplicate.
-4. Otherwise, the window manager creates a new window instance and renders the MiniApp's root component inside it.
-5. The MiniApp registers its actions via `<ActionsProvider>` so they appear in the Actions Bar when the window is focused.
+4. Otherwise, the window manager creates a new window instance and renders the app inside it.
+5. The MiniApp registers its actions via `<ActionsProvider>` so they appear in the Actions Bar when focused.
 6. The user (or AI) interacts with the window.
 7. The window can be spotlight-maximized or closed.
 
@@ -284,7 +371,7 @@ These built-in actions appear alongside any MiniApp-specific actions. For exampl
 
 - The desktop shell depends on a frontend-to-backend WebSocket bridge for window state sync, AI events, and MiniApp action brokering.
 - On first load the shell shows a blocking `Connecting...` overlay until the bridge is ready.
-- If the socket drops after the desktop has already loaded, the shell automatically retries with exponential backoff and shows a blocking `Reconnecting...` overlay with the next retry countdown.
+- If the socket drops, the shell automatically retries with exponential backoff and shows a `Reconnecting...` overlay.
 - This guard is desktop-only; login and onboarding pages do not render the shell overlay.
 
 ### Focus Model
@@ -314,14 +401,14 @@ Actions are the bridge between the AI and the MiniApp UI.
 
 ## AI Integration
 
-DeskTalk uses [pi](https://pi.dev) (`@mariozechner/pi-coding-agent`) as its AI backend. Pi is embedded via its **SDK mode** — the core imports `createAgentSession` and runs pi in-process on the Node.js backend. There is no separate pi process; the agent lives inside the DeskTalk server.
+DeskTalk uses [pi](https://pi.dev) (`@mariozechner/pi-coding-agent`) as its AI backend. Pi is embedded via its **SDK mode** — the core imports `createAgentSession` and runs pi in-process on the Node.js backend.
 
 ### Why pi
 
 - **SDK mode** — `createAgentSession()` gives full programmatic control without spawning a subprocess.
-- **15+ LLM providers** — Anthropic, OpenAI, Google, Bedrock, Mistral, xAI, OpenRouter, Ollama, etc. Users authenticate once and switch models freely.
-- **Extensible** — Pi extensions, skills, and prompt templates can be used to customize AI behaviour within DeskTalk.
-- **Tree-structured sessions** — Branching, compaction, and full history are handled by pi's `SessionManager`.
+- **15+ LLM providers** — Anthropic, OpenAI, Google, Bedrock, Mistral, xAI, OpenRouter, Ollama, etc.
+- **Extensible** — Pi extensions, skills, and prompt templates can customize AI behaviour.
+- **Tree-structured sessions** — Branching, compaction, and full history handled by pi's `SessionManager`.
 
 ### Architecture
 
@@ -331,10 +418,11 @@ DeskTalk uses [pi](https://pi.dev) (`@mariozechner/pi-coding-agent`) as its AI b
 │                                                 │
 │  ┌──────────────┐  ┌────────────────────────┐   │
 │  │ Window Area   │  │  Info Panel            │   │
-│  │ (MiniApps)    │  │  - Chat input          │   │
-│  │               │  │  - Messages            │   │
-│  │  <Action>     │  │  - Thinking blocks     │   │
-│  │  declarations │  │  - Token/cost display  │   │
+│  │ (LiveApps &   │  │  - Chat input          │   │
+│  │  MiniApps)    │  │  - Messages            │   │
+│  │               │  │  - Thinking blocks     │   │
+│  │  <Action>     │  │  - Token/cost display  │   │
+│  │  declarations │  │                        │   │
 │  └──────┬───────┘  └──────────┬─────────────┘   │
 │         │                     │                  │
 │     actions list         user prompts            │
@@ -350,114 +438,66 @@ DeskTalk uses [pi](https://pi.dev) (`@mariozechner/pi-coding-agent`) as its AI b
 │  │  AgentSession (from pi SDK)                │ │
 │  │  - prompt(), steer(), followUp(), abort()  │ │
 │  │  - subscribe() → streams events            │ │
-│  │  - session.messages, model, thinkingLevel  │ │
 │  │                                            │ │
 │  │  Custom tools:                             │ │
-│  │  - invoke_action (calls MiniApp actions)   │ │
-│  │  - list_actions (reads focused window)     │ │
+│  │  - create_liveapp (creates LiveApps)        │ │
+│  │  - generate_icon (AI-generated app icons)   │ │
+│  │  - desktop (window management)             │ │
+│  │  - action (invokes MiniApp actions)        │ │
+│  │  - edit / undo_edit / redo_edit            │ │
+│  │  - read_manual (DeskTalk reference)        │ │
 │  └────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────┘
 ```
 
-### Backend — AI Service
+### Custom Tools
 
-The core creates a single `AgentSession` at startup and keeps it alive for the application's lifetime.
+Pi's built-in tools stay tightly constrained in DeskTalk. The built-in `read` tool is enabled so the AI can inspect files when needed, but unrestricted filesystem and shell tools remain disabled. The AI interacts with DeskTalk through custom tools:
 
-```ts
-import {
-  AuthStorage,
-  createAgentSession,
-  ModelRegistry,
-  SessionManager,
-  type ToolDefinition,
-} from '@mariozechner/pi-coding-agent';
+| Tool             | Description                                                                                                                                                      |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `create_liveapp` | **Creates a LiveApp.** Generates a self-contained HTML document, saves it to the `liveapps/` directory, and streams it into a Preview window's sandboxed iframe. |
+| `generate_icon`  | **Generates a LiveApp icon.** Calls the user's configured image-generation provider to produce a 256×256 PNG icon, saved as `icon.png` in the LiveApp directory. |
+| `desktop`        | Lists windows, exposes the focused window, and opens MiniApps.                                                                                                   |
+| `action`         | Invokes a named action on a MiniApp window, usually the focused one.                                                                                             |
+| `edit`           | Replaces one exact text match in a managed file (including LiveApp HTML), records persistent history, and broadcasts reload events.                              |
+| `undo_edit`      | Restores the previous saved version of a managed file from persistent history.                                                                                   |
+| `redo_edit`      | Re-applies the next saved version of a managed file from persistent history.                                                                                     |
+| `read_manual`    | Returns paged DeskTalk manuals for HTML generation, desktop operations, actions, and editing workflows.                                                          |
 
-const authStorage = AuthStorage.create(paths.config + '/pi-auth.json');
-const modelRegistry = new ModelRegistry(authStorage);
+### LiveApp Generation Flow
 
-const { session } = await createAgentSession({
-  sessionManager: SessionManager.create(process.cwd(), paths.data + '/ai-sessions/'),
-  authStorage,
-  modelRegistry,
-  tools: [readTool],
-  customTools: [
-    desktopTool,
-    actionTool,
-    generateHtmlTool,
-    editTool,
-    undoEditTool,
-    redoEditTool,
-    readManualTool,
-  ],
-});
-```
+This is the primary AI interaction — creating a LiveApp:
 
-#### Custom Tools
+1. User types a prompt: _"Build me a project tracker with columns for To Do, In Progress, and Done"_.
+2. Backend calls `session.prompt(message)`.
+3. Pi's LLM decides to call `create_liveapp` with `{ title: "Project Tracker", content: "<!DOCTYPE html>..." }`.
+4. **Streaming path**: The `HtmlStreamCoordinator` intercepts partial JSON from the LLM, extracts the title early, opens a Preview window, and begins streaming HTML chunks into the iframe in real time.
+5. **Save**: On finalization, the core saves the raw HTML to `~/.data/liveapps/<sanitized-title>_<streamId>/index.html`.
+6. The LiveApp is now running in a Preview window and persisted on disk.
+7. **Icon generation** (optional): Pi calls `generate_icon` with a short visual description. The tool calls the user's configured image-generation provider, saves the result as `icon.png` in the LiveApp directory, and returns `{ ok: true, path }`. If generation fails (no provider, API error), the tool returns `{ ok: false, reason }` and the AI continues without retrying — the LiveApp keeps its default emoji icon.
+8. On next startup, the LiveApp appears in the launchpad automatically (with its custom icon if one was generated).
 
-Pi's built-in tools stay tightly constrained in DeskTalk. The built-in `read` tool is enabled so the AI can inspect files when needed, but unrestricted filesystem and shell tools remain disabled. The AI primarily interacts with DeskTalk through custom tools:
+### Action Invocation Flow
 
-| Tool            | Description                                                                                                        |
-| --------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `desktop`       | Lists windows, exposes the focused window, and opens MiniApps.                                                     |
-| `action`        | Invokes a named action on a MiniApp window, usually the focused one.                                               |
-| `generate_html` | Generates a self-contained HTML document and streams it into a Preview window's sandboxed iframe.                  |
-| `edit`          | Replaces one exact text match in a managed file, records persistent history, and broadcasts Preview reload events. |
-| `undo_edit`     | Restores the previous saved version of a managed file from persistent history.                                     |
-| `redo_edit`     | Re-applies the next saved version of a managed file from persistent history.                                       |
-| `read_manual`   | Returns paged DeskTalk manuals for HTML generation, desktop operations, actions, and Preview editing workflows.    |
+1. User types a prompt, e.g. _"Create a note titled Shopping List"_.
+2. Backend calls `session.prompt(message)`.
+3. Pi calls `desktop` to see what windows are open and their available actions.
+4. Pi calls `action` with `{ name: "Create Note", params: { title: "Shopping List" } }`.
+5. The core resolves the handler registered by the Note MiniApp's `<Action>` component and executes it.
+6. Pi generates a final text response: _"I've created a note titled 'Shopping List'."_
 
-```ts
-import { Type } from '@sinclair/typebox';
-import type { ToolDefinition } from '@mariozechner/pi-coding-agent';
+### File Edit Flow
 
-const actionTool: ToolDefinition = {
-  name: 'action',
-  label: 'Invoke Action',
-  description: 'Invoke a named action in a DeskTalk window.',
-  parameters: Type.Object({
-    name: Type.String({ description: 'The action name to invoke' }),
-    params: Type.Optional(
-      Type.Record(Type.String(), Type.Unknown(), {
-        description: 'Parameters to pass to the action handler',
-      }),
-    ),
-    windowId: Type.Optional(
-      Type.String({ description: 'Target window id. Defaults to focused window.' }),
-    ),
-  }),
-  execute: async (_id, { name, params, windowId }) => {
-    const result = await windowManager.invokeAction(
-      windowId ?? windowManager.getFocusedWindowId(),
-      name,
-      params,
-    );
-    return {
-      content: [{ type: 'text', text: JSON.stringify(result) }],
-      details: {},
-    };
-  },
-};
+1. The user focuses a LiveApp window and asks for a targeted change.
+2. Pi calls the Preview `Get State` action to discover the current file path.
+3. Pi reads the file contents with the built-in `read` tool.
+4. Pi calls `edit` with `{ path, oldText, newText }`.
+5. The core writes the updated file, records persistent history, and broadcasts `preview.file-changed`.
+6. The LiveApp iframe reloads with the updated content.
+7. If needed, Pi can call `undo_edit` or `redo_edit` on the same file path.
 
-const editTool: ToolDefinition = {
-  name: 'edit',
-  label: 'Edit File',
-  description: 'Replace one exact text match in a managed file and persist undo/redo history.',
-  parameters: Type.Object({
-    path: Type.String({ description: 'Absolute or user-home-relative path to the file to edit' }),
-    oldText: Type.String({ description: 'Exact text to replace' }),
-    newText: Type.String({ description: 'Replacement text' }),
-  }),
-  execute: async (_id, { path, oldText, newText }) => {
-    const result = await editManagedFile(path, oldText, newText);
-    return {
-      content: [{ type: 'text', text: JSON.stringify(result) }],
-      details: {},
-    };
-  },
-};
-```
-
-#### Persistent Edit History
+### Persistent Edit History
 
 Each file edited through `edit` gets a co-located JSONL sidecar file. For `<dir>/index.html`, the history file is `<dir>/.index.html.history.jsonl`.
 
@@ -466,116 +506,45 @@ Each file edited through `edit` gets a co-located JSONL sidecar file. For `<dir>
 - `undo_edit` moves the pointer back, `redo_edit` moves it forward.
 - History persists on disk, so undo/redo survives app restarts.
 
-#### Event Streaming
+### Event Streaming
 
-The backend subscribes to `AgentSession` events and forwards them to the frontend over the existing WebSocket connection:
+The backend subscribes to `AgentSession` events and forwards them to the frontend over WebSocket:
 
-```ts
-session.subscribe((event) => {
-  // Forward all pi events to connected frontend clients
-  ws.broadcast({ type: 'ai:event', event });
-});
-```
-
-Key event types forwarded to the frontend:
-
-| Event                                           | Frontend use                                           |
-| ----------------------------------------------- | ------------------------------------------------------ |
-| `message_update` (text_delta)                   | Append streaming text to the chat in the Info Panel.   |
-| `message_update` (thinking_delta)               | Show thinking content in a collapsible block.          |
-| `tool_execution_start` / `tool_execution_end`   | Show which action the AI is invoking.                  |
-| `agent_start` / `agent_end`                     | Toggle "AI is thinking" indicator.                     |
-| `turn_end`                                      | Update token/cost counters from `event.message.usage`. |
-| `auto_compaction_start` / `auto_compaction_end` | Show compaction status.                                |
+| Event                                           | Frontend use                                         |
+| ----------------------------------------------- | ---------------------------------------------------- |
+| `message_update` (text_delta)                   | Append streaming text to the chat in the Info Panel. |
+| `message_update` (thinking_delta)               | Show thinking content in a collapsible block.        |
+| `tool_execution_start` / `tool_execution_end`   | Show which tool the AI is using.                     |
+| `agent_start` / `agent_end`                     | Toggle "AI is thinking" indicator.                   |
+| `turn_end`                                      | Update token/cost counters.                          |
+| `auto_compaction_start` / `auto_compaction_end` | Show compaction status.                              |
 
 ### Frontend — Info Panel
 
-The Info Panel is the user-facing AI interface, rendered as a permanent right-side AI Assistant pane in the shell. It is not managed by the normal MiniApp tiling tree.
+The Info Panel is the user-facing AI interface, rendered as a permanent right-side pane.
 
-#### Sections
-
-| Section        | Content                                                                                                                                          |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Chat**       | Scrollable list of user and assistant messages. User types prompts at the bottom. Messages render Markdown.                                      |
-| **Thinking**   | Collapsible block showing the model's chain-of-thought when thinking is enabled.                                                                 |
-| **Tool Calls** | Inline indicators showing when the AI invokes DeskTalk tools such as `desktop`, `action`, `generate_html`, `edit`, `undo_edit`, and `redo_edit`. |
-| **Status Bar** | Current model name, thinking level, token usage (input/output/cache), and estimated cost.                                                        |
-
-#### Sending Prompts
-
-The user types a message in the Info Panel's input field. The frontend sends it to the backend, which calls:
-
-```ts
-await session.prompt(userMessage);
-```
-
-If the AI is already streaming, the frontend can send steering or follow-up messages:
-
-```ts
-// Interrupt: delivered after current tool call
-await session.steer(userMessage);
-
-// Queue: delivered after the AI finishes its current run
-await session.followUp(userMessage);
-```
-
-#### Model and Thinking Controls
-
-The Info Panel's status bar includes controls to:
-
-- **Switch models** — calls `session.setModel(model)` on the backend.
-- **Cycle thinking level** — calls `session.cycleThinkingLevel()`.
-- **Abort** — calls `session.abort()` to cancel the current operation.
-
-Available models come from `modelRegistry.getAvailable()`, which checks which providers have valid API keys.
-
-### Action Invocation Flow
-
-This is the end-to-end flow when the AI decides to invoke a MiniApp action:
-
-1. User types a prompt in the Info Panel, e.g. _"Create a note titled Shopping List"_.
-2. Backend calls `session.prompt(message)`.
-3. Pi's LLM decides to call `list_actions` to see what's available.
-4. The `list_actions` tool reads the focused window's registered actions (e.g., `Create Note`, `Delete Note`, `Search Notes`).
-5. Pi's LLM decides to call `invoke_action` with `{ name: "Create Note", params: { title: "Shopping List" } }`.
-6. The core resolves the `Create Note` handler registered by the Note MiniApp's `<Action>` component and executes it.
-7. The action handler uses `ctx.messaging` / `ctx.storage` to create the note and returns a result.
-8. Pi receives the tool result and generates a final text response: _"I've created a note titled 'Shopping List'."_
-9. The response streams to the Info Panel via WebSocket events.
-
-### File Edit Flow
-
-This is the typical flow when the AI edits a generated Preview document:
-
-1. The user focuses a Preview window and asks for a targeted change.
-2. Pi calls the Preview `Get State` action to discover the current file.
-3. Pi reads the file contents with the built-in `read` tool.
-4. Pi calls `edit` with `{ path, oldText, newText }`.
-5. The core writes the updated file, records persistent history, and broadcasts `preview.file-changed`.
-6. The Preview frontend detects the matching file path and performs a full iframe reload with the updated content.
-7. If needed, Pi can call `undo_edit` or `redo_edit` on the same file path.
+| Section        | Content                                                                   |
+| -------------- | ------------------------------------------------------------------------- |
+| **Chat**       | Scrollable list of user and assistant messages. Messages render Markdown. |
+| **Thinking**   | Collapsible block showing the model's chain-of-thought.                   |
+| **Tool Calls** | Inline indicators showing when the AI invokes tools.                      |
+| **Status Bar** | Current model name, thinking level, token usage, and estimated cost.      |
 
 ### Authentication and Configuration
 
 Pi credentials (API keys, OAuth tokens) are stored at `<config>/pi-auth.json` via pi's `AuthStorage`. The Preference MiniApp exposes settings for:
 
-| Setting           | Description                                                      |
-| ----------------- | ---------------------------------------------------------------- |
-| Default Provider  | Which provider to use by default (Anthropic, OpenAI, etc.)       |
-| Provider Model    | Which model to use within each configured provider               |
-| Thinking Level    | off, minimal, low, medium, high                                  |
-| Provider API Key  | Per-provider API key entry                                       |
-| Provider Base URL | Optional per-provider endpoint override for compatible providers |
-
-These settings map to `session.setModel()` and `session.setThinkingLevel()` calls on the backend.
+| Setting           | Description                                                |
+| ----------------- | ---------------------------------------------------------- |
+| Default Provider  | Which provider to use by default (Anthropic, OpenAI, etc.) |
+| Provider Model    | Which model to use within each configured provider         |
+| Thinking Level    | off, minimal, low, medium, high                            |
+| Provider API Key  | Per-provider API key entry                                 |
+| Provider Base URL | Optional per-provider endpoint override                    |
 
 ### Session Persistence
 
-Pi sessions are stored as JSONL files in `<data>/ai-sessions/`. Pi's `SessionManager` handles:
-
-- **Auto-save** — messages persist automatically.
-- **Compaction** — long conversations are summarized when approaching the context limit.
-- **Branching** — the tree structure allows navigating back to earlier points (future feature for the Info Panel).
+Pi sessions are stored as JSONL files in `<data>/ai-sessions/`. Pi's `SessionManager` handles auto-save, compaction, and branching.
 
 ### Dependencies
 
@@ -583,20 +552,6 @@ Pi sessions are stored as JSONL files in `<data>/ai-sessions/`. Pi's `SessionMan
 | ------------------------------- | --------------------------------------------------------------------------------------- |
 | `@mariozechner/pi-coding-agent` | SDK entry point: `createAgentSession`, `AuthStorage`, `ModelRegistry`, `SessionManager` |
 | `@sinclair/typebox`             | JSON Schema definitions for custom tool parameters (peer dependency of pi)              |
-
-The `@desktalk/core` package declares `@mariozechner/pi-coding-agent` as a dependency. No other DeskTalk packages need to depend on pi directly.
-
-## Built-in MiniApps
-
-DeskTalk ships with five built-in MiniApps. Each has its own detailed spec in `docs/miniapps/`.
-
-| MiniApp       | Summary                                                                                                                                                       |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Note          | Markdown note-taking with YAML front matter and Milkdown editor.                                                                                              |
-| Todo          | Task management similar to macOS Reminders.                                                                                                                   |
-| File Explorer | Simple filesystem browser.                                                                                                                                    |
-| Preview       | Content viewer supporting image files (zoom, pan, navigation) and HTML files (sandboxed iframe). Also renders streaming HTML generated by the AI assistant.   |
-| Preference    | App and window configuration UI. **Privileged** — sole MiniApp with write access to global config (see [Privileged Access](#privileged-access--permissions)). |
 
 ## Engineering Guidelines
 
