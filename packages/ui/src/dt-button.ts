@@ -1,4 +1,6 @@
-import { BUTTON_CLS, BUTTON_CSS } from './styles/button';
+import buttonCss from './styles/button.css?raw';
+
+const BUTTON_CLS = 'dt-button-inner';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -105,7 +107,7 @@ export class DtButton extends HTMLElement {
     const shadow = this.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');
-    style.textContent = BUTTON_CSS;
+    style.textContent = buttonCss;
     shadow.appendChild(style);
 
     this._button = document.createElement('button');

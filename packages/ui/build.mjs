@@ -1,4 +1,4 @@
-import { mkdir, rm } from 'node:fs/promises';
+import { mkdir, readFile, rm } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,6 +16,25 @@ const sharedOptions = {
   sourcemap: true,
   target: 'es2022',
   logLevel: 'info',
+  plugins: [
+    {
+      name: 'raw-css-loader',
+      setup(pluginBuild) {
+        pluginBuild.onResolve({ filter: /\.css\?raw$/ }, (args) => ({
+          path: resolve(args.resolveDir, args.path.replace(/\?raw$/, '')),
+          namespace: 'raw-css',
+        }));
+
+        pluginBuild.onLoad({ filter: /\.css$/, namespace: 'raw-css' }, async (args) => {
+          const css = await readFile(args.path, 'utf8');
+          return {
+            contents: `export default ${JSON.stringify(css)};`,
+            loader: 'js',
+          };
+        });
+      },
+    },
+  ],
 };
 
 const outputConfigs = [

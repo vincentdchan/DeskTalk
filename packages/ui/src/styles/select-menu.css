@@ -1,0 +1,61 @@
+.dt-select-menu {
+  position: fixed;
+  z-index: 2147483646;
+  display: flex;
+  min-width: 240px;
+  max-width: min(320px, 72vw);
+  max-height: 260px;
+  flex-direction: column;
+  overflow-y: auto;
+  border: 1px solid var(--dt-border-subtle);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--dt-bg) 92%, var(--dt-surface));
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.22);
+  backdrop-filter: blur(18px) saturate(140%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.dt-select-menu[data-open] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.dt-select-option {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dt-text-secondary);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+  user-select: none;
+}
+
+.dt-select-option:hover {
+  background: color-mix(in oklab, var(--dt-accent) 10%, var(--dt-surface));
+  color: var(--dt-text);
+}
+
+.dt-select-option.dt-select-option--active {
+  background: color-mix(in oklab, var(--dt-accent) 14%, var(--dt-surface));
+  color: var(--dt-text);
+}
+
+.dt-select-option span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

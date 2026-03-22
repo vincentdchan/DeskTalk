@@ -1,19 +1,9 @@
-/**
- * CSS for the `<dt-button>` web component.
- *
- * Themed button component with multiple variants and sizes.
- */
-
-/** Unique class name used inside the shadow root. */
-export const BUTTON_CLS = 'dt-button-inner';
-
-export const BUTTON_CSS = /* css */ `
 :host {
   display: inline-flex;
   vertical-align: middle;
 }
 
-.${BUTTON_CLS} {
+.dt-button-inner {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -31,94 +21,85 @@ export const BUTTON_CSS = /* css */ `
   color: var(--dt-text-on-accent);
 }
 
-.${BUTTON_CLS}:hover:not(:disabled) {
+.dt-button-inner:hover:not(:disabled) {
   background: var(--dt-accent-hover);
 }
 
-.${BUTTON_CLS}:active:not(:disabled) {
+.dt-button-inner:active:not(:disabled) {
   background: var(--dt-accent-active);
 }
 
-.${BUTTON_CLS}:disabled {
+.dt-button-inner:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* Variant: primary (default) */
-:host([variant="primary"]) .${BUTTON_CLS},
-.${BUTTON_CLS} {
+:host([variant='primary']) .dt-button-inner,
+.dt-button-inner {
   background: var(--dt-accent);
   color: var(--dt-text-on-accent);
   border-color: transparent;
 }
 
-/* Variant: secondary */
-:host([variant="secondary"]) .${BUTTON_CLS} {
+:host([variant='secondary']) .dt-button-inner {
   background: var(--dt-surface);
   color: var(--dt-text);
   border-color: var(--dt-border);
 }
 
-:host([variant="secondary"]) .${BUTTON_CLS}:hover:not(:disabled) {
+:host([variant='secondary']) .dt-button-inner:hover:not(:disabled) {
   background: var(--dt-surface-hover);
 }
 
-:host([variant="secondary"]) .${BUTTON_CLS}:active:not(:disabled) {
+:host([variant='secondary']) .dt-button-inner:active:not(:disabled) {
   background: var(--dt-surface-active);
 }
 
-/* Variant: ghost */
-:host([variant="ghost"]) .${BUTTON_CLS} {
+:host([variant='ghost']) .dt-button-inner {
   background: transparent;
   color: var(--dt-text-secondary);
   border-color: transparent;
 }
 
-:host([variant="ghost"]) .${BUTTON_CLS}:hover:not(:disabled) {
+:host([variant='ghost']) .dt-button-inner:hover:not(:disabled) {
   background: var(--dt-accent-ghost);
   color: var(--dt-text);
 }
 
-:host([variant="ghost"]) .${BUTTON_CLS}:active:not(:disabled) {
+:host([variant='ghost']) .dt-button-inner:active:not(:disabled) {
   background: var(--dt-accent-subtle);
 }
 
-/* Variant: danger */
-:host([variant="danger"]) .${BUTTON_CLS} {
+:host([variant='danger']) .dt-button-inner {
   background: var(--dt-danger);
   color: var(--dt-text-on-accent);
   border-color: transparent;
 }
 
-:host([variant="danger"]) .${BUTTON_CLS}:hover:not(:disabled) {
+:host([variant='danger']) .dt-button-inner:hover:not(:disabled) {
   filter: brightness(1.1);
 }
 
-:host([variant="danger"]) .${BUTTON_CLS}:active:not(:disabled) {
+:host([variant='danger']) .dt-button-inner:active:not(:disabled) {
   filter: brightness(0.9);
 }
 
-/* Size: sm */
-:host([size="sm"]) .${BUTTON_CLS} {
+:host([size='sm']) .dt-button-inner {
   padding: 4px 12px;
   font-size: 0.8125rem;
 }
 
-/* Size: lg */
-:host([size="lg"]) .${BUTTON_CLS} {
+:host([size='lg']) .dt-button-inner {
   padding: 12px 24px;
   font-size: 1rem;
 }
 
-/* Full width */
-:host([fullwidth]) .${BUTTON_CLS} {
+:host([fullwidth]) .dt-button-inner {
   width: 100%;
 }
 
-/* Slotted icon */
-::slotted([slot="icon"]) {
+::slotted([slot='icon']) {
   display: inline-flex;
   width: 1em;
   height: 1em;
 }
-`;

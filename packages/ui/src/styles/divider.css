@@ -1,0 +1,61 @@
+:host {
+  display: block;
+}
+
+.dt-divider-inner {
+  border: none;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+:host([direction='horizontal']) .dt-divider-inner,
+.dt-divider-inner {
+  width: 100%;
+  height: 1px;
+  background: var(--dt-border);
+}
+
+:host([direction='vertical']) .dt-divider-inner {
+  width: 1px;
+  height: 100%;
+  min-height: 1em;
+  background: var(--dt-border);
+}
+
+:host([direction='horizontal'][style-variant='subtle']) .dt-divider-inner,
+:host([style-variant='subtle']) .dt-divider-inner {
+  background: var(--dt-border-subtle);
+}
+
+:host([direction='horizontal'][style-variant='strong']) .dt-divider-inner,
+:host([style-variant='strong']) .dt-divider-inner {
+  background: var(--dt-border-strong);
+}
+
+:host([direction='vertical'][style-variant='subtle']) .dt-divider-inner {
+  background: var(--dt-border-subtle);
+}
+
+:host([direction='vertical'][style-variant='strong']) .dt-divider-inner {
+  background: var(--dt-border-strong);
+}
+
+:host([spacing='sm']) .dt-divider-inner {
+  margin: 8px 0;
+}
+:host([spacing='md']) .dt-divider-inner {
+  margin: 16px 0;
+}
+:host([spacing='lg']) .dt-divider-inner {
+  margin: 24px 0;
+}
+
+:host([direction='vertical'][spacing='sm']) .dt-divider-inner {
+  margin: 0 8px;
+}
+:host([direction='vertical'][spacing='md']) .dt-divider-inner {
+  margin: 0 16px;
+}
+:host([direction='vertical'][spacing='lg']) .dt-divider-inner {
+  margin: 0 24px;
+}

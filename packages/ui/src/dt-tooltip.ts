@@ -1,4 +1,6 @@
-import { CLS, POPUP_CSS } from './styles/tooltip';
+import tooltipCss from './styles/tooltip.css?raw';
+
+const CLS = 'dt-tooltip-popup';
 
 type Placement = 'top' | 'bottom' | 'left' | 'right';
 
@@ -10,7 +12,7 @@ function ensureStyles(): void {
   if (styleInjected) return;
   const style = document.createElement('style');
   style.setAttribute('data-dt-tooltip', '');
-  style.textContent = POPUP_CSS;
+  style.textContent = tooltipCss;
   document.head.appendChild(style);
   styleInjected = true;
 }

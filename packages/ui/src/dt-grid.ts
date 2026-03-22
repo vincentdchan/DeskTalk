@@ -1,4 +1,6 @@
-import { GRID_CLS, GRID_CSS } from './styles/grid';
+import gridCss from './styles/grid.css?raw';
+
+const GRID_CLS = 'dt-grid-inner';
 
 type GridCols = '1' | '2' | '3' | '4' | '5' | '6';
 type GridGap = '0' | '4' | '8' | '12' | '16' | '20' | '24' | '32';
@@ -101,7 +103,7 @@ export class DtGrid extends HTMLElement {
     const shadow = this.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');
-    style.textContent = GRID_CSS;
+    style.textContent = gridCss;
     shadow.appendChild(style);
 
     const wrapper = document.createElement('div');

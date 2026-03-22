@@ -1,13 +1,12 @@
-import {
-  TRIGGER_CLS,
-  LABEL_CLS,
-  CHEVRON_CLS,
-  TRIGGER_CSS,
-  MENU_CLS,
-  OPTION_CLS,
-  OPTION_ACTIVE_CLS,
-  MENU_CSS,
-} from './styles/select';
+import selectMenuCss from './styles/select-menu.css?raw';
+import selectTriggerCss from './styles/select-trigger.css?raw';
+
+const TRIGGER_CLS = 'dt-select-trigger';
+const LABEL_CLS = 'dt-select-label';
+const CHEVRON_CLS = 'dt-select-chevron';
+const MENU_CLS = 'dt-select-menu';
+const OPTION_CLS = 'dt-select-option';
+const OPTION_ACTIVE_CLS = 'dt-select-option--active';
 
 /** Shape of an option passed via the `options` property. */
 export interface DtSelectOption {
@@ -21,7 +20,7 @@ function ensureMenuStyles(): void {
   if (menuStyleInjected) return;
   const style = document.createElement('style');
   style.setAttribute('data-dt-select', '');
-  style.textContent = MENU_CSS;
+  style.textContent = selectMenuCss;
   document.head.appendChild(style);
   menuStyleInjected = true;
 }
@@ -130,7 +129,7 @@ export class DtSelect extends HTMLElement {
     const shadow = this.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');
-    style.textContent = TRIGGER_CSS;
+    style.textContent = selectTriggerCss;
     shadow.appendChild(style);
 
     const btn = document.createElement('button');

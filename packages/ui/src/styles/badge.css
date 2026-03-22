@@ -1,19 +1,9 @@
-/**
- * CSS for the `<dt-badge>` web component.
- *
- * Status badge/pill component for inline labels.
- */
-
-/** Unique class name used inside the shadow root. */
-export const BADGE_CLS = 'dt-badge-inner';
-
-export const BADGE_CSS = /* css */ `
 :host {
   display: inline-flex;
   vertical-align: middle;
 }
 
-.${BADGE_CLS} {
+.dt-badge-inner {
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
@@ -25,52 +15,44 @@ export const BADGE_CSS = /* css */ `
   white-space: nowrap;
 }
 
-/* Variant: accent (default) */
-:host([variant="accent"]) .${BADGE_CLS},
-.${BADGE_CLS} {
+:host([variant='accent']) .dt-badge-inner,
+.dt-badge-inner {
   background: var(--dt-accent-subtle);
   color: var(--dt-accent);
 }
 
-/* Variant: success */
-:host([variant="success"]) .${BADGE_CLS} {
+:host([variant='success']) .dt-badge-inner {
   background: var(--dt-success-subtle);
   color: var(--dt-success);
 }
 
-/* Variant: danger */
-:host([variant="danger"]) .${BADGE_CLS} {
+:host([variant='danger']) .dt-badge-inner {
   background: var(--dt-danger-subtle);
   color: var(--dt-danger);
 }
 
-/* Variant: warning */
-:host([variant="warning"]) .${BADGE_CLS} {
+:host([variant='warning']) .dt-badge-inner {
   background: var(--dt-warning-subtle);
   color: var(--dt-warning);
 }
 
-/* Variant: info */
-:host([variant="info"]) .${BADGE_CLS} {
+:host([variant='info']) .dt-badge-inner {
   background: var(--dt-info-subtle);
   color: var(--dt-info);
 }
 
-/* Variant: default/neutral */
-:host([variant="default"]) .${BADGE_CLS},
-:host([variant="neutral"]) .${BADGE_CLS} {
+:host([variant='default']) .dt-badge-inner,
+:host([variant='neutral']) .dt-badge-inner {
   background: var(--dt-surface-hover);
   color: var(--dt-text-secondary);
 }
 
-/* Size variants */
-:host([size="sm"]) .${BADGE_CLS} {
+:host([size='sm']) .dt-badge-inner {
   padding: 1px 6px;
   font-size: 0.6875rem;
 }
 
-:host([size="lg"]) .${BADGE_CLS} {
+:host([size='lg']) .dt-badge-inner {
   padding: 4px 12px;
   font-size: 0.875rem;
 }
-`;

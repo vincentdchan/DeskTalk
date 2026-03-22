@@ -1,4 +1,6 @@
-import { BADGE_CLS, BADGE_CSS } from './styles/badge';
+import badgeCss from './styles/badge.css?raw';
+
+const BADGE_CLS = 'dt-badge-inner';
 
 type BadgeVariant = 'accent' | 'success' | 'danger' | 'warning' | 'info' | 'default' | 'neutral';
 type BadgeSize = 'sm' | 'md' | 'lg';
@@ -83,7 +85,7 @@ export class DtBadge extends HTMLElement {
     const shadow = this.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');
-    style.textContent = BADGE_CSS;
+    style.textContent = badgeCss;
     shadow.appendChild(style);
 
     this._container = document.createElement('span');

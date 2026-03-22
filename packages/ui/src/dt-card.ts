@@ -1,4 +1,6 @@
-import { CARD_CLS, CARD_CSS } from './styles/card';
+import cardCss from './styles/card.css?raw';
+
+const CARD_CLS = 'dt-card-inner';
 
 type CardVariant = 'default' | 'outlined' | 'filled';
 
@@ -47,7 +49,7 @@ export class DtCard extends HTMLElement {
     const shadow = this.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');
-    style.textContent = CARD_CSS;
+    style.textContent = cardCss;
     shadow.appendChild(style);
 
     const wrapper = document.createElement('div');

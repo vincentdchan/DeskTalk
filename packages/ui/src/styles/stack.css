@@ -1,0 +1,66 @@
+:host {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.dt-stack-inner {
+  display: flex;
+  flex-direction: var(--flex-direction, column);
+  gap: var(--stack-gap, 16px);
+  align-items: var(--align-items, stretch);
+}
+
+:host([direction='column']) .dt-stack-inner {
+  --flex-direction: column;
+}
+:host([direction='row']) .dt-stack-inner {
+  --flex-direction: row;
+}
+
+:host([gap='0']) .dt-stack-inner {
+  --stack-gap: 0;
+}
+:host([gap='4']) .dt-stack-inner {
+  --stack-gap: 4px;
+}
+:host([gap='8']) .dt-stack-inner {
+  --stack-gap: 8px;
+}
+:host([gap='12']) .dt-stack-inner {
+  --stack-gap: 12px;
+}
+:host([gap='16']) .dt-stack-inner {
+  --stack-gap: 16px;
+}
+:host([gap='20']) .dt-stack-inner {
+  --stack-gap: 20px;
+}
+:host([gap='24']) .dt-stack-inner {
+  --stack-gap: 24px;
+}
+:host([gap='32']) .dt-stack-inner {
+  --stack-gap: 32px;
+}
+
+:host([align='start']) .dt-stack-inner {
+  --align-items: flex-start;
+}
+:host([align='center']) .dt-stack-inner {
+  --align-items: center;
+}
+:host([align='end']) .dt-stack-inner {
+  --align-items: flex-end;
+}
+:host([align='stretch']) .dt-stack-inner {
+  --align-items: stretch;
+}
+
+@media (max-width: 480px) {
+  :host([direction='row']) .dt-stack-inner {
+    --flex-direction: column;
+  }
+}
+
+::slotted(*) {
+  min-width: 0;
+}

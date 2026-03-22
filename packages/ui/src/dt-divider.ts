@@ -1,4 +1,6 @@
-import { DIVIDER_CLS, DIVIDER_CSS } from './styles/divider';
+import dividerCss from './styles/divider.css?raw';
+
+const DIVIDER_CLS = 'dt-divider-inner';
 
 type DividerDirection = 'horizontal' | 'vertical';
 type DividerStyle = 'default' | 'subtle' | 'strong';
@@ -78,7 +80,7 @@ export class DtDivider extends HTMLElement {
     const shadow = this.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');
-    style.textContent = DIVIDER_CSS;
+    style.textContent = dividerCss;
     shadow.appendChild(style);
 
     const hr = document.createElement('hr');

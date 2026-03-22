@@ -1,4 +1,6 @@
-import { STACK_CLS, STACK_CSS } from './styles/stack';
+import stackCss from './styles/stack.css?raw';
+
+const STACK_CLS = 'dt-stack-inner';
 
 type StackDirection = 'column' | 'row';
 type StackGap = '0' | '4' | '8' | '12' | '16' | '20' | '24' | '32';
@@ -93,7 +95,7 @@ export class DtStack extends HTMLElement {
     const shadow = this.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');
-    style.textContent = STACK_CSS;
+    style.textContent = stackCss;
     shadow.appendChild(style);
 
     const wrapper = document.createElement('div');

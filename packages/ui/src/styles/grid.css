@@ -1,0 +1,92 @@
+:host {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.dt-grid-inner {
+  display: grid;
+  gap: var(--grid-gap, 16px);
+  grid-template-columns: repeat(auto-fit, minmax(var(--min-width, 220px), 1fr));
+}
+
+:host([cols='1']) .dt-grid-inner {
+  grid-template-columns: repeat(1, 1fr);
+}
+
+:host([cols='2']) .dt-grid-inner {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+:host([cols='3']) .dt-grid-inner {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+:host([cols='4']) .dt-grid-inner {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+:host([cols='5']) .dt-grid-inner {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+:host([cols='6']) .dt-grid-inner {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+@media (max-width: 480px) {
+  :host([cols='2']) .dt-grid-inner,
+  :host([cols='3']) .dt-grid-inner,
+  :host([cols='4']) .dt-grid-inner,
+  :host([cols='5']) .dt-grid-inner,
+  :host([cols='6']) .dt-grid-inner {
+    grid-template-columns: 1fr;
+  }
+}
+
+:host([gap='0']) .dt-grid-inner {
+  --grid-gap: 0;
+}
+:host([gap='4']) .dt-grid-inner {
+  --grid-gap: 4px;
+}
+:host([gap='8']) .dt-grid-inner {
+  --grid-gap: 8px;
+}
+:host([gap='12']) .dt-grid-inner {
+  --grid-gap: 12px;
+}
+:host([gap='16']) .dt-grid-inner {
+  --grid-gap: 16px;
+}
+:host([gap='20']) .dt-grid-inner {
+  --grid-gap: 20px;
+}
+:host([gap='24']) .dt-grid-inner {
+  --grid-gap: 24px;
+}
+:host([gap='32']) .dt-grid-inner {
+  --grid-gap: 32px;
+}
+
+:host([min-width='150']) .dt-grid-inner {
+  --min-width: 150px;
+}
+:host([min-width='180']) .dt-grid-inner {
+  --min-width: 180px;
+}
+:host([min-width='200']) .dt-grid-inner {
+  --min-width: 200px;
+}
+:host([min-width='220']) .dt-grid-inner {
+  --min-width: 220px;
+}
+:host([min-width='260']) .dt-grid-inner {
+  --min-width: 260px;
+}
+:host([min-width='300']) .dt-grid-inner {
+  --min-width: 300px;
+}
+
+::slotted(*) {
+  min-width: 0;
+}

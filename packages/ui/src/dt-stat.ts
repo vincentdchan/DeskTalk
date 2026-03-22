@@ -1,4 +1,6 @@
-import { STAT_CLS, STAT_CSS } from './styles/stat';
+import statCss from './styles/stat.css?raw';
+
+const STAT_CLS = 'dt-stat-inner';
 
 type StatSize = 'sm' | 'md' | 'lg';
 type StatVariant = 'default' | 'outlined' | 'filled';
@@ -138,7 +140,7 @@ export class DtStat extends HTMLElement {
     const shadow = this.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');
-    style.textContent = STAT_CSS;
+    style.textContent = statCss;
     shadow.appendChild(style);
 
     this._container = document.createElement('div');
@@ -196,7 +198,7 @@ export class DtStat extends HTMLElement {
 
     if (trend && trendValue) {
       this._trendEl.style.display = 'inline-flex';
-      this._trendEl.className = `trend ${trend}`;
+      this._trendEl.className = `trend ${trend === 'up' ? 'positive' : trend === 'down' ? 'negative' : 'neutral'}`;
 
       let symbol = '';
       if (trend === 'up') symbol = '↑';
