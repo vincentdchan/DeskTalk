@@ -17,7 +17,7 @@ import { PreviewToolbar } from './PreviewToolbar';
 import { injectDtRuntime, type PreviewThemeRuntime } from '../html-injections';
 import { isLiveAppPath, matchesPreviewFilePath } from '../preview-paths';
 import { BridgeConfirmDialog } from './BridgeConfirmDialog';
-import styles from '../PreviewApp.module.css';
+import styles from './HtmlPreviewPane.module.css';
 
 function requestCoreBridgeState(selector: PreviewBridgeGetStatePayload['selector']): unknown {
   let result: unknown;

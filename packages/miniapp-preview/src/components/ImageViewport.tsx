@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import styles from '../PreviewApp.module.css';
+import styles from './ImageViewport.module.css';
 
 const PAN_STEP = 50;
 

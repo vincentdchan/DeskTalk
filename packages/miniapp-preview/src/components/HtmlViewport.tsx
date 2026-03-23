@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import styles from '../PreviewApp.module.css';
+import styles from './HtmlViewport.module.css';
 import type { PreviewBridgeRequestMessage, PreviewBridgeResponseMessage } from '../types';
 
 interface HtmlViewportProps {
