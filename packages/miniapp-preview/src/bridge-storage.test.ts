@@ -2,15 +2,17 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { executeStorageAction } from './bridge-storage';
+import { LiveAppStorage } from './bridge-storage';
 
 describe('bridge storage', () => {
   let rootDir: string;
   let homeDir: string;
+  let storage: LiveAppStorage;
 
   beforeEach(async () => {
     rootDir = await mkdtemp(join(tmpdir(), 'desktalk-preview-storage-'));
     homeDir = join(rootDir, 'home', 'alice');
+    storage = new LiveAppStorage(homeDir);
   });
 
   afterEach(async () => {
@@ -19,11 +21,11 @@ describe('bridge storage', () => {
 
   it('stores and retrieves kv values', async () => {
     await expect(
-      executeStorageAction(homeDir, 'demo_stream-1', { action: 'kv.get', name: 'settings' }),
+      storage.execute('demo_stream-1', { action: 'kv.get', name: 'settings' }),
     ).resolves.toEqual({ value: undefined });
 
     await expect(
-      executeStorageAction(homeDir, 'demo_stream-1', {
+      storage.execute('demo_stream-1', {
         action: 'kv.set',
         name: 'settings',
         value: { theme: 'kanban', columns: 3 },
@@ -31,26 +33,24 @@ describe('bridge storage', () => {
     ).resolves.toEqual({ ok: true });
 
     await expect(
-      executeStorageAction(homeDir, 'demo_stream-1', { action: 'kv.get', name: 'settings' }),
-    ).resolves.toEqual({ value: { theme: 'kanban', columns: 3 } });
+      storage.get<{ theme: string; columns: number }>('demo_stream-1', 'settings'),
+    ).resolves.toEqual({ theme: 'kanban', columns: 3 });
 
-    await expect(
-      executeStorageAction(homeDir, 'demo_stream-1', { action: 'kv.list' }),
-    ).resolves.toEqual({ names: ['settings'] });
+    await expect(storage.list('demo_stream-1')).resolves.toEqual(['settings']);
   });
 
   it('persists collection ops in jsonl and supports queries', async () => {
-    await executeStorageAction(homeDir, 'tracker_stream-2', {
+    await storage.execute('tracker_stream-2', {
       action: 'collection.insert',
       collection: 'tasks',
       params: { id: 'a1', title: 'Buy milk', status: 'todo', createdAt: 1 },
     });
-    await executeStorageAction(homeDir, 'tracker_stream-2', {
+    await storage.execute('tracker_stream-2', {
       action: 'collection.insert',
       collection: 'tasks',
       params: { id: 'a2', title: 'Ship docs', status: 'done', createdAt: 2 },
     });
-    await executeStorageAction(homeDir, 'tracker_stream-2', {
+    await storage.execute('tracker_stream-2', {
       action: 'collection.update',
       collection: 'tasks',
       id: 'a1',
@@ -58,7 +58,7 @@ describe('bridge storage', () => {
     });
 
     await expect(
-      executeStorageAction(homeDir, 'tracker_stream-2', {
+      storage.execute('tracker_stream-2', {
         action: 'collection.findById',
         collection: 'tasks',
         id: 'a1',
@@ -68,7 +68,7 @@ describe('bridge storage', () => {
     });
 
     await expect(
-      executeStorageAction(homeDir, 'tracker_stream-2', {
+      storage.execute('tracker_stream-2', {
         action: 'collection.find',
         collection: 'tasks',
         filter: { status: 'done' },
@@ -82,7 +82,7 @@ describe('bridge storage', () => {
     });
 
     await expect(
-      executeStorageAction(homeDir, 'tracker_stream-2', {
+      storage.execute('tracker_stream-2', {
         action: 'collection.count',
         collection: 'tasks',
         filter: { status: 'done' },
@@ -94,30 +94,30 @@ describe('bridge storage', () => {
   });
 
   it('compacts collections to insert-only snapshots', async () => {
-    await executeStorageAction(homeDir, 'tracker_stream-3', {
+    await storage.execute('tracker_stream-3', {
       action: 'collection.insert',
       collection: 'tasks',
       params: { id: 'a1', title: 'Buy milk', status: 'todo' },
     });
-    await executeStorageAction(homeDir, 'tracker_stream-3', {
+    await storage.execute('tracker_stream-3', {
       action: 'collection.update',
       collection: 'tasks',
       id: 'a1',
       params: { status: 'done' },
     });
-    await executeStorageAction(homeDir, 'tracker_stream-3', {
+    await storage.execute('tracker_stream-3', {
       action: 'collection.insert',
       collection: 'tasks',
       params: { id: 'a2', title: 'Archive notes', status: 'todo' },
     });
-    await executeStorageAction(homeDir, 'tracker_stream-3', {
+    await storage.execute('tracker_stream-3', {
       action: 'collection.delete',
       collection: 'tasks',
       id: 'a2',
     });
 
     await expect(
-      executeStorageAction(homeDir, 'tracker_stream-3', {
+      storage.execute('tracker_stream-3', {
         action: 'collection.compact',
         collection: 'tasks',
       }),
@@ -131,7 +131,7 @@ describe('bridge storage', () => {
     expect(content).not.toContain('"op":"delete"');
 
     await expect(
-      executeStorageAction(homeDir, 'tracker_stream-3', {
+      storage.execute('tracker_stream-3', {
         action: 'collection.findAll',
         collection: 'tasks',
       }),

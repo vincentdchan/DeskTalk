@@ -15,7 +15,7 @@ import type {
 } from './types';
 import { analyzeProgram, formatCommand } from './bridge-safety';
 import { runBridgeCommand, validateExecInput } from './bridge-command-runner';
-import { executeStorageAction } from './bridge-storage';
+import { LiveAppStorage } from './bridge-storage';
 import {
   fileName,
   getExtension,
@@ -42,6 +42,7 @@ export const manifest: MiniAppManifest = {
 export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
   ctx.logger.info('Preview MiniApp activated');
   const workspaceRoot = process.cwd();
+  const liveAppStorage = new LiveAppStorage(ctx.paths.home);
   const bridgeSessions = new Map<string, string>();
   const pendingExecConfirms = new Map<
     string,
@@ -254,7 +255,7 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
     'preview.bridge.storage',
     async (req) => {
       assertAuthorizedBridgeSession(req.streamId, req.token);
-      return executeStorageAction(ctx.paths.home, req.liveAppId, req.request);
+      return liveAppStorage.execute(req.liveAppId, req.request);
     },
   );
 
