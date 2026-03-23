@@ -18,6 +18,7 @@
   gap: 12px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--dt-border);
+  min-width: 0;
 }
 
 .toolbarGroup {
@@ -145,6 +146,8 @@
   border: 1px solid var(--dt-border);
   border-radius: 20px;
   background: var(--dt-bg-subtle);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .lockIcon {
