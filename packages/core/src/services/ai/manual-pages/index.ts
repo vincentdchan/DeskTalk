@@ -33,14 +33,21 @@ export const MANUAL_PAGES: ManualPageMeta[] = [
     title: 'HTML Bridge',
     description: 'window.DeskTalk APIs for reading state and running constrained commands.',
     file: 'html-bridge.md',
-    related: ['html/components', 'desktop/windows', 'desktop/actions'],
+    related: ['html/components', 'html/storage', 'desktop/windows', 'desktop/actions'],
+  },
+  {
+    path: 'html/storage',
+    title: 'HTML Storage',
+    description: 'How LiveApps persist data with DeskTalk.storage KV and collections.',
+    file: 'html-storage.md',
+    related: ['html/bridge', 'html/examples', 'editing/preview'],
   },
   {
     path: 'html/examples',
     title: 'HTML Examples',
     description: 'Complete examples showing valid DeskTalk preview structure and styling.',
     file: 'html-examples.md',
-    related: ['html/tokens', 'html/components', 'html/layouts', 'html/bridge'],
+    related: ['html/tokens', 'html/components', 'html/layouts', 'html/bridge', 'html/storage'],
   },
   {
     path: 'desktop/windows',
@@ -61,7 +68,13 @@ export const MANUAL_PAGES: ManualPageMeta[] = [
     title: 'Preview Editing',
     description: 'The exact Get State -> read -> edit workflow for updating existing Preview HTML.',
     file: 'editing-preview.md',
-    related: ['desktop/actions', 'desktop/windows', 'html/layouts', 'html/examples'],
+    related: [
+      'desktop/actions',
+      'desktop/windows',
+      'html/layouts',
+      'html/examples',
+      'html/storage',
+    ],
   },
 ];
 

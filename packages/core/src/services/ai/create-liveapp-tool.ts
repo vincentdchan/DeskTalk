@@ -99,9 +99,10 @@ export function createLiveAppTool(options: CreateLiveAppToolOptions): ToolDefini
       'Use this tool when the user asks you to show, visualize, display, or render something visually.',
       'Provide a complete, self-contained HTML document including <html>, <head>, and <body> tags.',
       'Follow DeskTalk HTML manual guidance for `<dt-card>` usage, layout rules, and pre-styled typography.',
-      'Created LiveApps automatically receive a `window.DeskTalk` bridge for reading safe desktop state and running constrained commands.',
-      'The bridge exposes `exec` / `execute` — both accept either a shell string (`window.DeskTalk.exec("ls -la")`) or explicit arguments (`window.DeskTalk.exec("ls", ["-la"])`).',
-      'Call `read_manual` with pages such as `html/tokens`, `html/components`, `html/layouts`, `html/bridge`, or `html/examples` when you need the full DeskTalk reference.',
+      'Created LiveApps automatically receive a `window.DeskTalk` bridge for reading safe desktop state, persisting app data, and running constrained commands.',
+      'Use `window.DeskTalk.storage` for persistent app data. Prefer KV storage for settings and `storage.collection(name)` for user-editable records such as tasks, rows, or bookmarks.',
+      'The bridge also exposes `exec` / `execute` — both accept either a shell string (`window.DeskTalk.exec("ls -la")`) or explicit arguments (`window.DeskTalk.exec("ls", ["-la"])`).',
+      'Call `read_manual` with pages such as `html/tokens`, `html/components`, `html/layouts`, `html/bridge`, `html/storage`, or `html/examples` when you need the full DeskTalk reference.',
     ],
     parameters: createLiveAppSchema,
     async execute(_toolCallId, params) {

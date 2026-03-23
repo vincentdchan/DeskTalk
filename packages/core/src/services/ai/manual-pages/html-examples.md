@@ -164,3 +164,56 @@ Use these examples as structure references, not as fixed templates.
   </body>
 </html>
 ```
+
+## Collection Storage Example
+
+```html
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Task Tracker</title>
+  </head>
+  <body>
+    <h1>Task Tracker</h1>
+    <button class="btn" id="add-task">Add Task</button>
+    <div id="task-list" style="display: grid; gap: 12px; margin-top: 16px;"></div>
+
+    <script>
+      const tasks = window.DeskTalk.storage.collection('tasks');
+      const taskList = document.getElementById('task-list');
+
+      async function render() {
+        const records = await tasks.find({}, { sort: 'createdAt', order: 'desc' });
+        taskList.innerHTML = records
+          .map(
+            (task) => `
+              <dt-card>
+                <h3>${task.title}</h3>
+                <p>Status: ${task.status}</p>
+              </dt-card>
+            `,
+          )
+          .join('');
+      }
+
+      document.getElementById('add-task').addEventListener('click', async () => {
+        const title = window.prompt('Task title');
+        if (!title) return;
+
+        await tasks.insert({
+          id: crypto.randomUUID(),
+          title,
+          status: 'todo',
+          createdAt: Date.now(),
+        });
+
+        await render();
+      });
+
+      render();
+    </script>
+  </body>
+</html>
+```
