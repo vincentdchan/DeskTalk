@@ -1,12 +1,12 @@
 :host {
   display: block;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .dt-stack-inner {
   display: flex;
   flex-direction: var(--flex-direction, column);
-  gap: var(--stack-gap, 16px);
+  gap: var(--stack-gap, 12px);
   align-items: var(--align-items, stretch);
 }
 
