@@ -91,7 +91,7 @@ function TextEditApp({ initialPath }: { initialPath?: string }) {
       language: 'plaintext',
       theme: 'vs-dark',
       automaticLayout: true,
-      minimap: { enabled: true },
+      minimap: { enabled: false },
       lineNumbers: 'on',
       bracketPairColorization: { enabled: true },
       autoIndent: 'full',
