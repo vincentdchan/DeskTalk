@@ -7,22 +7,62 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  line-height: 1.4;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1px solid var(--dt-accent);
+  border-radius: 2px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: var(
+    --font-mono,
+    'SF Mono',
+    Monaco,
+    'Cascadia Code',
+    'Roboto Mono',
+    Consolas,
+    monospace
+  );
+  line-height: 1.2;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.1s ease;
+  background: var(--dt-surface);
+  color: var(--dt-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  position: relative;
+}
+
+/* Corner accents */
+.dt-button-inner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  border-top: 1px solid var(--dt-accent);
+  border-left: 1px solid var(--dt-accent);
+}
+
+.dt-button-inner::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 4px;
+  height: 4px;
+  border-bottom: 1px solid var(--dt-accent);
+  border-right: 1px solid var(--dt-accent);
+}
+
+.dt-button-inner:hover:not(:disabled) {
   background: var(--dt-accent);
   color: var(--dt-text-on-accent);
 }
 
-.dt-button-inner:hover:not(:disabled) {
-  background: var(--dt-accent-hover);
+.dt-button-inner:hover:not(:disabled)::before,
+.dt-button-inner:hover:not(:disabled)::after {
+  border-color: var(--dt-text-on-accent);
 }
 
 .dt-button-inner:active:not(:disabled) {
@@ -30,68 +70,90 @@
 }
 
 .dt-button-inner:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
+  border-color: var(--dt-border);
+  color: var(--dt-text-muted);
 }
 
-:host([variant='primary']) .dt-button-inner,
-.dt-button-inner {
+.dt-button-inner:disabled::before,
+.dt-button-inner:disabled::after {
+  border-color: var(--dt-border);
+}
+
+/* Variant: primary - filled accent */
+:host([variant='primary']) .dt-button-inner {
   background: var(--dt-accent);
   color: var(--dt-text-on-accent);
-  border-color: transparent;
 }
 
+:host([variant='primary']) .dt-button-inner:hover:not(:disabled) {
+  background: var(--dt-accent-hover);
+}
+
+/* Variant: secondary - outlined */
 :host([variant='secondary']) .dt-button-inner {
-  background: var(--dt-surface);
-  color: var(--dt-text);
+  background: transparent;
   border-color: var(--dt-border);
+  color: var(--dt-text);
 }
 
 :host([variant='secondary']) .dt-button-inner:hover:not(:disabled) {
   background: var(--dt-surface-hover);
+  border-color: var(--dt-accent);
+  color: var(--dt-accent);
 }
 
-:host([variant='secondary']) .dt-button-inner:active:not(:disabled) {
-  background: var(--dt-surface-active);
-}
-
+/* Variant: ghost - minimal */
 :host([variant='ghost']) .dt-button-inner {
   background: transparent;
-  color: var(--dt-text-secondary);
   border-color: transparent;
+  color: var(--dt-text-secondary);
 }
 
 :host([variant='ghost']) .dt-button-inner:hover:not(:disabled) {
-  background: var(--dt-accent-ghost);
+  background: var(--dt-surface);
+  border-color: var(--dt-border);
   color: var(--dt-text);
 }
 
-:host([variant='ghost']) .dt-button-inner:active:not(:disabled) {
-  background: var(--dt-accent-subtle);
+:host([variant='ghost']) .dt-button-inner::before,
+:host([variant='ghost']) .dt-button-inner::after {
+  display: none;
 }
 
+/* Variant: danger */
 :host([variant='danger']) .dt-button-inner {
-  background: var(--dt-danger);
-  color: var(--dt-text-on-accent);
-  border-color: transparent;
+  background: transparent;
+  border-color: var(--dt-danger);
+  color: var(--dt-danger);
 }
 
 :host([variant='danger']) .dt-button-inner:hover:not(:disabled) {
-  filter: brightness(1.1);
+  background: var(--dt-danger);
+  color: var(--dt-text-on-accent);
 }
 
-:host([variant='danger']) .dt-button-inner:active:not(:disabled) {
-  filter: brightness(0.9);
+:host([variant='danger']) .dt-button-inner::before,
+:host([variant='danger']) .dt-button-inner::after {
+  border-color: var(--dt-danger);
 }
 
+:host([variant='danger']) .dt-button-inner:hover:not(:disabled)::before,
+:host([variant='danger']) .dt-button-inner:hover:not(:disabled)::after {
+  border-color: var(--dt-text-on-accent);
+}
+
+/* Size: sm */
 :host([size='sm']) .dt-button-inner {
-  padding: 4px 12px;
-  font-size: 0.8125rem;
+  padding: 4px 8px;
+  font-size: 0.75rem;
 }
 
+/* Size: lg */
 :host([size='lg']) .dt-button-inner {
-  padding: 12px 24px;
-  font-size: 1rem;
+  padding: 8px 16px;
+  font-size: 0.875rem;
 }
 
 :host([fullwidth]) .dt-button-inner {

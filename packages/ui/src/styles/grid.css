@@ -1,11 +1,11 @@
 :host {
   display: block;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .dt-grid-inner {
   display: grid;
-  gap: var(--grid-gap, 16px);
+  gap: var(--grid-gap, 12px);
   grid-template-columns: repeat(auto-fit, minmax(var(--min-width, 220px), 1fr));
 }
 

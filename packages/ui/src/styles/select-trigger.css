@@ -7,7 +7,7 @@
 
 :host([disabled]) .dt-select-trigger {
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 .dt-select-trigger {
@@ -17,33 +17,72 @@
   max-width: 100%;
   box-sizing: border-box;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 6px 10px;
-  border: 1px solid var(--dt-border-subtle);
-  border-radius: 8px;
-  background: color-mix(in oklab, var(--dt-surface) 88%, transparent);
+  border: 1px solid var(--dt-accent);
+  border-radius: 2px;
+  background: var(--dt-surface);
   color: var(--dt-text);
-  font-family: var(--font-mono, monospace);
-  font-size: 12px;
-  font-weight: 700;
+  font-family: var(
+    --font-mono,
+    'SF Mono',
+    Monaco,
+    'Cascadia Code',
+    'Roboto Mono',
+    Consolas,
+    monospace
+  );
+  font-size: 0.8125rem;
+  font-weight: 600;
   letter-spacing: 0.04em;
   line-height: 1;
   cursor: pointer;
-  transition:
-    border-color 140ms ease,
-    background-color 140ms ease,
-    color 140ms ease;
+  transition: all 0.1s ease;
   user-select: none;
+  position: relative;
+}
+
+/* Corner accents */
+.dt-select-trigger::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  border-top: 1px solid var(--dt-accent);
+  border-left: 1px solid var(--dt-accent);
+}
+
+.dt-select-trigger::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 4px;
+  height: 4px;
+  border-bottom: 1px solid var(--dt-accent);
+  border-right: 1px solid var(--dt-accent);
 }
 
 .dt-select-trigger:hover:not([disabled]) {
-  border-color: color-mix(in oklab, var(--dt-accent) 35%, var(--dt-border-subtle));
-  background: color-mix(in oklab, var(--dt-surface) 94%, var(--dt-accent-ghost));
+  background: var(--dt-accent);
+  color: var(--dt-text-on-accent);
+}
+
+.dt-select-trigger:hover:not([disabled])::before,
+.dt-select-trigger:hover:not([disabled])::after {
+  border-color: var(--dt-text-on-accent);
 }
 
 .dt-select-trigger[aria-expanded='true'] {
-  border-color: color-mix(in oklab, var(--dt-accent) 35%, var(--dt-border-subtle));
-  background: color-mix(in oklab, var(--dt-surface) 94%, var(--dt-accent-ghost));
+  background: var(--dt-accent);
+  color: var(--dt-text-on-accent);
+}
+
+.dt-select-trigger[aria-expanded='true']::before,
+.dt-select-trigger[aria-expanded='true']::after {
+  border-color: var(--dt-text-on-accent);
 }
 
 .dt-select-label {
@@ -53,9 +92,10 @@
 }
 
 .dt-select-chevron {
-  color: var(--dt-text-muted);
-  font-size: 11px;
+  color: currentColor;
+  font-size: 10px;
   transition: transform 140ms ease;
+  opacity: 0.7;
 }
 
 .dt-select-trigger[aria-expanded='true'] .dt-select-chevron {

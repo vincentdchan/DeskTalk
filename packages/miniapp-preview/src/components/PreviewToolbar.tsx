@@ -1,7 +1,7 @@
 import React from 'react';
 import { simplifyPath } from '@desktalk/sdk';
 import type { PreviewMode } from '../types';
-import styles from '../PreviewApp.module.css';
+import styles from './PreviewToolbar.module.css';
 
 interface PreviewToolbarProps {
   filename: string;

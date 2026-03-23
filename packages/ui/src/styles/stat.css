@@ -5,70 +5,107 @@
 .dt-stat-inner {
   background: var(--dt-surface);
   border: 1px solid var(--dt-accent);
-  border-radius: 4px;
-  padding: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  border-radius: 2px;
+  padding: 12px;
+  font-family: var(
+    --font-mono,
+    'SF Mono',
+    Monaco,
+    'Cascadia Code',
+    'Roboto Mono',
+    Consolas,
+    monospace
+  );
   display: flex;
   flex-direction: column;
   gap: 4px;
+  position: relative;
+}
+
+/* Corner accents */
+.dt-stat-inner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-top: 1px solid var(--dt-accent);
+  border-left: 1px solid var(--dt-accent);
 }
 
 .dt-stat-inner .label {
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.625rem;
+  font-weight: 600;
   color: var(--dt-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.12em;
 }
 
 .dt-stat-inner .value {
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 600;
-  color: var(--dt-text);
-  line-height: 1.2;
+  color: var(--dt-accent);
+  line-height: 1.1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: var(
+    --font-mono,
+    'SF Mono',
+    Monaco,
+    'Cascadia Code',
+    'Roboto Mono',
+    Consolas,
+    monospace
+  );
 }
 
 .dt-stat-inner .description {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: var(--dt-text-secondary);
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
+/* Size variants */
 :host([size='sm']) .dt-stat-inner .value {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
 }
 
 :host([size='sm']) .dt-stat-inner {
-  padding: 16px;
+  padding: 8px;
 }
 
 :host([size='lg']) .dt-stat-inner .value {
-  font-size: 2.25rem;
+  font-size: 2rem;
 }
 
 :host([size='lg']) .dt-stat-inner {
-  padding: 24px;
+  padding: 16px;
 }
 
+/* Variant: outlined */
 :host([variant='outlined']) .dt-stat-inner {
   background: transparent;
+  border-style: dashed;
 }
 
+/* Variant: filled */
 :host([variant='filled']) .dt-stat-inner {
   background: var(--dt-accent-subtle);
-  border-color: var(--dt-border);
+  border-style: solid;
 }
 
+/* Trend indicators */
 .dt-stat-inner .trend {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  margin-top: 4px;
+  gap: 3px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .dt-stat-inner .trend.positive {

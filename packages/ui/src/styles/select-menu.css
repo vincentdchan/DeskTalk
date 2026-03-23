@@ -2,19 +2,18 @@
   position: fixed;
   z-index: 2147483646;
   display: flex;
-  min-width: 240px;
-  max-width: min(320px, 72vw);
-  max-height: 260px;
+  min-width: 200px;
+  max-width: min(300px, 72vw);
+  max-height: 240px;
   flex-direction: column;
   overflow-y: auto;
-  border: 1px solid var(--dt-border-subtle);
-  border-radius: 10px;
-  background: color-mix(in oklab, var(--dt-bg) 92%, var(--dt-surface));
-  box-shadow: 0 18px 48px rgb(0 0 0 / 0.22);
-  backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid var(--dt-accent);
+  border-radius: 2px;
+  background: var(--dt-surface);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 120ms ease;
+  transition: opacity 100ms ease;
 }
 
 .dt-select-menu[data-open] {
@@ -27,31 +26,41 @@
   width: 100%;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 0;
-  border-radius: 6px;
+  border-bottom: 1px solid var(--dt-border-subtle);
   background: transparent;
-  color: var(--dt-text-secondary);
-  font-family: var(--font-mono, monospace);
-  font-size: 12px;
-  font-weight: 700;
+  color: var(--dt-text);
+  font-family: var(
+    --font-mono,
+    'SF Mono',
+    Monaco,
+    'Cascadia Code',
+    'Roboto Mono',
+    Consolas,
+    monospace
+  );
+  font-size: 0.8125rem;
+  font-weight: 600;
   letter-spacing: 0.04em;
   text-align: left;
   cursor: pointer;
-  transition:
-    background-color 140ms ease,
-    color 140ms ease;
+  transition: all 0.1s ease;
   user-select: none;
 }
 
+.dt-select-option:last-child {
+  border-bottom: none;
+}
+
 .dt-select-option:hover {
-  background: color-mix(in oklab, var(--dt-accent) 10%, var(--dt-surface));
-  color: var(--dt-text);
+  background: var(--dt-accent);
+  color: var(--dt-text-on-accent);
 }
 
 .dt-select-option.dt-select-option--active {
-  background: color-mix(in oklab, var(--dt-accent) 14%, var(--dt-surface));
-  color: var(--dt-text);
+  background: var(--dt-accent-subtle);
+  color: var(--dt-accent);
 }
 
 .dt-select-option span {

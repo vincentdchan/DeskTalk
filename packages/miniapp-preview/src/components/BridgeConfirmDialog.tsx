@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from '../PreviewApp.module.css';
+import styles from './BridgeConfirmDialog.module.css';
 
 interface BridgeConfirmDialogProps {
   command: string;

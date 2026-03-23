@@ -6,53 +6,77 @@
 .dt-badge-inner {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  font-size: 0.75rem;
+  padding: 2px 6px;
+  border: 1px solid;
+  border-radius: 2px;
+  font-size: 0.6875rem;
   font-weight: 600;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  line-height: 1.4;
+  font-family: var(
+    --font-mono,
+    'SF Mono',
+    Monaco,
+    'Cascadia Code',
+    'Roboto Mono',
+    Consolas,
+    monospace
+  );
+  line-height: 1.2;
   white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
+/* Variant: accent (default) */
 :host([variant='accent']) .dt-badge-inner,
 .dt-badge-inner {
   background: var(--dt-accent-subtle);
+  border-color: var(--dt-accent);
   color: var(--dt-accent);
 }
 
+/* Variant: success */
 :host([variant='success']) .dt-badge-inner {
   background: var(--dt-success-subtle);
+  border-color: var(--dt-success);
   color: var(--dt-success);
 }
 
+/* Variant: danger */
 :host([variant='danger']) .dt-badge-inner {
   background: var(--dt-danger-subtle);
+  border-color: var(--dt-danger);
   color: var(--dt-danger);
 }
 
+/* Variant: warning */
 :host([variant='warning']) .dt-badge-inner {
   background: var(--dt-warning-subtle);
+  border-color: var(--dt-warning);
   color: var(--dt-warning);
 }
 
+/* Variant: info */
 :host([variant='info']) .dt-badge-inner {
   background: var(--dt-info-subtle);
+  border-color: var(--dt-info);
   color: var(--dt-info);
 }
 
+/* Variant: default/neutral */
 :host([variant='default']) .dt-badge-inner,
 :host([variant='neutral']) .dt-badge-inner {
-  background: var(--dt-surface-hover);
+  background: transparent;
+  border-color: var(--dt-border);
   color: var(--dt-text-secondary);
 }
 
+/* Size variants */
 :host([size='sm']) .dt-badge-inner {
-  padding: 1px 6px;
-  font-size: 0.6875rem;
+  padding: 1px 4px;
+  font-size: 0.625rem;
 }
 
 :host([size='lg']) .dt-badge-inner {
-  padding: 4px 12px;
-  font-size: 0.875rem;
+  padding: 3px 8px;
+  font-size: 0.75rem;
 }

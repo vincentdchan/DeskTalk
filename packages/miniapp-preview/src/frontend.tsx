@@ -246,11 +246,7 @@ function PreviewApp({
                 onPrevious={handlePrevious}
                 onNext={handleNext}
               />
-              <div
-                ref={viewportRef}
-                data-preview-viewport=""
-                style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}
-              >
+              <div ref={viewportRef} data-preview-viewport="" className={styles.imageViewportWrap}>
                 <ImageViewport
                   dataUrl={currentFile.dataUrl}
                   zoom={zoom}

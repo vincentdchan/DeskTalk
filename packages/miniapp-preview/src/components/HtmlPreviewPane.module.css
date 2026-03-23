@@ -1,21 +1,3 @@
-.root {
-  display: flex;
-  height: 100%;
-  min-height: 0;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--dt-window-body);
-  color: var(--dt-text);
-  font-family: var(--font-sans);
-}
-
-.imageViewportWrap {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
 .emptyState {
   display: flex;
   height: 100%;
