@@ -6,6 +6,7 @@
     "build": "pnpm -r run build",
     "start": "pnpm --filter @desktalk/core start",
     "dev": "pnpm build && pnpm --filter @desktalk/core dev",
+    "ui:storybook": "pnpm --filter @desktalk/ui storybook",
     "lint": "eslint packages/",
     "format": "prettier --write \"packages/**/*.{ts,tsx,css,json}\"",
     "format:check": "prettier --check \"packages/**/*.{ts,tsx,css,json}\"",
