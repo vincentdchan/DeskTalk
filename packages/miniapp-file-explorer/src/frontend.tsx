@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { MiniAppFrontendActivation, MiniAppFrontendContext } from '@desktalk/sdk';
+import type {
+  MiniAppFrontendActivation,
+  MiniAppFrontendContext,
+  MiniAppManifest,
+} from '@desktalk/sdk';
 import { useCommand, useOpenMiniApp, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
 import type { FileEntry, SortColumn, SortDirection } from './types';
 import { FileBreadcrumb } from './components/FileBreadcrumb';
@@ -10,10 +14,51 @@ import { FileActions } from './components/FileActions';
 import { ContextMenu, type ContextMenuAction } from './components/ContextMenu';
 import styles from './FileExplorerApp.module.css';
 
-const PREVIEW_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'text/html']);
+const DEFAULT_OPEN_APP_IDS = ['preview', 'text-edit'];
 
-function isPreviewable(entry: FileEntry): boolean {
-  return entry.type === 'file' && entry.mimeType !== null && PREVIEW_MIME_TYPES.has(entry.mimeType);
+function getExtension(name: string): string | null {
+  const lowerName = name.toLowerCase();
+  if (lowerName.startsWith('.')) {
+    return lowerName;
+  }
+  const dotIndex = lowerName.lastIndexOf('.');
+  return dotIndex >= 0 ? lowerName.slice(dotIndex) : null;
+}
+
+function matchesManifest(entry: FileEntry, manifest: MiniAppManifest): boolean {
+  if (entry.type !== 'file') {
+    return false;
+  }
+
+  const association = manifest.fileAssociations;
+  if (!association) {
+    return false;
+  }
+
+  const extension = getExtension(entry.name);
+  const extensionMatch =
+    extension !== null &&
+    association.extensions?.some((candidate: string) => candidate.toLowerCase() === extension);
+  const mimeTypeMatch =
+    entry.mimeType !== null &&
+    association.mimeTypes?.some((candidate: string) => candidate === entry.mimeType);
+
+  return Boolean(extensionMatch || mimeTypeMatch);
+}
+
+function getCompatibleMiniApps(entry: FileEntry, manifests: MiniAppManifest[]): MiniAppManifest[] {
+  return manifests.filter((manifest) => matchesManifest(entry, manifest));
+}
+
+function getDefaultMiniApp(entry: FileEntry, manifests: MiniAppManifest[]): MiniAppManifest | null {
+  const compatible = getCompatibleMiniApps(entry, manifests);
+  for (const miniAppId of DEFAULT_OPEN_APP_IDS) {
+    const match = compatible.find((manifest) => manifest.id === miniAppId);
+    if (match) {
+      return match;
+    }
+  }
+  return compatible[0] ?? null;
 }
 
 function FileExplorerApp() {
@@ -28,6 +73,7 @@ function FileExplorerApp() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [isDragActive, setIsDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [miniAppManifests, setMiniAppManifests] = useState<MiniAppManifest[]>([]);
 
   // ─── Selection and preview ──────────────────────────────────────────────
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -102,6 +148,30 @@ function FileExplorerApp() {
     fetchEntries(currentPath);
   }, [currentPath, fetchEntries]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/miniapps');
+        if (!response.ok) {
+          throw new Error(`Failed to load MiniApps (${response.status})`);
+        }
+
+        const manifests = (await response.json()) as MiniAppManifest[];
+        if (!cancelled) {
+          setMiniAppManifests(manifests);
+        }
+      } catch (error) {
+        console.error('Failed to load MiniApps:', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const refresh = useCallback(() => {
     fetchEntries(currentPath);
   }, [currentPath, fetchEntries]);
@@ -168,22 +238,8 @@ function FileExplorerApp() {
     setContextMenu(null);
   }, []);
 
-  // ─── Open (double-click) ────────────────────────────────────────────────
-
-  const handleOpen = useCallback(
+  const openInlinePreview = useCallback(
     async (entry: FileEntry) => {
-      if (entry.type === 'directory') {
-        navigateTo(entry.path);
-        return;
-      }
-
-      // Open previewable images in the Preview MiniApp
-      if (isPreviewable(entry)) {
-        openMiniApp('preview', { path: entry.path });
-        return;
-      }
-
-      // Open file preview in the side panel for other file types
       setPreviewEntry(entry);
       setPreviewLoading(true);
       setPreviewContent(null);
@@ -198,7 +254,27 @@ function FileExplorerApp() {
         setPreviewLoading(false);
       }
     },
-    [navigateTo, openMiniApp, readFile],
+    [readFile],
+  );
+
+  // ─── Open (double-click) ────────────────────────────────────────────────
+
+  const handleOpen = useCallback(
+    async (entry: FileEntry) => {
+      if (entry.type === 'directory') {
+        navigateTo(entry.path);
+        return;
+      }
+
+      const defaultMiniApp = getDefaultMiniApp(entry, miniAppManifests);
+      if (defaultMiniApp) {
+        openMiniApp(defaultMiniApp.id, { path: entry.path });
+        return;
+      }
+
+      await openInlinePreview(entry);
+    },
+    [navigateTo, miniAppManifests, openInlinePreview, openMiniApp],
   );
 
   // ─── Context menu ──────────────────────────────────────────────────────
@@ -347,16 +423,30 @@ function FileExplorerApp() {
           label: 'Open',
           handler: () => navigateTo(entry.path),
         });
-      } else if (isPreviewable(entry)) {
-        actions.push({
-          label: 'Open in Preview',
-          handler: () => openMiniApp('preview', { path: entry.path }),
-        });
       } else {
+        const compatibleMiniApps = getCompatibleMiniApps(entry, miniAppManifests);
+        const defaultMiniApp = getDefaultMiniApp(entry, miniAppManifests);
+
         actions.push({
-          label: 'Preview',
-          handler: () => handleOpen(entry),
+          label: 'Open',
+          handler: () => {
+            if (defaultMiniApp) {
+              openMiniApp(defaultMiniApp.id, { path: entry.path });
+              return;
+            }
+            void openInlinePreview(entry);
+          },
         });
+
+        if (compatibleMiniApps.length > 0) {
+          actions.push({
+            label: 'Open with',
+            children: compatibleMiniApps.map((manifest) => ({
+              label: manifest.name,
+              handler: () => openMiniApp(manifest.id, { path: entry.path }),
+            })),
+          });
+        }
       }
 
       actions.push({
@@ -391,8 +481,9 @@ function FileExplorerApp() {
     },
     [
       navigateTo,
+      miniAppManifests,
       openMiniApp,
-      handleOpen,
+      openInlinePreview,
       startRename,
       handleCopy,
       handleCut,

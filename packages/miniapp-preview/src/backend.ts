@@ -35,6 +35,10 @@ export const manifest: MiniAppManifest = {
   icon: '\uD83D\uDDBC\uFE0F',
   version: '0.1.0',
   description: 'Viewer for images and HTML files',
+  fileAssociations: {
+    extensions: ['.jpg', '.jpeg', '.png', '.webp', '.html', '.htm'],
+    mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'text/html'],
+  },
 };
 
 // ─── Activate ────────────────────────────────────────────────────────────────

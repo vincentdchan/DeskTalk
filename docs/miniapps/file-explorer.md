@@ -50,7 +50,7 @@ Note: The Actions Bar is a global element managed by the core shell (see `docs/s
 - Double-click an `.html` file to open it in the **Preview** MiniApp (HTML mode).
 - Double-click an image file (`.png`, `.jpg`, `.jpeg`, `.webp`) to open it in the **Preview** MiniApp.
 - Double-click other file types to open an inline metadata/preview pane.
-- Right-click for a context menu (rename, delete, copy, move, "Open with…").
+- Right-click for a context menu with `Open`, `Open with`, rename, delete, copy, and move actions.
 - Drag and drop for moving files (optional stretch goal).
 
 ### Integration with Other MiniApps
@@ -66,7 +66,9 @@ When a user double-clicks a file, the File Explorer determines which MiniApp to 
 
 The File Explorer opens the target MiniApp by requesting the core to launch a new window with the appropriate `miniAppId` and `args`. The `path` value is the file's path relative to the user's home directory (e.g., `"documents/notes.md"`). See [miniapp-development.md](../miniapp-development.md) — Launch Arguments for how `args` are passed to the target MiniApp's `activate(ctx)`.
 
-The "Open with…" context menu entry lets the user choose a MiniApp manually, overriding the default extension-based routing.
+The `Open` context menu entry uses the same default app resolution as double-click.
+
+The `Open with` context menu entry lets the user choose a MiniApp manually, overriding the default extension-based routing. It only shows MiniApps whose manifest declares support for the file's extension or MIME type.
 
 ## Frontend Components
 

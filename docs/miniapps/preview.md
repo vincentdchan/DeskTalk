@@ -29,8 +29,11 @@ Preview is launched from the File Explorer when a user opens a supported file, o
 
 ### Integration with File Explorer
 
-- Double-clicking a supported image file in the File Explorer opens Preview in image mode.
-- Double-clicking an `.html` file in the File Explorer opens Preview in HTML mode.
+- Double-clicking a supported image file in the File Explorer opens Preview in image mode because Preview is the default app for supported images.
+- Double-clicking an `.html` file in the File Explorer opens Preview in HTML mode because Preview is the default app for HTML files.
+- Right-clicking a supported file shows `Open` and `Open with`; `Open` uses the default app, while `Open with` lists every MiniApp whose manifest declares support for that file type.
+- Preview appears in `Open with` for JPEG, PNG, WebP, `.html`, and `.htm` files.
+- HTML files may also appear in `Open with` for TextEdit, allowing users to edit the source instead of previewing it.
 - Preview receives the file path and its parent directory path to enable sibling navigation (image mode only).
 - Opening Preview for the same file path focuses the existing Preview window instead of opening a duplicate.
 - Opening Preview for a different file path opens a separate Preview window.
