@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { useMemoizedFn as usePersistFn } from 'ahooks';
+import { useMemoizedFn } from 'ahooks';
 import 'streamdown/styles.css';
 import { useVoiceSession } from '../stores/voice-session';
 import { useChatSession, type AiEventMessage } from '../stores/chat-session';
@@ -94,7 +94,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   }, [socket, handleAiEvent]);
 
   // Voice-to-chat bridge: queue final transcripts and flush as prompts
-  const flushPendingVoicePrompts = usePersistFn(() => {
+  const flushPendingVoicePrompts = useMemoizedFn(() => {
     if (isAiRunning || !socket || socket.readyState !== WebSocket.OPEN) return;
 
     const nextPrompt = pendingVoicePromptsRef.current.shift();
@@ -186,7 +186,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     }
   }, [isAiRunning, queuedPrompts, socket, submitPrompt]);
 
-  const handleSend = usePersistFn(() => {
+  const handleSend = useMemoizedFn(() => {
     const text = useChatSession.getState().draftInput.trim();
     if (!text || !socket) return;
 

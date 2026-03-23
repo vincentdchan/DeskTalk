@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo, useLayoutEffect } from 'react';
-import { useMemoizedFn as usePersistFn } from 'ahooks';
+import { useMemoizedFn } from 'ahooks';
 import { useChatSession } from '../stores/chat-session';
 import { MicIcon } from './MicIcon';
 import { matchCommands, getAllCommands } from '../utils/slash-commands';
@@ -49,7 +49,7 @@ export function CommandInput({
 
   const showSuggestions = suggestions.length > 0;
 
-  const acceptSuggestion = usePersistFn((idx: number) => {
+  const acceptSuggestion = useMemoizedFn((idx: number) => {
     const cmd = suggestions[idx];
     if (!cmd) return;
     setDraftInput(`/${cmd.name} `);
@@ -57,7 +57,7 @@ export function CommandInput({
     textareaRef.current?.focus();
   });
 
-  const handleKeyDown = usePersistFn((e: React.KeyboardEvent) => {
+  const handleKeyDown = useMemoizedFn((e: React.KeyboardEvent) => {
     if (showSuggestions) {
       if (e.key === 'ArrowUp') {
         e.preventDefault();

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
+import { useMemoizedFn } from 'ahooks';
 import { useStore } from 'zustand';
 import type {
   MiniAppFrontendActivation,
@@ -163,18 +164,15 @@ function FileExplorerApp() {
     });
   }, []);
 
-  const fetchEntries = useCallback(
-    async (path: string) => {
-      try {
-        const result = await listFiles({ path });
-        setEntries(result);
-      } catch (err) {
-        console.error('Failed to list directory:', err);
-        setEntries([]);
-      }
-    },
-    [listFiles, setEntries],
-  );
+  const fetchEntries = useMemoizedFn(async (path: string) => {
+    try {
+      const result = await listFiles({ path });
+      setEntries(result);
+    } catch (err) {
+      console.error('Failed to list directory:', err);
+      setEntries([]);
+    }
+  });
 
   useEffect(() => {
     fetchEntries(currentPath);
@@ -204,9 +202,9 @@ function FileExplorerApp() {
     };
   }, [setMiniAppManifests]);
 
-  const refresh = useCallback(() => {
+  const refresh = useMemoizedFn(() => {
     fetchEntries(currentPath);
-  }, [currentPath, fetchEntries]);
+  });
 
   const handleSort = useCallback(
     (column: SortColumn) => {
@@ -292,7 +290,7 @@ function FileExplorerApp() {
     setContextMenu(null);
   }, [setContextMenu]);
 
-  const handleRenameSubmit = useCallback(async () => {
+  const handleRenameSubmit = useMemoizedFn(async () => {
     if (renameSubmittingRef.current) {
       return;
     }
@@ -329,25 +327,13 @@ function FileExplorerApp() {
       renameSubmittingRef.current = false;
       stopRename();
     }
-  }, [
-    currentPath,
-    entries,
-    fetchEntries,
-    previewEntry,
-    renameEntry,
-    renameValue,
-    renamingPath,
-    selectedPath,
-    setPreviewEntry,
-    setSelectedPath,
-    stopRename,
-  ]);
+  });
 
   const handleRenameCancel = useCallback(() => {
     stopRename();
   }, [stopRename]);
 
-  const handleCreateDirectory = useCallback(async () => {
+  const handleCreateDirectory = useMemoizedFn(async () => {
     const name = getNextDirectoryName(entries);
     const path = currentPath === '.' ? name : `${currentPath}/${name}`;
 
@@ -359,29 +345,26 @@ function FileExplorerApp() {
     } catch (err) {
       console.error('Failed to create directory:', err);
     }
-  }, [createEntry, currentPath, entries, fetchEntries, setSelectedPath, startRename]);
+  });
 
   const handleOpenInTerminal = useCallback(() => {
     openMiniApp('terminal', { cwd: currentPath });
   }, [currentPath, openMiniApp]);
 
-  const handleDelete = useCallback(
-    async (path: string) => {
-      try {
-        await deleteEntry({ path });
-        if (previewEntry?.path === path) {
-          closePreview();
-        }
-        if (selectedPath === path) {
-          setSelectedPath(null);
-        }
-        refresh();
-      } catch (err) {
-        console.error('Failed to delete:', err);
+  const handleDelete = useMemoizedFn(async (path: string) => {
+    try {
+      await deleteEntry({ path });
+      if (previewEntry?.path === path) {
+        closePreview();
       }
-    },
-    [closePreview, deleteEntry, previewEntry, refresh, selectedPath, setSelectedPath],
-  );
+      if (selectedPath === path) {
+        setSelectedPath(null);
+      }
+      refresh();
+    } catch (err) {
+      console.error('Failed to delete:', err);
+    }
+  });
 
   const handleCopy = useCallback((path: string) => {
     clipboardRef.current = { path, mode: 'copy' };
@@ -391,7 +374,7 @@ function FileExplorerApp() {
     clipboardRef.current = { path, mode: 'cut' };
   }, []);
 
-  const handlePaste = useCallback(async () => {
+  const handlePaste = useMemoizedFn(async () => {
     if (!clipboardRef.current) return;
 
     const { path: sourcePath, mode } = clipboardRef.current;
@@ -409,7 +392,7 @@ function FileExplorerApp() {
     } catch (err) {
       console.error(`Failed to ${mode}:`, err);
     }
-  }, [copyEntry, currentPath, moveEntry, refresh]);
+  });
 
   const handleDragOver = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -432,128 +415,110 @@ function FileExplorerApp() {
     [setDragActive],
   );
 
-  const handleDrop = useCallback(
-    async (e: React.DragEvent<HTMLDivElement>) => {
-      if (!Array.from(e.dataTransfer.types).includes('Files')) return;
-      e.preventDefault();
-      setDragActive(false);
+  const handleDrop = useMemoizedFn(async (e: React.DragEvent<HTMLDivElement>) => {
+    if (!Array.from(e.dataTransfer.types).includes('Files')) return;
+    e.preventDefault();
+    setDragActive(false);
 
-      const droppedFiles = Array.from(e.dataTransfer.files).filter((file) => file.size >= 0);
-      if (droppedFiles.length === 0) return;
+    const droppedFiles = Array.from(e.dataTransfer.files).filter((file) => file.size >= 0);
+    if (droppedFiles.length === 0) return;
 
-      setUploading(true);
-      try {
-        await Promise.all(
-          droppedFiles.map(async (file) => {
-            const contentBase64 = await fileToBase64(file);
-            const path = currentPath === '.' ? file.name : `${currentPath}/${file.name}`;
-            await uploadEntry({ path, contentBase64 });
-          }),
-        );
-        refresh();
-      } catch (err) {
-        console.error('Failed to upload dropped files:', err);
-      } finally {
-        setUploading(false);
-      }
-    },
-    [currentPath, fileToBase64, refresh, setDragActive, setUploading, uploadEntry],
-  );
+    setUploading(true);
+    try {
+      await Promise.all(
+        droppedFiles.map(async (file) => {
+          const contentBase64 = await fileToBase64(file);
+          const path = currentPath === '.' ? file.name : `${currentPath}/${file.name}`;
+          await uploadEntry({ path, contentBase64 });
+        }),
+      );
+      refresh();
+    } catch (err) {
+      console.error('Failed to upload dropped files:', err);
+    } finally {
+      setUploading(false);
+    }
+  });
 
-  const buildContextMenuActions = useCallback(
-    (entry: FileEntry | null): ContextMenuAction[] => {
-      if (entry === null) {
-        return [
-          {
-            label: 'New folder',
-            handler: () => {
-              void handleCreateDirectory();
-            },
-          },
-          {
-            label: 'Open in Terminal',
-            handler: handleOpenInTerminal,
-          },
-        ];
-      }
-
-      const actions: ContextMenuAction[] = [];
-
-      if (entry.type === 'directory') {
-        actions.push({
-          label: 'Open',
-          handler: () => navigateTo(entry.path),
-        });
-      } else {
-        const compatibleMiniApps = getCompatibleMiniApps(entry, miniAppManifests);
-        const defaultMiniApp = getDefaultMiniApp(entry, miniAppManifests);
-
-        actions.push({
-          label: 'Open',
+  const buildContextMenuActions = useMemoizedFn((entry: FileEntry | null): ContextMenuAction[] => {
+    if (entry === null) {
+      return [
+        {
+          label: 'New folder',
           handler: () => {
-            if (defaultMiniApp) {
-              openMiniApp(defaultMiniApp.id, { path: entry.path });
-              return;
-            }
-            void openInlinePreview(entry);
+            void handleCreateDirectory();
           },
-        });
+        },
+        {
+          label: 'Open in Terminal',
+          handler: handleOpenInTerminal,
+        },
+      ];
+    }
 
-        if (compatibleMiniApps.length > 0) {
-          actions.push({
-            label: 'Open with',
-            children: compatibleMiniApps.map((manifest) => ({
-              label: manifest.name,
-              handler: () => openMiniApp(manifest.id, { path: entry.path }),
-            })),
-          });
-        }
-      }
+    const actions: ContextMenuAction[] = [];
+
+    if (entry.type === 'directory') {
+      actions.push({
+        label: 'Open',
+        handler: () => navigateTo(entry.path),
+      });
+    } else {
+      const compatibleMiniApps = getCompatibleMiniApps(entry, miniAppManifests);
+      const defaultMiniApp = getDefaultMiniApp(entry, miniAppManifests);
 
       actions.push({
-        label: 'Rename',
-        handler: () => startRename(entry.path, entry.name),
+        label: 'Open',
+        handler: () => {
+          if (defaultMiniApp) {
+            openMiniApp(defaultMiniApp.id, { path: entry.path });
+            return;
+          }
+          void openInlinePreview(entry);
+        },
       });
 
-      actions.push({
-        label: 'Copy',
-        handler: () => handleCopy(entry.path),
-      });
-
-      actions.push({
-        label: 'Cut',
-        handler: () => handleCut(entry.path),
-      });
-
-      if (clipboardRef.current) {
+      if (compatibleMiniApps.length > 0) {
         actions.push({
-          label: 'Paste here',
-          handler: handlePaste,
+          label: 'Open with',
+          children: compatibleMiniApps.map((manifest) => ({
+            label: manifest.name,
+            handler: () => openMiniApp(manifest.id, { path: entry.path }),
+          })),
         });
       }
+    }
 
+    actions.push({
+      label: 'Rename',
+      handler: () => startRename(entry.path, entry.name),
+    });
+
+    actions.push({
+      label: 'Copy',
+      handler: () => handleCopy(entry.path),
+    });
+
+    actions.push({
+      label: 'Cut',
+      handler: () => handleCut(entry.path),
+    });
+
+    if (clipboardRef.current) {
       actions.push({
-        label: 'Delete',
-        danger: true,
-        handler: () => handleDelete(entry.path),
+        label: 'Paste here',
+        handler: handlePaste,
       });
+    }
 
-      return actions;
-    },
-    [
-      handleCopy,
-      handleCreateDirectory,
-      handleCut,
-      handleDelete,
-      handleOpenInTerminal,
-      handlePaste,
-      miniAppManifests,
-      navigateTo,
-      openInlinePreview,
-      openMiniApp,
-      startRename,
-    ],
-  );
+    actions.push({
+      label: 'Delete',
+      danger: true,
+      handler: () => handleDelete(entry.path),
+    });
+
+    return actions;
+  });
 
   const handleActionNavigated = useCallback(
     (path: string) => {
