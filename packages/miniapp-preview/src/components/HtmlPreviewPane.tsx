@@ -9,6 +9,8 @@ import type {
   PreviewBridgeGetStatePayload,
   PreviewBridgeRequestMessage,
   PreviewBridgeResponseMessage,
+  PreviewBridgeStoragePayload,
+  PreviewBridgeStorageResult,
 } from '../types';
 import { HtmlViewport } from './HtmlViewport';
 import { PreviewToolbar } from './PreviewToolbar';
@@ -83,6 +85,9 @@ export function HtmlPreviewPane({
   );
   const confirmBridgeCommand = useCommand<PreviewBridgeConfirmPayload, PreviewBridgeExecResponse>(
     'preview.bridge.exec.confirm',
+  );
+  const storageBridgeCommand = useCommand<PreviewBridgeStoragePayload, PreviewBridgeStorageResult>(
+    'preview.bridge.storage',
   );
 
   const shouldInjectRuntime = Boolean(liveAppId && bridgeToken && isLiveAppPath(initialPath));
@@ -201,6 +206,22 @@ export function HtmlPreviewPane({
         return;
       }
 
+      if (request.kind === 'storage') {
+        void storageBridgeCommand({
+          streamId: liveAppId,
+          token: bridgeToken,
+          liveAppId,
+          request: request.payload as PreviewBridgeStoragePayload['request'],
+        })
+          .then((result) => {
+            reply({ ok: true, result });
+          })
+          .catch((bridgeError) => {
+            reply({ ok: false, error: (bridgeError as Error).message });
+          });
+        return;
+      }
+
       if (request.kind !== 'exec') {
         reply({ ok: false, error: `Unsupported DeskTalk bridge request: ${request.kind}` });
         return;
@@ -246,6 +267,7 @@ export function HtmlPreviewPane({
       liveAppId,
       pendingBridgeConfirm,
       resolveBridgeState,
+      storageBridgeCommand,
       shouldInjectRuntime,
     ],
   );

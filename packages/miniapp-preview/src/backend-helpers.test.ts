@@ -5,14 +5,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   getStreamedAbsolutePath,
   getLegacyStreamedAbsolutePath,
-  getStreamedDirectoryName,
   getStreamedFileName,
   getStreamedRelativePath,
   isSupported,
   loadStreamedHtml,
   parseImageDimensions,
   saveStreamedHtml,
-  sanitizeTitleSegment,
   stripDtInjections,
 } from './backend-helpers';
 
@@ -35,11 +33,7 @@ describe('backend helpers', () => {
     await rm(rootDir, { recursive: true, force: true });
   });
 
-  it('sanitizes liveapp html filenames consistently', () => {
-    expect(sanitizeTitleSegment('  Revenue Report: Q1/Q2  ')).toBe('revenue-report-q1q2');
-    expect(getStreamedDirectoryName('stream-42', '  Revenue Report: Q1/Q2  ')).toBe(
-      'revenue-report-q1q2_stream-42',
-    );
+  it('builds streamed html paths consistently', () => {
     expect(getStreamedFileName()).toBe('index.html');
     expect(getStreamedRelativePath('stream-42', '  Revenue Report: Q1/Q2  ')).toBe(
       '.data/liveapps/revenue-report-q1q2_stream-42/index.html',

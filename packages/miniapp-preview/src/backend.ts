@@ -9,10 +9,13 @@ import type {
   PreviewBridgeConfirmPayload,
   PreviewBridgeExecPayload,
   PreviewBridgeExecResponse,
+  PreviewBridgeStoragePayload,
+  PreviewBridgeStorageResult,
   StreamedHtmlSnapshot,
 } from './types';
 import { analyzeProgram, formatCommand } from './bridge-safety';
 import { runBridgeCommand, validateExecInput } from './bridge-command-runner';
+import { executeStorageAction } from './bridge-storage';
 import {
   fileName,
   getExtension,
@@ -244,6 +247,14 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
           validated.timeoutMs,
         ),
       };
+    },
+  );
+
+  ctx.messaging.onCommand<PreviewBridgeStoragePayload, PreviewBridgeStorageResult>(
+    'preview.bridge.storage',
+    async (req) => {
+      assertAuthorizedBridgeSession(req.streamId, req.token);
+      return executeStorageAction(ctx.paths.home, req.liveAppId, req.request);
     },
   );
 
