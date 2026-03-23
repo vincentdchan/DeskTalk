@@ -68,6 +68,48 @@ export interface PreviewBridgeExecPayload {
   options?: PreviewBridgeExecOptions;
 }
 
+export interface PreviewBridgeStorageQueryOptions {
+  sort?: string;
+  order?: 'asc' | 'desc';
+  limit?: number;
+  offset?: number;
+}
+
+export type PreviewBridgeStorageAction =
+  | { action: 'kv.get'; name: string }
+  | { action: 'kv.set'; name: string; value: unknown }
+  | { action: 'kv.delete'; name: string }
+  | { action: 'kv.list' }
+  | { action: 'collection.insert'; collection: string; params: Record<string, unknown> }
+  | { action: 'collection.update'; collection: string; id: string; params: Record<string, unknown> }
+  | { action: 'collection.delete'; collection: string; id: string }
+  | { action: 'collection.findById'; collection: string; id: string }
+  | {
+      action: 'collection.find';
+      collection: string;
+      filter?: Record<string, unknown>;
+      options?: PreviewBridgeStorageQueryOptions;
+    }
+  | { action: 'collection.findAll'; collection: string }
+  | { action: 'collection.count'; collection: string; filter?: Record<string, unknown> }
+  | { action: 'collection.compact'; collection: string };
+
+export interface PreviewBridgeStoragePayload {
+  streamId: string;
+  token: string;
+  liveAppId: string;
+  request: PreviewBridgeStorageAction;
+}
+
+export type PreviewBridgeStorageResult =
+  | { value: unknown }
+  | { ok: true }
+  | { deleted: boolean }
+  | { names: string[] }
+  | { record: Record<string, unknown> | null }
+  | { records: Array<Record<string, unknown>> }
+  | { count: number };
+
 export interface PreviewBridgeExecResult {
   ok: boolean;
   exitCode: number | null;
@@ -113,7 +155,7 @@ export interface PreviewBridgeRequestMessage {
   streamId: string;
   token: string;
   requestId: string;
-  kind: 'getState' | 'exec';
+  kind: 'getState' | 'exec' | 'storage';
   payload: unknown;
 }
 

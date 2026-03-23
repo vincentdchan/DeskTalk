@@ -3,7 +3,7 @@ import unusedImports from 'eslint-plugin-unused-imports';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/node_modules/**'],
+    ignores: ['**/dist/**', '**/node_modules/**', 'packages/ui/storybook-static/**'],
   },
   ...tseslint.configs.recommended,
   {

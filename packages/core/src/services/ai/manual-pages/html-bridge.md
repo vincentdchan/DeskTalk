@@ -2,6 +2,8 @@
 
 Generated previews automatically receive `window.DeskTalk`.
 
+For persistent app data, use `window.DeskTalk.storage`. Read `html/storage` for the full storage reference.
+
 ## Reading State
 
 Use `await window.DeskTalk.getState(selector)`.
@@ -90,8 +92,34 @@ Typical usage:
 </script>
 ```
 
+## Persistent Storage
+
+Use `DeskTalk.storage` for durable LiveApp data.
+
+- KV: `await DeskTalk.storage.get('settings')`, `await DeskTalk.storage.set('settings', value)`
+- Collections: `const tasks = DeskTalk.storage.collection('tasks')`
+- Use collections for lists of records instead of writing large JSON blobs manually.
+
+Example:
+
+```html
+<script>
+  const tasks = window.DeskTalk.storage.collection('tasks');
+
+  async function addTask(title) {
+    await tasks.insert({
+      id: crypto.randomUUID(),
+      title,
+      status: 'todo',
+      createdAt: Date.now(),
+    });
+  }
+</script>
+```
+
 ## Safety
 
 - Dangerous commands such as `rm`, `chmod`, `sudo`, `kill`, or destructive git subcommands trigger a native confirmation dialog.
 - Catastrophic commands such as formatting disks or `rm` against `/` are blocked outright.
 - The bridge is for constrained interaction; do not assume unrestricted shell access.
+- Prefer `DeskTalk.storage` over shell commands for normal app persistence.

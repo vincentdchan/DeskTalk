@@ -12,17 +12,17 @@ The system is distributed as a single npm package and started via a CLI command.
 
 DeskTalk has two distinct application models:
 
-|                | LiveApp                                                     | MiniApp                                                 |
-| -------------- | ----------------------------------------------------------- | ------------------------------------------------------- |
-| **Created by** | AI assistant (via `create_liveapp`)                         | Developer (npm package)                                 |
-| **Complexity** | Single HTML document + optional co-located assets           | Full backend + frontend with process isolation          |
-| **Backend**    | None (frontend-only, with bash execution via bridge)        | Isolated Node.js child process per user                 |
-| **Build step** | None                                                        | esbuild via `desktalk-build` CLI                        |
-| **Storage**    | Auto-saved to `~/.data/liveapps/`                           | Scoped data dir, key-value store, filesystem hooks      |
-| **Discovery**  | Auto-detected by scanning directory for `index.html`        | Registered at startup from npm packages                 |
-| **Launchpad**  | Appears alongside MiniApps, display name from `<title>`     | Appears with manifest name and optional PNG icon        |
-| **Rendering**  | Sandboxed iframe hosted by Preview MiniApp                  | Own frontend module mounted into window                 |
-| **Use case**   | User-requested tools, dashboards, visualizations, utilities | Core system features (notes, files, settings, terminal) |
+|                | LiveApp                                                                                  | MiniApp                                                 |
+| -------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| **Created by** | AI assistant (via `create_liveapp`)                                                      | Developer (npm package)                                 |
+| **Complexity** | Single HTML document + optional co-located assets                                        | Full backend + frontend with process isolation          |
+| **Backend**    | None (frontend-only, with bash execution via bridge)                                     | Isolated Node.js child process per user                 |
+| **Build step** | None                                                                                     | esbuild via `desktalk-build` CLI                        |
+| **Storage**    | KV store + JSONL collections via bridge (see [liveapp-storage.md](./liveapp-storage.md)) | Scoped data dir, key-value store, filesystem hooks      |
+| **Discovery**  | Auto-detected by scanning directory for `index.html`                                     | Registered at startup from npm packages                 |
+| **Launchpad**  | Appears alongside MiniApps, display name from `<title>`                                  | Appears with manifest name and optional PNG icon        |
+| **Rendering**  | Sandboxed iframe hosted by Preview MiniApp                                               | Own frontend module mounted into window                 |
+| **Use case**   | User-requested tools, dashboards, visualizations, utilities                              | Core system features (notes, files, settings, terminal) |
 
 ### High-Level Stack
 
@@ -154,11 +154,13 @@ The raw HTML on disk is always clean — runtime injections are stripped before 
 
 Every LiveApp receives a `window.DeskTalk` bridge object in its iframe context. This provides:
 
-| API                                  | Description                                                                                |
-| ------------------------------------ | ------------------------------------------------------------------------------------------ |
-| `exec(command)` / `execute(command)` | Execute a shell command. Accepts a string (`"ls -la"`) or explicit args (`"ls", ["-la"]`). |
-| `getTheme()`                         | Read current theme preferences (accent color, light/dark mode).                            |
-| `onThemeChange(callback)`            | Subscribe to theme changes.                                                                |
+| API                                  | Description                                                                                             |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `exec(command)` / `execute(command)` | Execute a shell command. Accepts a string (`"ls -la"`) or explicit args (`"ls", ["-la"]`).              |
+| `getTheme()`                         | Read current theme preferences (accent color, light/dark mode).                                         |
+| `onThemeChange(callback)`            | Subscribe to theme changes.                                                                             |
+| `storage.get/set/delete/list`        | KV store for simple JSON values. See [liveapp-storage.md](./liveapp-storage.md).                        |
+| `storage.collection(name)`           | Collection API for structured records (JSONL + SQLite). See [liveapp-storage.md](./liveapp-storage.md). |
 
 The bridge communicates with the core via `postMessage` and a per-session `bridgeToken` for authentication.
 
@@ -294,10 +296,17 @@ Using `<config>`, `<data>`, `<logs>`, `<cache>` as shorthand for the platform-re
         preview/
         <third-party-id>/
       .storage/
+        liveapps/              # LiveApp application data (see liveapp-storage.md)
+          my-app_stream-id/
+            settings.json      # KV store file
+            tasks.jsonl        # Collection op-log (source of truth)
         note.json              # MiniApp key-value stores
         todo.json
         preference.json
       .cache/
+        liveapps/              # LiveApp query cache (disposable, see liveapp-storage.md)
+          my-app_stream-id/
+            tasks.sqlite
         note/
         todo/
       documents/               # User-visible files exposed through ctx.fs
@@ -314,15 +323,17 @@ Using `<config>`, `<data>`, `<logs>`, `<cache>` as shorthand for the platform-re
   ...
 ```
 
-| Path                                        | Purpose                                                                                                 |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `<data>/home/<username>/.data/liveapps/`    | AI-generated LiveApps. Auto-detected by the core — each subdirectory with an `index.html` is a LiveApp. |
-| `<data>/home/<username>/`                   | Scoped filesystem root for MiniApps. Paths passed to `ctx.fs` resolve relative to this.                 |
-| `<data>/home/<username>/.data/<id>/`        | MiniApp-private data directory (`ctx.paths.data`).                                                      |
-| `<data>/home/<username>/.storage/<id>.json` | Scoped key-value store (`ctx.storage`).                                                                 |
-| `<logs>/<username>/<id>.log`                | Scoped log output (`ctx.logger`).                                                                       |
-| `<data>/miniapps/`                          | Installed third-party MiniApp npm packages.                                                             |
-| `<config>/config.toml`                      | Global app configuration (TOML). Managed by core; only Preference MiniApp has write access.             |
+| Path                                             | Purpose                                                                                                                         |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `<data>/home/<username>/.data/liveapps/`         | AI-generated LiveApps. Auto-detected by the core — each subdirectory with an `index.html` is a LiveApp.                         |
+| `<data>/home/<username>/.storage/liveapps/<id>/` | LiveApp application data. KV store (`.json`) and collection op-logs (`.jsonl`). See [liveapp-storage.md](./liveapp-storage.md). |
+| `<data>/home/<username>/.cache/liveapps/<id>/`   | LiveApp query cache. Disposable SQLite databases generated from JSONL op-logs. See [liveapp-storage.md](./liveapp-storage.md).  |
+| `<data>/home/<username>/`                        | Scoped filesystem root for MiniApps. Paths passed to `ctx.fs` resolve relative to this.                                         |
+| `<data>/home/<username>/.data/<id>/`             | MiniApp-private data directory (`ctx.paths.data`).                                                                              |
+| `<data>/home/<username>/.storage/<id>.json`      | Scoped key-value store (`ctx.storage`).                                                                                         |
+| `<logs>/<username>/<id>.log`                     | Scoped log output (`ctx.logger`).                                                                                               |
+| `<data>/miniapps/`                               | Installed third-party MiniApp npm packages.                                                                                     |
+| `<config>/config.toml`                           | Global app configuration (TOML). Managed by core; only Preference MiniApp has write access.                                     |
 
 ## Window Management
 
@@ -552,6 +563,7 @@ Pi sessions are stored as JSONL files in `<data>/ai-sessions/`. Pi's `SessionMan
 | ------------------------------- | --------------------------------------------------------------------------------------- |
 | `@mariozechner/pi-coding-agent` | SDK entry point: `createAgentSession`, `AuthStorage`, `ModelRegistry`, `SessionManager` |
 | `@sinclair/typebox`             | JSON Schema definitions for custom tool parameters (peer dependency of pi)              |
+| `better-sqlite3`                | Synchronous SQLite driver for LiveApp collection query cache                            |
 
 ## Engineering Guidelines
 

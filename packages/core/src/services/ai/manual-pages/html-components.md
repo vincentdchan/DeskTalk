@@ -9,6 +9,7 @@ DeskTalk injects shared UI primitives into every generated Preview document.
 - It also includes base styling for `body`, headings, paragraphs, links, tables, `code`, and `pre`.
 - A `window.DeskTalk` bridge is also injected automatically.
 - All web component definitions (`dt-*` elements) are automatically available.
+- That bridge includes persistent storage APIs through `window.DeskTalk.storage`.
 
 ## Typography
 

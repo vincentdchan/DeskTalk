@@ -9,10 +9,13 @@ import type {
   PreviewBridgeConfirmPayload,
   PreviewBridgeExecPayload,
   PreviewBridgeExecResponse,
+  PreviewBridgeStoragePayload,
+  PreviewBridgeStorageResult,
   StreamedHtmlSnapshot,
 } from './types';
 import { analyzeProgram, formatCommand } from './bridge-safety';
 import { runBridgeCommand, validateExecInput } from './bridge-command-runner';
+import { LiveAppStorage } from './bridge-storage';
 import {
   fileName,
   getExtension,
@@ -39,6 +42,7 @@ export const manifest: MiniAppManifest = {
 export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
   ctx.logger.info('Preview MiniApp activated');
   const workspaceRoot = process.cwd();
+  const liveAppStorage = new LiveAppStorage(ctx.paths.home);
   const bridgeSessions = new Map<string, string>();
   const pendingExecConfirms = new Map<
     string,
@@ -244,6 +248,14 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
           validated.timeoutMs,
         ),
       };
+    },
+  );
+
+  ctx.messaging.onCommand<PreviewBridgeStoragePayload, PreviewBridgeStorageResult>(
+    'preview.bridge.storage',
+    async (req) => {
+      assertAuthorizedBridgeSession(req.streamId, req.token);
+      return liveAppStorage.execute(req.liveAppId, req.request);
     },
   );
 

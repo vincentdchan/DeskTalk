@@ -2,9 +2,11 @@ import { mkdirSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { StreamedHtmlSnapshot } from './types';
+import { getStreamedDirectoryName, sanitizeTitleSegment } from './liveapp-id';
 import { stripDtInjections } from './strip-dt-injections';
 
 export { stripDtInjections } from './strip-dt-injections';
+export { getStreamedDirectoryName, sanitizeTitleSegment } from './liveapp-id';
 
 const SUPPORTED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 
@@ -36,16 +38,6 @@ export function parentDir(path: string): string {
 export function fileName(path: string): string {
   const idx = path.lastIndexOf('/');
   return idx >= 0 ? path.slice(idx + 1) : path;
-}
-
-export function sanitizeTitleSegment(title: string): string {
-  const normalized = title.trim().toLowerCase().replace(/\s+/g, '-');
-  const safe = normalized.replace(/[^a-z0-9._-]/g, '');
-  return safe || 'preview';
-}
-
-export function getStreamedDirectoryName(streamId: string, title: string): string {
-  return `${sanitizeTitleSegment(title)}_${streamId}`;
 }
 
 export function getStreamedFileName(): string {

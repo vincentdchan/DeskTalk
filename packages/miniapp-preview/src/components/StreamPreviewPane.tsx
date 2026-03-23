@@ -7,12 +7,15 @@ import type {
   PreviewBridgeGetStatePayload,
   PreviewBridgeRequestMessage,
   PreviewBridgeResponseMessage,
+  PreviewBridgeStoragePayload,
+  PreviewBridgeStorageResult,
   StreamedHtmlSnapshot,
 } from '../types';
 import { injectDtRuntime, type PreviewThemeRuntime } from '../html-injections';
 import { HtmlViewport } from './HtmlViewport';
 import { PreviewToolbar } from './PreviewToolbar';
 import { BridgeConfirmDialog } from './BridgeConfirmDialog';
+import { getStreamedDirectoryName } from '../liveapp-id';
 import { matchesPreviewFilePath } from '../preview-paths';
 
 function requestCoreBridgeState(selector: PreviewBridgeGetStatePayload['selector']): unknown {
@@ -93,6 +96,10 @@ export function StreamPreviewPane({
     { requestId: string; confirmed: boolean },
     PreviewBridgeExecResponse
   >('preview.bridge.exec.confirm');
+  const storageBridgeCommand = useCommand<PreviewBridgeStoragePayload, PreviewBridgeStorageResult>(
+    'preview.bridge.storage',
+  );
+  const liveAppId = getStreamedDirectoryName(streamId, streamTitle);
 
   useEffect(() => {
     streamHtmlRef.current = streamHtml;
@@ -271,6 +278,22 @@ export function StreamPreviewPane({
         return;
       }
 
+      if (request.kind === 'storage') {
+        void storageBridgeCommand({
+          streamId,
+          token: bridgeToken,
+          liveAppId,
+          request: request.payload as PreviewBridgeStoragePayload['request'],
+        })
+          .then((result) => {
+            reply({ ok: true, result });
+          })
+          .catch((error) => {
+            reply({ ok: false, error: (error as Error).message });
+          });
+        return;
+      }
+
       if (request.kind !== 'exec') {
         reply({ ok: false, error: `Unsupported DeskTalk bridge request: ${request.kind}` });
         return;
@@ -310,7 +333,15 @@ export function StreamPreviewPane({
           reply({ ok: false, error: (error as Error).message });
         });
     },
-    [bridgeToken, execBridgeCommand, pendingBridgeConfirm, resolveBridgeState, streamId],
+    [
+      bridgeToken,
+      execBridgeCommand,
+      liveAppId,
+      pendingBridgeConfirm,
+      resolveBridgeState,
+      storageBridgeCommand,
+      streamId,
+    ],
   );
 
   const handleBridgeConfirmation = useCallback(

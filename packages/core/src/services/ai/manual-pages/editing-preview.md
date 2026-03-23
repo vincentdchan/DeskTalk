@@ -17,6 +17,7 @@ Use this workflow when the user asks to change content already shown in a Previe
 - Do not edit blind; always inspect the current file first.
 - `oldText` must match exactly once or the tool fails.
 - After `edit`, `undo_edit`, or `redo_edit`, Preview reload is automatic through DeskTalk events.
+- If the LiveApp uses `DeskTalk.storage` and you change the expected data shape, also inspect and migrate the relevant storage files.
 
 ## When to Regenerate Instead
 
