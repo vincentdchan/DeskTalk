@@ -1,4 +1,5 @@
 import type { MiniAppManifest, MiniAppContext, MiniAppBackendActivation } from '@desktalk/sdk';
+import { isAbsolute, join } from 'node:path';
 import type {
   TerminalTab,
   TerminalOutputEvent,
@@ -30,6 +31,14 @@ interface PtySession {
 const MAX_SCROLLBACK_LINES = 5000;
 const DEFAULT_COLS = 80;
 const DEFAULT_ROWS = 24;
+
+function resolveCwd(root: string, cwd?: string): string {
+  if (!cwd || cwd === '.') {
+    return root;
+  }
+
+  return isAbsolute(cwd) ? cwd : join(root, cwd);
+}
 
 function generateId(): string {
   return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
@@ -80,7 +89,8 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
       const nodePty = await loadPty();
       const tabId = generateId();
       const shell = detectShell();
-      const cwd = req.cwd || process.env.HOME || '/';
+      const homeDir = ctx.paths.home || process.env.HOME || '/';
+      const cwd = resolveCwd(homeDir, req.cwd);
       const label = req.label || shell.split('/').pop() || 'shell';
 
       const pty = nodePty.spawn(shell, [], {
@@ -124,15 +134,12 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
 
   // ─── terminal.input ─────────────────────────────────────────────────────
 
-  ctx.messaging.onCommand<{ tabId: string; data: string }, void>(
-    'terminal.input',
-    async (req) => {
-      const session = sessions.get(req.tabId);
-      if (!session) throw new Error(`Terminal tab not found: ${req.tabId}`);
-      if (!session.tab.running) throw new Error(`Terminal tab is not running: ${req.tabId}`);
-      session.pty.write(req.data);
-    },
-  );
+  ctx.messaging.onCommand<{ tabId: string; data: string }, void>('terminal.input', async (req) => {
+    const session = sessions.get(req.tabId);
+    if (!session) throw new Error(`Terminal tab not found: ${req.tabId}`);
+    if (!session.tab.running) throw new Error(`Terminal tab is not running: ${req.tabId}`);
+    session.pty.write(req.data);
+  });
 
   // ─── terminal.resize ───────────────────────────────────────────────────
 

@@ -19,7 +19,7 @@ interface PendingConfirm {
   tabId: string;
 }
 
-function TerminalApp() {
+function TerminalApp({ initialCwd }: { initialCwd?: string }) {
   const [tabs, setTabs] = useState<TerminalTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
@@ -51,7 +51,7 @@ function TerminalApp() {
     initRef.current = true;
     const init = async () => {
       try {
-        const result = await createTab({});
+        const result = await createTab({ cwd: initialCwd });
         setActiveTabId(result.tabId);
         await fetchTabs();
       } catch (err) {
@@ -59,7 +59,7 @@ function TerminalApp() {
       }
     };
     init();
-  }, [createTab, fetchTabs]);
+  }, [createTab, fetchTabs, initialCwd]);
 
   // ─── Tab actions ──────────────────────────────────────────────────────────
 
@@ -187,11 +187,12 @@ function TerminalApp() {
 }
 
 export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation {
+  const initialCwd = typeof ctx.args?.cwd === 'string' ? ctx.args.cwd : undefined;
   const root = createRoot(ctx.root);
   root.render(
     <WindowIdProvider windowId={ctx.windowId}>
       <MiniAppIdProvider miniAppId={ctx.miniAppId}>
-        <TerminalApp />
+        <TerminalApp initialCwd={initialCwd} />
       </MiniAppIdProvider>
     </WindowIdProvider>,
   );

@@ -20,7 +20,8 @@
   "dependencies": {
     "@desktalk/sdk": "workspace:*",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

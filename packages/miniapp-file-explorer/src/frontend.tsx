@@ -1,20 +1,39 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
+import { useStore } from 'zustand';
 import type {
   MiniAppFrontendActivation,
   MiniAppFrontendContext,
   MiniAppManifest,
 } from '@desktalk/sdk';
 import { useCommand, useOpenMiniApp, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
-import type { FileEntry, SortColumn, SortDirection } from './types';
+import type { FileEntry, SortColumn } from './types';
 import { FileBreadcrumb } from './components/FileBreadcrumb';
 import { FileList } from './components/FileList';
 import { FilePreview } from './components/FilePreview';
 import { FileActions } from './components/FileActions';
 import { ContextMenu, type ContextMenuAction } from './components/ContextMenu';
+import { createFileExplorerStore } from './store';
 import styles from './FileExplorerApp.module.css';
 
 const DEFAULT_OPEN_APP_IDS = ['preview', 'text-edit'];
+
+function getNextDirectoryName(entries: FileEntry[]): string {
+  const names = new Set(
+    entries.filter((entry) => entry.type === 'directory').map((entry) => entry.name.toLowerCase()),
+  );
+
+  if (!names.has('new folder')) {
+    return 'New folder';
+  }
+
+  let suffix = 2;
+  while (names.has(`new folder ${suffix}`)) {
+    suffix += 1;
+  }
+
+  return `New folder ${suffix}`;
+}
 
 function getExtension(name: string): string | null {
   const lowerName = name.toLowerCase();
@@ -62,54 +81,70 @@ function getDefaultMiniApp(entry: FileEntry, manifests: MiniAppManifest[]): Mini
 }
 
 function FileExplorerApp() {
-  // ─── Navigation state ───────────────────────────────────────────────────
-  const [currentPath, setCurrentPath] = useState('.');
-  const [history, setHistory] = useState<string[]>(['.']);
-  const [historyIndex, setHistoryIndex] = useState(0);
+  const storeRef = useRef<ReturnType<typeof createFileExplorerStore> | null>(null);
+  if (!storeRef.current) {
+    storeRef.current = createFileExplorerStore();
+  }
+  const store = storeRef.current;
 
-  // ─── File list state ────────────────────────────────────────────────────
-  const [entries, setEntries] = useState<FileEntry[]>([]);
-  const [sortColumn, setSortColumn] = useState<SortColumn>('name');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [isDragActive, setIsDragActive] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [miniAppManifests, setMiniAppManifests] = useState<MiniAppManifest[]>([]);
+  const currentPath = useStore(store, (state) => state.currentPath);
+  const history = useStore(store, (state) => state.history);
+  const historyIndex = useStore(store, (state) => state.historyIndex);
+  const entries = useStore(store, (state) => state.entries);
+  const sortColumn = useStore(store, (state) => state.sortColumn);
+  const sortDirection = useStore(store, (state) => state.sortDirection);
+  const isDragActive = useStore(store, (state) => state.isDragActive);
+  const isUploading = useStore(store, (state) => state.isUploading);
+  const miniAppManifests = useStore(store, (state) => state.miniAppManifests);
+  const selectedPath = useStore(store, (state) => state.selectedPath);
+  const previewEntry = useStore(store, (state) => state.previewEntry);
+  const previewContent = useStore(store, (state) => state.previewContent);
+  const previewLoading = useStore(store, (state) => state.previewLoading);
+  const renamingPath = useStore(store, (state) => state.renamingPath);
+  const renameValue = useStore(store, (state) => state.renameValue);
+  const contextMenu = useStore(store, (state) => state.contextMenu);
 
-  // ─── Selection and preview ──────────────────────────────────────────────
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [previewEntry, setPreviewEntry] = useState<FileEntry | null>(null);
-  const [previewContent, setPreviewContent] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
+  const setEntries = useStore(store, (state) => state.setEntries);
+  const setSortColumn = useStore(store, (state) => state.setSortColumn);
+  const setSortDirection = useStore(store, (state) => state.setSortDirection);
+  const setDragActive = useStore(store, (state) => state.setDragActive);
+  const setUploading = useStore(store, (state) => state.setUploading);
+  const setMiniAppManifests = useStore(store, (state) => state.setMiniAppManifests);
+  const setSelectedPath = useStore(store, (state) => state.setSelectedPath);
+  const setPreviewEntry = useStore(store, (state) => state.setPreviewEntry);
+  const setPreviewContent = useStore(store, (state) => state.setPreviewContent);
+  const setPreviewLoading = useStore(store, (state) => state.setPreviewLoading);
+  const setRenameValue = useStore(store, (state) => state.setRenameValue);
+  const setContextMenu = useStore(store, (state) => state.setContextMenu);
+  const startRename = useStore(store, (state) => state.startRename);
+  const stopRename = useStore(store, (state) => state.stopRename);
+  const closePreview = useStore(store, (state) => state.closePreview);
+  const navigateTo = useStore(store, (state) => state.navigateTo);
+  const goBackInHistory = useStore(store, (state) => state.goBack);
+  const goForwardInHistory = useStore(store, (state) => state.goForward);
 
-  // ─── Rename state ───────────────────────────────────────────────────────
-  const [renamingPath, setRenamingPath] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState('');
-
-  // ─── Context menu state ─────────────────────────────────────────────────
-  const [contextMenu, setContextMenu] = useState<{
-    x: number;
-    y: number;
-    entry: FileEntry;
-  } | null>(null);
-
-  // ─── Backend commands ───────────────────────────────────────────────────
   const listFiles = useCommand<{ path: string }, FileEntry[]>('files.list');
   const readFile = useCommand<{ path: string }, { content: string; mimeType: string }>(
     'files.read',
   );
   const deleteEntry = useCommand<{ path: string }, void>('files.delete');
   const renameEntry = useCommand<{ path: string; newName: string }, FileEntry>('files.rename');
+  const createEntry = useCommand<
+    { path: string; type: 'file' | 'directory'; content?: string },
+    FileEntry
+  >('files.create');
   const copyEntry = useCommand<{ source: string; destination: string }, FileEntry>('files.copy');
   const moveEntry = useCommand<{ source: string; destination: string }, FileEntry>('files.move');
   const uploadEntry = useCommand<{ path: string; contentBase64: string }, FileEntry>(
     'files.upload',
   );
 
-  // ─── Clipboard for copy/move ────────────────────────────────────────────
   const clipboardRef = useRef<{ path: string; mode: 'copy' | 'cut' } | null>(null);
-
-  // ─── Open another MiniApp window ───────────────────────────────────────
+  const renameSubmittingRef = useRef(false);
   const openMiniApp = useOpenMiniApp();
+
+  const canGoBack = historyIndex > 0;
+  const canGoForward = historyIndex < history.length - 1;
 
   const fileToBase64 = useCallback((file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -128,8 +163,6 @@ function FileExplorerApp() {
     });
   }, []);
 
-  // ─── Fetch directory contents ───────────────────────────────────────────
-
   const fetchEntries = useCallback(
     async (path: string) => {
       try {
@@ -140,10 +173,9 @@ function FileExplorerApp() {
         setEntries([]);
       }
     },
-    [listFiles],
+    [listFiles, setEntries],
   );
 
-  // Fetch on path change
   useEffect(() => {
     fetchEntries(currentPath);
   }, [currentPath, fetchEntries]);
@@ -170,73 +202,31 @@ function FileExplorerApp() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [setMiniAppManifests]);
 
   const refresh = useCallback(() => {
     fetchEntries(currentPath);
   }, [currentPath, fetchEntries]);
 
-  // ─── Navigation ─────────────────────────────────────────────────────────
-
-  const navigateTo = useCallback(
-    (path: string) => {
-      setCurrentPath(path);
-      setSelectedPath(null);
-      setPreviewEntry(null);
-      setPreviewContent(null);
-      setContextMenu(null);
-
-      // Trim forward history and push
-      const newHistory = [...history.slice(0, historyIndex + 1), path];
-      setHistory(newHistory);
-      setHistoryIndex(newHistory.length - 1);
-    },
-    [history, historyIndex],
-  );
-
-  const canGoBack = historyIndex > 0;
-  const canGoForward = historyIndex < history.length - 1;
-
-  const goBack = useCallback(() => {
-    if (!canGoBack) return;
-    const newIndex = historyIndex - 1;
-    setHistoryIndex(newIndex);
-    setCurrentPath(history[newIndex]);
-    setSelectedPath(null);
-    setPreviewEntry(null);
-    setPreviewContent(null);
-  }, [canGoBack, historyIndex, history]);
-
-  const goForward = useCallback(() => {
-    if (!canGoForward) return;
-    const newIndex = historyIndex + 1;
-    setHistoryIndex(newIndex);
-    setCurrentPath(history[newIndex]);
-    setSelectedPath(null);
-    setPreviewEntry(null);
-    setPreviewContent(null);
-  }, [canGoForward, historyIndex, history]);
-
-  // ─── Sorting ────────────────────────────────────────────────────────────
-
   const handleSort = useCallback(
     (column: SortColumn) => {
       if (sortColumn === column) {
-        setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
       } else {
         setSortColumn(column);
         setSortDirection('asc');
       }
     },
-    [sortColumn],
+    [setSortColumn, setSortDirection, sortColumn, sortDirection],
   );
 
-  // ─── Selection ──────────────────────────────────────────────────────────
-
-  const handleSelect = useCallback((entry: FileEntry) => {
-    setSelectedPath(entry.path);
-    setContextMenu(null);
-  }, []);
+  const handleSelect = useCallback(
+    (entry: FileEntry) => {
+      setSelectedPath(entry.path);
+      setContextMenu(null);
+    },
+    [setContextMenu, setSelectedPath],
+  );
 
   const openInlinePreview = useCallback(
     async (entry: FileEntry) => {
@@ -254,10 +244,8 @@ function FileExplorerApp() {
         setPreviewLoading(false);
       }
     },
-    [readFile],
+    [readFile, setPreviewContent, setPreviewEntry, setPreviewLoading],
   );
-
-  // ─── Open (double-click) ────────────────────────────────────────────────
 
   const handleOpen = useCallback(
     async (entry: FileEntry) => {
@@ -274,57 +262,115 @@ function FileExplorerApp() {
 
       await openInlinePreview(entry);
     },
-    [navigateTo, miniAppManifests, openInlinePreview, openMiniApp],
+    [miniAppManifests, navigateTo, openInlinePreview, openMiniApp],
   );
 
-  // ─── Context menu ──────────────────────────────────────────────────────
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent, entry: FileEntry) => {
+      e.preventDefault();
+      setSelectedPath(entry.path);
+      setContextMenu({ x: e.clientX, y: e.clientY, entry });
+    },
+    [setContextMenu, setSelectedPath],
+  );
 
-  const handleContextMenu = useCallback((e: React.MouseEvent, entry: FileEntry) => {
-    e.preventDefault();
-    setSelectedPath(entry.path);
-    setContextMenu({ x: e.clientX, y: e.clientY, entry });
-  }, []);
+  const handleBackgroundContextMenu = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('tr')) {
+        return;
+      }
+
+      e.preventDefault();
+      setSelectedPath(null);
+      setContextMenu({ x: e.clientX, y: e.clientY, entry: null });
+    },
+    [setContextMenu, setSelectedPath],
+  );
 
   const handleCloseContextMenu = useCallback(() => {
     setContextMenu(null);
-  }, []);
-
-  // ─── Rename ─────────────────────────────────────────────────────────────
-
-  const startRename = useCallback((entry: FileEntry) => {
-    setRenamingPath(entry.path);
-    setRenameValue(entry.name);
-  }, []);
+  }, [setContextMenu]);
 
   const handleRenameSubmit = useCallback(async () => {
-    if (!renamingPath || !renameValue.trim()) {
-      setRenamingPath(null);
+    if (renameSubmittingRef.current) {
       return;
     }
 
+    if (!renamingPath || !renameValue.trim()) {
+      stopRename();
+      await fetchEntries(currentPath);
+      return;
+    }
+
+    const originalEntry = entries.find((entry) => entry.path === renamingPath);
+    const nextName = renameValue.trim();
+    if (originalEntry && originalEntry.name === nextName) {
+      stopRename();
+      return;
+    }
+
+    renameSubmittingRef.current = true;
     try {
-      await renameEntry({ path: renamingPath, newName: renameValue.trim() });
-      refresh();
+      const renamedEntry = await renameEntry({ path: renamingPath, newName: nextName });
+      await fetchEntries(currentPath);
+
+      if (selectedPath === renamingPath) {
+        setSelectedPath(renamedEntry.path);
+      }
+
+      if (previewEntry?.path === renamingPath) {
+        setPreviewEntry(renamedEntry);
+      }
     } catch (err) {
       console.error('Failed to rename:', err);
+      await fetchEntries(currentPath);
     } finally {
-      setRenamingPath(null);
+      renameSubmittingRef.current = false;
+      stopRename();
     }
-  }, [renamingPath, renameValue, renameEntry, refresh]);
+  }, [
+    currentPath,
+    entries,
+    fetchEntries,
+    previewEntry,
+    renameEntry,
+    renameValue,
+    renamingPath,
+    selectedPath,
+    setPreviewEntry,
+    setSelectedPath,
+    stopRename,
+  ]);
 
   const handleRenameCancel = useCallback(() => {
-    setRenamingPath(null);
-  }, []);
+    stopRename();
+  }, [stopRename]);
 
-  // ─── Delete ─────────────────────────────────────────────────────────────
+  const handleCreateDirectory = useCallback(async () => {
+    const name = getNextDirectoryName(entries);
+    const path = currentPath === '.' ? name : `${currentPath}/${name}`;
+
+    try {
+      const entry = await createEntry({ path, type: 'directory' });
+      await fetchEntries(currentPath);
+      setSelectedPath(entry.path);
+      startRename(entry.path, entry.name);
+    } catch (err) {
+      console.error('Failed to create directory:', err);
+    }
+  }, [createEntry, currentPath, entries, fetchEntries, setSelectedPath, startRename]);
+
+  const handleOpenInTerminal = useCallback(() => {
+    openMiniApp('terminal', { cwd: currentPath });
+  }, [currentPath, openMiniApp]);
 
   const handleDelete = useCallback(
     async (path: string) => {
       try {
         await deleteEntry({ path });
         if (previewEntry?.path === path) {
-          setPreviewEntry(null);
-          setPreviewContent(null);
+          closePreview();
         }
         if (selectedPath === path) {
           setSelectedPath(null);
@@ -334,10 +380,8 @@ function FileExplorerApp() {
         console.error('Failed to delete:', err);
       }
     },
-    [deleteEntry, previewEntry, selectedPath, refresh],
+    [closePreview, deleteEntry, previewEntry, refresh, selectedPath, setSelectedPath],
   );
-
-  // ─── Copy / Cut / Paste ────────────────────────────────────────────────
 
   const handleCopy = useCallback((path: string) => {
     clipboardRef.current = { path, mode: 'copy' };
@@ -365,35 +409,39 @@ function FileExplorerApp() {
     } catch (err) {
       console.error(`Failed to ${mode}:`, err);
     }
-  }, [currentPath, copyEntry, moveEntry, refresh]);
+  }, [copyEntry, currentPath, moveEntry, refresh]);
 
-  // ─── Drag and drop upload ────────────────────────────────────────────────
+  const handleDragOver = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (!Array.from(e.dataTransfer.types).includes('Files')) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      setDragActive(true);
+    },
+    [setDragActive],
+  );
 
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    if (!Array.from(e.dataTransfer.types).includes('Files')) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-    setIsDragActive(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    const nextTarget = e.relatedTarget as Node | null;
-    if (nextTarget && e.currentTarget.contains(nextTarget)) {
-      return;
-    }
-    setIsDragActive(false);
-  }, []);
+  const handleDragLeave = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      const nextTarget = e.relatedTarget as Node | null;
+      if (nextTarget && e.currentTarget.contains(nextTarget)) {
+        return;
+      }
+      setDragActive(false);
+    },
+    [setDragActive],
+  );
 
   const handleDrop = useCallback(
     async (e: React.DragEvent<HTMLDivElement>) => {
       if (!Array.from(e.dataTransfer.types).includes('Files')) return;
       e.preventDefault();
-      setIsDragActive(false);
+      setDragActive(false);
 
       const droppedFiles = Array.from(e.dataTransfer.files).filter((file) => file.size >= 0);
       if (droppedFiles.length === 0) return;
 
-      setIsUploading(true);
+      setUploading(true);
       try {
         await Promise.all(
           droppedFiles.map(async (file) => {
@@ -406,16 +454,29 @@ function FileExplorerApp() {
       } catch (err) {
         console.error('Failed to upload dropped files:', err);
       } finally {
-        setIsUploading(false);
+        setUploading(false);
       }
     },
-    [currentPath, fileToBase64, refresh, uploadEntry],
+    [currentPath, fileToBase64, refresh, setDragActive, setUploading, uploadEntry],
   );
 
-  // ─── Build context menu actions ─────────────────────────────────────────
-
   const buildContextMenuActions = useCallback(
-    (entry: FileEntry): ContextMenuAction[] => {
+    (entry: FileEntry | null): ContextMenuAction[] => {
+      if (entry === null) {
+        return [
+          {
+            label: 'New folder',
+            handler: () => {
+              void handleCreateDirectory();
+            },
+          },
+          {
+            label: 'Open in Terminal',
+            handler: handleOpenInTerminal,
+          },
+        ];
+      }
+
       const actions: ContextMenuAction[] = [];
 
       if (entry.type === 'directory') {
@@ -451,7 +512,7 @@ function FileExplorerApp() {
 
       actions.push({
         label: 'Rename',
-        handler: () => startRename(entry),
+        handler: () => startRename(entry.path, entry.name),
       });
 
       actions.push({
@@ -480,26 +541,19 @@ function FileExplorerApp() {
       return actions;
     },
     [
-      navigateTo,
-      miniAppManifests,
-      openMiniApp,
-      openInlinePreview,
-      startRename,
       handleCopy,
+      handleCreateDirectory,
       handleCut,
-      handlePaste,
       handleDelete,
+      handleOpenInTerminal,
+      handlePaste,
+      miniAppManifests,
+      navigateTo,
+      openInlinePreview,
+      openMiniApp,
+      startRename,
     ],
   );
-
-  // ─── Close preview ─────────────────────────────────────────────────────
-
-  const handleClosePreview = useCallback(() => {
-    setPreviewEntry(null);
-    setPreviewContent(null);
-  }, []);
-
-  // ─── Action callbacks (from AI-invoked actions) ─────────────────────────
 
   const handleActionNavigated = useCallback(
     (path: string) => {
@@ -515,19 +569,16 @@ function FileExplorerApp() {
   const handleActionDeleted = useCallback(
     (path: string) => {
       if (previewEntry?.path === path) {
-        setPreviewEntry(null);
-        setPreviewContent(null);
+        closePreview();
       }
       refresh();
     },
-    [previewEntry, refresh],
+    [closePreview, previewEntry, refresh],
   );
 
   const handleActionRenamed = useCallback(() => {
     refresh();
   }, [refresh]);
-
-  // ─── Render ─────────────────────────────────────────────────────────────
 
   return (
     <FileActions
@@ -540,14 +591,18 @@ function FileExplorerApp() {
       onRefresh={refresh}
     >
       <div className={styles.root}>
-        {/* Navigation Bar */}
         <div className={styles.navBar}>
-          <button className={styles.navBtn} onClick={goBack} disabled={!canGoBack} title="Back">
+          <button
+            className={styles.navBtn}
+            onClick={goBackInHistory}
+            disabled={!canGoBack}
+            title="Back"
+          >
             {'\u25C0'}
           </button>
           <button
             className={styles.navBtn}
-            onClick={goForward}
+            onClick={goForwardInHistory}
             disabled={!canGoForward}
             title="Forward"
           >
@@ -556,11 +611,11 @@ function FileExplorerApp() {
           <FileBreadcrumb currentPath={currentPath} onNavigate={navigateTo} />
         </div>
 
-        {/* Main Content */}
         <div className={styles.body}>
           <div className={styles.fileListPanel}>
             <div
               className={styles.fileListDropZone}
+              onContextMenu={handleBackgroundContextMenu}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
@@ -599,12 +654,11 @@ function FileExplorerApp() {
               entry={previewEntry}
               content={previewContent}
               loading={previewLoading}
-              onClose={handleClosePreview}
+              onClose={closePreview}
             />
           )}
         </div>
 
-        {/* Context Menu */}
         {contextMenu && (
           <ContextMenu
             x={contextMenu.x}
