@@ -6,6 +6,8 @@ import {
   DefaultResourceLoader,
   ModelRegistry,
   readTool,
+  writeTool,
+  bashTool,
   SessionManager,
   type AgentSession,
   type AgentSessionEvent,
@@ -476,7 +478,7 @@ export class PiSessionService {
       modelRegistry,
       model: initialModel,
       sessionManager,
-      tools: [readTool],
+      tools: [readTool, writeTool, bashTool],
       customTools,
       resourceLoader,
     });
