@@ -18,6 +18,7 @@ import { wsRoutes } from './ws-routes';
 import { voiceRoutes } from './voice-routes';
 import { apiRoutes } from './api-routes';
 import { dtfsRoutes } from './dtfs-routes';
+import { monacoRoutes } from './monaco-routes';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -167,6 +168,8 @@ export async function createServer(options: ServerOptions) {
 
     if (req.url.startsWith('/api/ui/') && req.url.endsWith('.js')) return;
 
+    if (req.url.startsWith('/api/miniapps/text-edit/monaco/')) return;
+
     // Skip auth for static file requests (non-API, non-WS, non-dtfs)
     if (!req.url.startsWith('/api/') && !req.url.startsWith('/ws') && !req.url.startsWith('/@dtfs'))
       return;
@@ -207,6 +210,7 @@ export async function createServer(options: ServerOptions) {
     corePackageRoot,
     piSessionService,
   });
+  await app.register(monacoRoutes);
   await app.register(dtfsRoutes);
 
   app.setNotFoundHandler(async (req, reply) => {

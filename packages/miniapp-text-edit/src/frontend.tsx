@@ -20,6 +20,48 @@ import styles from './styles/TextEditApp.module.css';
 
 const AUTO_SAVE_DELAY = 1000;
 
+const MONACO_WORKER_LABELS = new Set([
+  'editorWorkerService',
+  'json',
+  'css',
+  'scss',
+  'less',
+  'html',
+  'handlebars',
+  'razor',
+  'typescript',
+  'javascript',
+]);
+
+function getMonacoWorkerUrl(label: string): string {
+  const normalizedLabel = MONACO_WORKER_LABELS.has(label) ? label : 'editorWorkerService';
+  return new URL(
+    `/api/miniapps/text-edit/monaco/worker/${encodeURIComponent(normalizedLabel)}`,
+    window.location.origin,
+  ).toString();
+}
+
+function ensureMonacoEnvironment(): void {
+  const globalScope = globalThis as typeof globalThis & {
+    MonacoEnvironment?: {
+      getWorker?: (_workerId: string, label: string) => Worker;
+    };
+  };
+
+  if (globalScope.MonacoEnvironment?.getWorker) {
+    return;
+  }
+
+  globalScope.MonacoEnvironment = {
+    getWorker: (_workerId: string, label: string) => {
+      return new Worker(getMonacoWorkerUrl(label), {
+        type: 'module',
+        name: label,
+      });
+    },
+  };
+}
+
 // ─── Saved indicator display duration (ms) ───────────────────────────────────
 
 const SAVED_INDICATOR_DURATION = 2000;
@@ -85,6 +127,8 @@ function TextEditApp({ initialPath }: { initialPath?: string }) {
 
   useEffect(() => {
     if (!editorContainerRef.current) return;
+
+    ensureMonacoEnvironment();
 
     const editor = monaco.editor.create(editorContainerRef.current, {
       value: '',
