@@ -14,9 +14,24 @@ import { DtStat } from './dt-stat';
 import { DtBadge } from './dt-badge';
 import { DtButton } from './dt-button';
 import { DtDivider } from './dt-divider';
+import { DtColumn, DtTableView } from './dt-table-view';
+import { DtListView } from './dt-list-view';
 import './ui-elements';
 
-export { DtTooltip, DtCard, DtSelect, DtGrid, DtStack, DtStat, DtBadge, DtButton, DtDivider };
+export {
+  DtTooltip,
+  DtCard,
+  DtSelect,
+  DtGrid,
+  DtStack,
+  DtStat,
+  DtBadge,
+  DtButton,
+  DtDivider,
+  DtListView,
+  DtTableView,
+  DtColumn,
+};
 
 // ── Auto-register ────────────────────────────────────────────────────────────
 
@@ -54,4 +69,16 @@ if (!customElements.get('dt-button')) {
 
 if (!customElements.get('dt-divider')) {
   customElements.define('dt-divider', DtDivider);
+}
+
+if (!customElements.get('dt-list-view')) {
+  customElements.define('dt-list-view', DtListView);
+}
+
+if (!customElements.get('dt-table-view')) {
+  customElements.define('dt-table-view', DtTableView);
+}
+
+if (!customElements.get('dt-column')) {
+  customElements.define('dt-column', DtColumn);
 }

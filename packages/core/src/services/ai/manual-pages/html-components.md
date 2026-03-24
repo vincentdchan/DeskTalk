@@ -222,6 +222,110 @@ Examples:
 </dt-stack>
 ```
 
+### `<dt-list-view>`
+
+Virtualized list for long collections. Supports fixed-height rows when `item-height` is provided and variable-height measurement mode when omitted.
+
+- `item-height` — fixed row height in px; omit for variable-height measurement mode
+- `dividers` — show dividers between rows
+- `selectable` — `none`, `single`, or `multi`
+- `empty-text` — empty-state text
+- `.items` JS property — array of list item objects
+- `dt-item-click` event — emitted when a row is clicked
+- `dt-selection-change` event — emitted when selection changes
+
+**When to use:** Use for task lists, logs, search results, files, and any long collection that might grow beyond a few dozen rows.
+
+Example:
+
+```html
+<dt-list-view id="task-list" item-height="72" dividers selectable="single">
+  <template>
+    <dt-stack gap="8">
+      <dt-stack direction="row" align="center" gap="8">
+        <strong data-field="title"></strong>
+        <dt-badge data-field="status" data-field-variant="statusVariant"></dt-badge>
+      </dt-stack>
+      <span class="text-muted" data-field="summary"></span>
+    </dt-stack>
+  </template>
+</dt-list-view>
+
+<script>
+  document.getElementById('task-list').items = [
+    {
+      title: 'Review report',
+      status: 'Queued',
+      statusVariant: 'warning',
+      summary: 'Waiting on CPU budget',
+    },
+    {
+      title: 'Publish build',
+      status: 'Done',
+      statusVariant: 'success',
+      summary: 'Released 4 minutes ago',
+    },
+  ];
+</script>
+```
+
+### `<dt-table-view>` and `<dt-column>`
+
+Virtualized table for structured row/column data. Column definitions stay declarative in HTML, and sorting is event-driven.
+
+- `row-height` — fixed row height in px
+- `sortable` — enables sortable header affordances
+- `striped` — alternating row backgrounds
+- `bordered` — cell borders
+- `empty-text` — empty-state text
+- `.rows` JS property — array of row objects
+- `dt-sort` event — emitted with `{ field, direction }`; update `.rows` yourself
+- `dt-row-click` event — emitted when a row is clicked
+
+`<dt-column>` attributes:
+
+- `field` — row field key
+- `header` — column header label
+- `width` — column width in px or `auto`
+- `min-width` — minimum column width
+- `align` — `left`, `center`, or `right`
+
+If a `<dt-column>` contains a `<template>`, its cells use that template. `data-field="x"` binds text content and `data-field-variant="y"` binds attributes.
+
+**When to use:** Use for process lists, CSV-style datasets, summaries from shell commands, and other multi-column records.
+
+Example:
+
+```html
+<dt-table-view id="process-table" row-height="40" sortable striped>
+  <dt-column field="name" header="Process" width="220"></dt-column>
+  <dt-column field="cpu" header="CPU %" width="100" align="right"></dt-column>
+  <dt-column field="status" header="Status" width="140">
+    <template>
+      <dt-badge data-field="status" data-field-variant="statusVariant"></dt-badge>
+    </template>
+  </dt-column>
+</dt-table-view>
+
+<script>
+  const table = document.getElementById('process-table');
+  const rows = [
+    { name: 'node', cpu: '12.4', status: 'running', statusVariant: 'success' },
+    { name: 'cron', cpu: '1.2', status: 'idle', statusVariant: 'neutral' },
+  ];
+
+  table.rows = rows;
+  table.addEventListener('dt-sort', (event) => {
+    const { field, direction } = event.detail;
+    table.rows = [...rows].sort((a, b) =>
+      direction === 'asc'
+        ? String(a[field]).localeCompare(String(b[field]), undefined, { numeric: true })
+        : String(b[field]).localeCompare(String(a[field]), undefined, { numeric: true }),
+    );
+  });
+</script>
+```
+
 ---
 
 ## Interactive Components

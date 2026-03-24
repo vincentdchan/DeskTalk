@@ -136,6 +136,53 @@ type DtDividerJSXProps = DtDividerAttributes & {
   key?: string | number | null;
 };
 
+type DtListViewAttributes = Partial<{
+  'item-height': number | string;
+  dividers: boolean;
+  selectable: 'none' | 'single' | 'multi';
+  'empty-text': string;
+  class: string;
+  style: string | Record<string, string>;
+}>;
+
+type DtListViewJSXProps = DtListViewAttributes & {
+  children?: unknown;
+  ref?: unknown;
+  key?: string | number | null;
+};
+
+type DtTableViewAttributes = Partial<{
+  'row-height': number | string;
+  sortable: boolean;
+  striped: boolean;
+  bordered: boolean;
+  'empty-text': string;
+  class: string;
+  style: string | Record<string, string>;
+}>;
+
+type DtTableViewJSXProps = DtTableViewAttributes & {
+  children?: unknown;
+  ref?: unknown;
+  key?: string | number | null;
+};
+
+type DtColumnAttributes = Partial<{
+  field: string;
+  header: string;
+  width: string;
+  'min-width': string;
+  align: 'left' | 'center' | 'right';
+  class: string;
+  style: string | Record<string, string>;
+}>;
+
+type DtColumnJSXProps = DtColumnAttributes & {
+  children?: unknown;
+  ref?: unknown;
+  key?: string | number | null;
+};
+
 declare module 'react' {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
@@ -149,6 +196,9 @@ declare module 'react' {
       'dt-badge': DtBadgeJSXProps;
       'dt-button': DtButtonJSXProps;
       'dt-divider': DtDividerJSXProps;
+      'dt-list-view': DtListViewJSXProps;
+      'dt-table-view': DtTableViewJSXProps;
+      'dt-column': DtColumnJSXProps;
     }
   }
 }
