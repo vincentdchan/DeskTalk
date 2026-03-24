@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from '../FileExplorerApp.module.css';
+import styles from './FileBreadcrumb.module.css';
 
 interface FileBreadcrumbProps {
   currentPath: string;

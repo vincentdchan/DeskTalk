@@ -1,6 +1,6 @@
 import React from 'react';
 import type { FileEntry } from '../types';
-import styles from '../FileExplorerApp.module.css';
+import styles from './FilePreview.module.css';
 
 interface FilePreviewProps {
   entry: FileEntry | null;
