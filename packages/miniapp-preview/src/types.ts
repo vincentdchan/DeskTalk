@@ -9,12 +9,6 @@ export interface PreviewFile {
   height: number; // Image intrinsic height in pixels
 }
 
-export interface HtmlPreviewFile {
-  name: string;
-  path: string; // Relative to root
-  content: string; // Full HTML content as UTF-8 string
-}
-
 export interface StreamedHtmlSnapshot {
   name: string;
   path: string; // Absolute path to the saved snapshot on disk

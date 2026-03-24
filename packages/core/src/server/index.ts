@@ -17,6 +17,7 @@ import { adminRoutes } from './admin-routes';
 import { wsRoutes } from './ws-routes';
 import { voiceRoutes } from './voice-routes';
 import { apiRoutes } from './api-routes';
+import { dtfsRoutes } from './dtfs-routes';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -166,8 +167,9 @@ export async function createServer(options: ServerOptions) {
 
     if (req.url.startsWith('/api/ui/') && req.url.endsWith('.js')) return;
 
-    // Skip auth for static file requests (non-API, non-WS)
-    if (!req.url.startsWith('/api/') && !req.url.startsWith('/ws')) return;
+    // Skip auth for static file requests (non-API, non-WS, non-dtfs)
+    if (!req.url.startsWith('/api/') && !req.url.startsWith('/ws') && !req.url.startsWith('/@dtfs'))
+      return;
 
     const token = req.cookies[COOKIE_NAME];
     if (!token) {
@@ -205,6 +207,7 @@ export async function createServer(options: ServerOptions) {
     corePackageRoot,
     piSessionService,
   });
+  await app.register(dtfsRoutes);
 
   app.setNotFoundHandler(async (req, reply) => {
     if (req.url.startsWith('/api/') || req.url.startsWith('/ws')) {
