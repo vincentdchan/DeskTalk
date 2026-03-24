@@ -103,14 +103,17 @@ export function useKeyboardShortcuts(): void {
       }
 
       // ─── Split direction: Option + v (vertical), Option + b (horizontal)
+      // Pressing the same shortcut again toggles back to auto.
       if (code === 'KeyV' && !e.shiftKey) {
         e.preventDefault();
-        store.setNextSplitDirection('vertical');
+        store.setNextSplitDirection(store.nextSplitDirection === 'vertical' ? 'auto' : 'vertical');
         return;
       }
       if (code === 'KeyB' && !e.shiftKey) {
         e.preventDefault();
-        store.setNextSplitDirection('horizontal');
+        store.setNextSplitDirection(
+          store.nextSplitDirection === 'horizontal' ? 'auto' : 'horizontal',
+        );
         return;
       }
 

@@ -1,8 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useWindowManager } from '../stores/window-manager';
 import { LauncherPanel } from './LauncherPanel';
+import { SplitModeIcon } from './SplitModeIcon';
 import type { LauncherApp } from './launcher-types';
 import styles from './ActionsBar.module.scss';
+
+const SPLIT_CYCLE: Array<'auto' | 'horizontal' | 'vertical'> = ['auto', 'horizontal', 'vertical'];
+
+const SPLIT_LABELS: Record<string, string> = {
+  auto: 'Auto',
+  horizontal: 'Horizontal',
+  vertical: 'Vertical',
+};
 
 interface ActionsBarProps {
   apps: LauncherApp[];
@@ -14,6 +23,7 @@ export function ActionsBar({ apps, onLaunch }: ActionsBarProps) {
   const fullscreenWindowId = useWindowManager((s) => s.fullscreenWindowId);
   const focusedWindow = useWindowManager((s) => s.windows.find((w) => w.id === s.focusedWindowId));
   const focusedWindowActions = useWindowManager((s) => s.focusedWindowActions);
+  const nextSplitDirection = useWindowManager((s) => s.nextSplitDirection);
   const [glowing, setGlowing] = useState(false);
   const prevActionsRef = useRef(focusedWindowActions);
 
@@ -30,7 +40,14 @@ export function ActionsBar({ apps, onLaunch }: ActionsBarProps) {
     prevActionsRef.current = focusedWindowActions;
   }, [focusedWindowActions]);
 
+  const cycleSplitMode = useCallback(() => {
+    const idx = SPLIT_CYCLE.indexOf(nextSplitDirection);
+    const next = SPLIT_CYCLE[(idx + 1) % SPLIT_CYCLE.length];
+    useWindowManager.getState().setNextSplitDirection(next);
+  }, [nextSplitDirection]);
+
   const isFullscreen = focusedWindowId === fullscreenWindowId && fullscreenWindowId !== null;
+  const splitTooltip = `${$localize`split.mode:Split mode`}: ${SPLIT_LABELS[nextSplitDirection]}`;
 
   return (
     <div className={styles.actionsBar}>
@@ -51,6 +68,15 @@ export function ActionsBar({ apps, onLaunch }: ActionsBarProps) {
           anchorRef={buttonRef}
         />
       </div>
+
+      <dt-tooltip content={splitTooltip} placement="bottom">
+        <button
+          className={`${styles.splitToggle}${nextSplitDirection !== 'auto' ? ` ${styles.splitToggleActive}` : ''}`}
+          onClick={cycleSplitMode}
+        >
+          <SplitModeIcon mode={nextSplitDirection} />
+        </button>
+      </dt-tooltip>
 
       {focusedWindow && (
         <>
