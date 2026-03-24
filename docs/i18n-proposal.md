@@ -65,9 +65,9 @@ Examples:
 
 ```ts
 $localize`@core/close:Close`;
-$localize`@note/editor.empty:No note selected`;
+$localize`@file-explorer/editor.empty:No file selected`;
 $localize`save:Save`;
-$localize`emptyState.title:No notes yet`;
+$localize`emptyState.title:No files yet`;
 ```
 
 ## Parameters
@@ -110,15 +110,16 @@ Each package gets one default scope equal to its app id:
 | Package                           | Default scope   |
 | --------------------------------- | --------------- |
 | `@desktalk/core`                  | `core`          |
-| `@desktalk/miniapp-note`          | `note`          |
-| `@desktalk/miniapp-todo`          | `todo`          |
 | `@desktalk/miniapp-file-explorer` | `file-explorer` |
 | `@desktalk/miniapp-preference`    | `preference`    |
+| `@desktalk/miniapp-preview`       | `preview`       |
+| `@desktalk/miniapp-terminal`      | `terminal`      |
+| `@desktalk/miniapp-text-edit`     | `text-edit`     |
 
 Examples:
 
 - inside core shell components, `$localize`close:Close``resolves to scope`core`
-- inside note MiniApp components, `$localize`close:Close``resolves to scope`note`
+- inside file explorer MiniApp components, `$localize`close:Close``resolves to scope`file-explorer`
 
 ### Optional explicit scopes
 
@@ -156,7 +157,7 @@ packages/core/
 ### MiniApp
 
 ```text
-packages/miniapp-note/
+packages/miniapp-file-explorer/
   src/
     i18n/
       zh-CN.json
@@ -170,7 +171,7 @@ Each locale file contains only that package's default scope payload.
 {
   "close": "Close",
   "window.maximize": "Maximize",
-  "editor.empty": "No note selected",
+  "editor.empty": "No file selected",
   "notifications.count": "You have {count} notifications"
 }
 ```
@@ -371,7 +372,7 @@ For `localize(scope, key, defaultText, params)`:
 Examples:
 
 - requested `zh-HK` falls back to `zh`
-- missing `note:close` returns English `Close`
+- missing `file-explorer:close` returns English `Close`
 - missing `notifications.count` returns the code default text with params applied
 
 ### Locale switching
@@ -434,19 +435,19 @@ Regular `desktalk-build` should remain strict about syntax, placeholder consiste
 
 ## Example
 
-### Note MiniApp code
+### Text Edit MiniApp code
 
 ```tsx
-const title = $localize`title:Notes`;
+const title = $localize`title:Text Edit`;
 const close = $localize`@core/close:Close`;
 const notifications = $localize`notifications.count:You have ${count} notifications`;
 ```
 
-### `packages/miniapp-note/src/i18n/zh-CN.json`
+### `packages/miniapp-text-edit/src/i18n/zh-CN.json`
 
 ```json
 {
-  "title": "笔记",
+  "title": "文本编辑",
   "notifications.count": "你有 {count} 条通知"
 }
 ```

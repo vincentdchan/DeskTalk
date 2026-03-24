@@ -1,7 +1,7 @@
 # DeskTalk - Engineering Guidelines
 
 - **Monorepo**: Use pnpm workspaces. All packages live under `packages/` and are published under the `@desktalk` npm scope.
-- **Dependencies**: `@desktalk/core` references built-in MiniApps via `dependencies` (e.g., `"@desktalk/miniapp-note": "workspace:*"`).
+- **Dependencies**: `@desktalk/core` references built-in MiniApps via `dependencies` (e.g., `"@desktalk/miniapp-file-explorer": "workspace:*"`).
 - **TypeScript**: All packages should use TypeScript.
 - **Linting/Formatting**: Shared ESLint and Prettier configs at the repo root.
 - **Testing**: Each package owns its own unit tests and Vitest config. Do not use a root Vitest config.

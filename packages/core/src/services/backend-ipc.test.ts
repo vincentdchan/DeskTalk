@@ -15,31 +15,31 @@ describe('backend-ipc types', () => {
   it('should define an ActivateMessage shape', () => {
     const msg: ActivateMessage = {
       type: 'activate',
-      miniAppId: 'note',
-      backendPath: '@desktalk/miniapp-note/backend',
-      packageRoot: '/path/to/miniapp-note',
+      miniAppId: 'file-explorer',
+      backendPath: '@desktalk/miniapp-file-explorer/backend',
+      packageRoot: '/path/to/miniapp-file-explorer',
       paths: {
         home: '/home/alice',
-        data: '/data/note',
-        storage: '/storage/note.json',
-        log: '/logs/note.log',
-        cache: '/cache/note',
+        data: '/data/file-explorer',
+        storage: '/storage/file-explorer.json',
+        log: '/logs/file-explorer.log',
+        cache: '/cache/file-explorer',
       },
       locale: 'en',
     };
     expect(msg.type).toBe('activate');
-    expect(msg.miniAppId).toBe('note');
+    expect(msg.miniAppId).toBe('file-explorer');
   });
 
   it('should define a CommandInvokeMessage shape', () => {
     const msg: CommandInvokeMessage = {
       type: 'command:invoke',
       requestId: 'req-1',
-      command: 'notes.list',
+      command: 'files.list',
       data: { tag: 'work' },
     };
     expect(msg.type).toBe('command:invoke');
-    expect(msg.command).toBe('notes.list');
+    expect(msg.command).toBe('files.list');
   });
 
   it('should define a DeactivateMessage shape', () => {
@@ -48,7 +48,7 @@ describe('backend-ipc types', () => {
   });
 
   it('should define a ReadyMessage shape', () => {
-    const msg: ReadyMessage = { type: 'ready', miniAppId: 'note' };
+    const msg: ReadyMessage = { type: 'ready', miniAppId: 'file-explorer' };
     expect(msg.type).toBe('ready');
   });
 
@@ -74,12 +74,12 @@ describe('backend-ipc types', () => {
   it('should define an EventBroadcastMessage shape', () => {
     const msg: EventBroadcastMessage = {
       type: 'event',
-      miniAppId: 'note',
-      event: 'note:updated',
+      miniAppId: 'file-explorer',
+      event: 'files:updated',
       data: { id: 'n1' },
     };
     expect(msg.type).toBe('event');
-    expect(msg.event).toBe('note:updated');
+    expect(msg.event).toBe('files:updated');
   });
 
   it('should define a ChildErrorMessage shape', () => {
@@ -94,13 +94,13 @@ describe('backend-ipc types', () => {
     const messages: MainToChildMessage[] = [
       {
         type: 'activate',
-        miniAppId: 'todo',
-        backendPath: '@desktalk/miniapp-todo/backend',
+        miniAppId: 'file-explorer',
+        backendPath: '@desktalk/miniapp-file-explorer/backend',
         packageRoot: '/path',
         paths: { home: '', data: '', storage: '', log: '', cache: '' },
         locale: 'en',
       },
-      { type: 'command:invoke', requestId: 'r1', command: 'todos.list', data: null },
+      { type: 'command:invoke', requestId: 'r1', command: 'files.list', data: null },
       { type: 'deactivate' },
     ];
     expect(messages).toHaveLength(3);
@@ -109,9 +109,9 @@ describe('backend-ipc types', () => {
 
   it('ChildToMainMessage union covers ready, command:response, event, and error', () => {
     const messages: ChildToMainMessage[] = [
-      { type: 'ready', miniAppId: 'note' },
+      { type: 'ready', miniAppId: 'file-explorer' },
       { type: 'command:response', requestId: 'r1', data: [] },
-      { type: 'event', miniAppId: 'note', event: 'test', data: {} },
+      { type: 'event', miniAppId: 'file-explorer', event: 'test', data: {} },
       { type: 'error', message: 'oops' },
     ];
     expect(messages).toHaveLength(4);

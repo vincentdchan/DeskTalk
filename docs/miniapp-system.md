@@ -1,6 +1,6 @@
 # MiniApp System
 
-This document describes the MiniApp architecture — the heavyweight, process-isolated application model in DeskTalk. MiniApps are the foundation for built-in features (Note, Todo, File Explorer, Preview, Preference, Terminal, Text Edit). For the overall system spec and the lightweight AI-generated LiveApp model, see [spec.md](./spec.md). For how to build a MiniApp, see [miniapp-development.md](./miniapp-development.md).
+This document describes the MiniApp architecture — the heavyweight, process-isolated application model in DeskTalk. MiniApps are the foundation for built-in features (File Explorer, Preview, Preference, Terminal, Text Edit). For the overall system spec and the lightweight AI-generated LiveApp model, see [spec.md](./spec.md). For how to build a MiniApp, see [miniapp-development.md](./miniapp-development.md).
 
 ## Overview
 
@@ -18,7 +18,7 @@ Each MiniApp exports a `MiniAppManifest`:
 
 ```ts
 interface MiniAppManifest {
-  id: string; // Unique identifier, e.g. "note"
+  id: string; // Unique identifier, e.g. "file-explorer"
   name: string; // Display name shown in the Dock
   icon: string; // Emoji fallback
   iconPng?: string; // Optional PNG icon URL served by core
@@ -29,7 +29,7 @@ interface MiniAppManifest {
 
 ## Registration and Activation
 
-1. **Built-in MiniApps** — the core dynamically imports each built-in backend module (e.g., `@desktalk/miniapp-note/backend`), reads its manifest, and registers it at startup.
+1. **Built-in MiniApps** — the core dynamically imports each built-in backend module (e.g., `@desktalk/miniapp-file-explorer/backend`), reads its manifest, and registers it at startup.
 2. **Third-party MiniApps** — installed via `desktalk install <package-name>` into `<data>/miniapps/`. The core reads each installed package's exported manifest to register it.
 3. **Activation** — when a user opens a MiniApp, the core spawns an isolated child process for that (MiniApp, user) pair via `BackendProcessManager`. Each process gets scoped paths, storage, and messaging hooks.
 4. **Deactivation** — when the last window for a MiniApp is closed, the core kills the child process.
@@ -142,12 +142,10 @@ For the full development guide, see [miniapp-development.md](./miniapp-developme
 
 ## Built-in MiniApps
 
-DeskTalk ships with seven built-in MiniApps. Each has its own detailed spec in `docs/miniapps/`.
+DeskTalk ships with five built-in MiniApps. Each has its own detailed spec in `docs/miniapps/`.
 
 | MiniApp       | Summary                                                                                                                                                       |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Note          | Markdown note-taking with YAML front matter and Milkdown editor.                                                                                              |
-| Todo          | Task management similar to macOS Reminders.                                                                                                                   |
 | File Explorer | Simple filesystem browser.                                                                                                                                    |
 | Preview       | Content viewer supporting images and HTML files. Also serves as the **LiveApp renderer** — it hosts the sandboxed iframe that displays AI-generated LiveApps. |
 | Preference    | App and window configuration UI. Privileged — sole MiniApp with write access to global config.                                                                |

@@ -77,10 +77,10 @@ export function ensureUserHome(username: string): void {
  * Resolve platform paths for a specific MiniApp, scoped to a user's home directory.
  *
  * Before (single user):
- *   ctx.paths.data = '<data>/data/note/'
+ *   ctx.paths.data = '<data>/data/file-explorer/'
  *
  * After (multi-user):
- *   ctx.paths.data = '<data>/home/alice/.data/note/'
+ *   ctx.paths.data = '<data>/home/alice/.data/file-explorer/'
  */
 export function resolveMiniAppPaths(miniAppId: string, username: string): MiniAppPaths {
   const ws = getWorkspacePaths();

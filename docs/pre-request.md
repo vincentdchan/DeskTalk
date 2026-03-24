@@ -62,22 +62,6 @@ An action is like a "skill" on the page that the AI can invoke.
 
 # Built-in MiniApp
 
-## Note
-
-This is a note-taking and management MiniApp for DeskTalk.
-Consider it similar to the Notes app on macOS, but using Markdown for content.
-
-Please support Markdown YAML front matter so I can add tags.
-
-### Frontend
-
-Use https://milkdown.dev/ as the editor in the frontend.
-
-
-## Todo
-
-Similar to Notes — implement a Todo list like the one on macOS.
-
 ## File Explorer
 
 Keep it simple; implement it as you prefer.

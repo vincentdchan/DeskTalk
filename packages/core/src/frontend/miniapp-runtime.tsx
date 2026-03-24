@@ -10,8 +10,6 @@ export interface MiniAppFrontendModule {
 }
 
 const builtinLoaders: Record<string, () => Promise<MiniAppFrontendModule>> = {
-  note: () => import('@desktalk/miniapp-note/frontend') as Promise<MiniAppFrontendModule>,
-  todo: () => import('@desktalk/miniapp-todo/frontend') as Promise<MiniAppFrontendModule>,
   'file-explorer': () =>
     import('@desktalk/miniapp-file-explorer/frontend') as Promise<MiniAppFrontendModule>,
   preference: () =>

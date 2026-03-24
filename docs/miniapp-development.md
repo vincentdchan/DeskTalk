@@ -9,12 +9,12 @@ For the overall system architecture, workspace directories, and installation mec
 Every MiniApp is an npm package with **two separate entry files** — one for the backend (Node.js) and one for the frontend (browser). The core loads each independently: the backend entry runs on the server, and the frontend entry is bundled for the browser.
 
 ```
-miniapp-note/
+miniapp-example/
   src/
     backend.ts          # Backend entry — exports manifest, activate(), deactivate()
     frontend.tsx        # Frontend entry — exports activate() and returns cleanup per window
   icons/
-    miniapp-note-icon.png
+    miniapp-example-icon.png
     components/         # React components (imported by frontend.tsx)
     ...
   package.json
@@ -25,10 +25,10 @@ miniapp-note/
 
 ```json
 {
-  "name": "@desktalk/miniapp-note",
+  "name": "@desktalk/miniapp-example",
   "version": "0.1.0",
   "type": "module",
-  "icon": "./icons/miniapp-note-icon.png",
+  "icon": "./icons/miniapp-example-icon.png",
   "exports": {
     "./backend": {
       "types": "./dist/backend.d.ts",
@@ -54,17 +54,17 @@ The two sub-path exports (`./backend` and `./frontend`) allow the core to import
 
 ```ts
 // Server-side — imports only the backend entry
-import { manifest, activate, deactivate } from '@desktalk/miniapp-note/backend';
+import { manifest, activate, deactivate } from '@desktalk/miniapp-example/backend';
 
 // Frontend bundle — imports only the frontend entry
-import { activate, deactivate } from '@desktalk/miniapp-note/frontend';
+import { activate, deactivate } from '@desktalk/miniapp-example/frontend';
 ```
 
 If `package.json` includes a top-level `icon` field pointing to a PNG file, `desktalk-build` records that file in `dist/meta.json` and the core exposes it as `manifest.iconPng` through a backend-served URL for the Dock. Keep `manifest.icon` as a text fallback for cases where the packaged image is missing.
 
 ### Icon config
 
-- Put the Dock icon in a PNG file inside the MiniApp package, for example `./icons/miniapp-note-icon.png`.
+- Put the Dock icon in a PNG file inside the MiniApp package, for example `./icons/miniapp-example-icon.png`.
 - Reference that file from the top-level `icon` field in `package.json`.
 - Keep `manifest.icon` in `src/backend.ts` as a fallback emoji or short text icon.
 - `desktalk-build` reads the PNG path and writes that metadata into `dist/meta.json`.
@@ -82,11 +82,11 @@ import type { MiniAppManifest, MiniAppContext, MiniAppBackendActivation } from '
  * Analogous to the `contributes` section in a VSCode extension's package.json.
  */
 export const manifest: MiniAppManifest = {
-  id: 'note',
-  name: 'Note',
-  icon: '\uD83D\uDDD2\uFE0F',
+  id: 'example',
+  name: 'Example',
+  icon: '🧩',
   version: '1.0.0',
-  description: 'Markdown note-taking with tags and YAML front matter',
+  description: 'Example MiniApp used to illustrate the DeskTalk APIs',
 };
 
 /**
@@ -96,15 +96,15 @@ export const manifest: MiniAppManifest = {
  */
 export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
   // Register backend command handlers
-  ctx.messaging.onCommand('notes.list', async () => {
-    const notes = await ctx.storage.query<Note>({ prefix: 'note:' });
-    return notes;
+  ctx.messaging.onCommand('items.list', async () => {
+    const items = await ctx.storage.query<ExampleItem>({ prefix: 'item:' });
+    return items;
   });
 
-  ctx.messaging.onCommand('notes.create', async (data: { title: string; content: string }) => {
-    const note = { id: slug(data.title), ...data, createdAt: new Date().toISOString() };
-    await ctx.storage.set(`note:${note.id}`, note);
-    return note;
+  ctx.messaging.onCommand('items.create', async (data: { title: string; description: string }) => {
+    const item = { id: slug(data.title), ...data, createdAt: new Date().toISOString() };
+    await ctx.storage.set(`item:${item.id}`, item);
+    return item;
   });
 
   return {};
@@ -137,37 +137,39 @@ import {
   WindowIdProvider,
 } from '@desktalk/sdk';
 
-interface Note {
+interface ExampleItem {
   id: string;
   title: string;
-  content: string;
+  description: string;
   createdAt: string;
 }
 
-function NoteApp() {
-  const listNotes = useCommand<void, Note[]>('notes.list');
-  const createNote = useCommand<{ title: string; content: string }, Note>('notes.create');
-  const [notes, setNotes] = useState<Note[]>([]);
+function ExampleApp() {
+  const listItems = useCommand<void, ExampleItem[]>('items.list');
+  const createItem = useCommand<{ title: string; description: string }, ExampleItem>(
+    'items.create',
+  );
+  const [items, setItems] = useState<ExampleItem[]>([]);
 
   useEffect(() => {
-    listNotes().then(setNotes);
+    listItems().then(setItems);
   }, []);
 
   return (
     <ActionsProvider>
       <Action
-        name="Create Note"
-        description="Create a new note"
+        name="Create Item"
+        description="Create a new item"
         handler={async (params) => {
-          const note = await createNote(params as { title: string; content: string });
-          setNotes((prev) => [...prev, note]);
-          return note;
+          const item = await createItem(params as { title: string; description: string });
+          setItems((prev) => [...prev, item]);
+          return item;
         }}
       />
       <div>
-        <h2>Notes</h2>
-        {notes.map((n) => (
-          <div key={n.id}>{n.title}</div>
+        <h2>Items</h2>
+        {items.map((item) => (
+          <div key={item.id}>{item.title}</div>
         ))}
       </div>
     </ActionsProvider>
@@ -177,11 +179,11 @@ function NoteApp() {
 export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation {
   const root = createRoot(ctx.root);
   root.render(
-    <WindowIdProvider windowId={ctx.windowId}>
-      <MiniAppIdProvider miniAppId={ctx.miniAppId}>
-        <NoteApp />
-      </MiniAppIdProvider>
-    </WindowIdProvider>,
+      <WindowIdProvider windowId={ctx.windowId}>
+        <MiniAppIdProvider miniAppId={ctx.miniAppId}>
+          <ExampleApp />
+        </MiniAppIdProvider>
+      </WindowIdProvider>,
   );
 
   return {
@@ -202,7 +204,7 @@ export interface MiniAppManifest {
     mimeTypes?: string[];
     extensions?: string[];
   };
-  /** Unique identifier, e.g. "note" */
+  /** Unique identifier, e.g. "example" */
   id: string;
   /** Display name shown in the Dock */
   name: string;
@@ -381,13 +383,13 @@ The core resolves all platform-specific directories and passes them to the MiniA
 
 ```ts
 export interface MiniAppPaths {
-  /** Scoped data directory for this MiniApp (e.g., <data>/home/alice/.data/note/) */
+  /** Scoped data directory for this MiniApp (e.g., <data>/home/alice/.data/file-explorer/) */
   data: string;
-  /** Scoped storage file for this MiniApp (e.g., <data>/home/alice/.storage/note.json) */
+  /** Scoped storage file for this MiniApp (e.g., <data>/home/alice/.storage/file-explorer.json) */
   storage: string;
-  /** Scoped log file for this MiniApp (e.g., <logs>/alice/note.log) */
+  /** Scoped log file for this MiniApp (e.g., <logs>/alice/file-explorer.log) */
   log: string;
-  /** Scoped cache directory for this MiniApp (e.g., <data>/home/alice/.cache/note/) */
+  /** Scoped cache directory for this MiniApp (e.g., <data>/home/alice/.cache/file-explorer/) */
   cache: string;
 }
 ```

@@ -119,15 +119,13 @@ Using `<data>` as the resolved platform data path (same as current spec):
   home/                              # Per-user home directories
     admin/                           # Admin's home
       .data/
-        note/                        # MiniApp private data (ctx.paths.data)
-        todo/
-        file-explorer/
+        file-explorer/               # MiniApp private data (ctx.paths.data)
+        preview/
         preference/
         <third-party-id>/
       .storage/
-        note.json                    # MiniApp key-value stores (ctx.storage)
-        todo.json
-        file-explorer.json
+        file-explorer.json           # MiniApp key-value stores (ctx.storage)
+        preview.json
         preference.json
         <third-party-id>.json
       .cache/
@@ -135,9 +133,8 @@ Using `<data>` as the resolved platform data path (same as current spec):
 
     alice/                           # Normal user "alice"
       .data/
-        note/
-        todo/
         file-explorer/
+        preview/
         ...
       .storage/
         ...
@@ -153,11 +150,11 @@ Using `<data>` as the resolved platform data path (same as current spec):
 <logs>/
   core.log
   admin/
-    note.log
-    todo.log
+    file-explorer.log
+    preview.log
     ...
   alice/
-    note.log
+    file-explorer.log
     ...
 
 <cache>/
@@ -181,12 +178,12 @@ The `MiniAppPaths` interface in the SDK remains the same — the core simply res
 
 ```ts
 // Before (single user)
-ctx.paths.data = '<data>/data/note/';
-ctx.paths.storage = '<data>/storage/note.json';
+ctx.paths.data = '<data>/data/file-explorer/';
+ctx.paths.storage = '<data>/storage/file-explorer.json';
 
-// After (multi-user, user "alice" using note MiniApp)
-ctx.paths.data = '<data>/home/alice/.data/note/';
-ctx.paths.storage = '<data>/home/alice/.storage/note.json';
+// After (multi-user, user "alice" using file-explorer MiniApp)
+ctx.paths.data = '<data>/home/alice/.data/file-explorer/';
+ctx.paths.storage = '<data>/home/alice/.storage/file-explorer.json';
 ```
 
 MiniApps are completely unaware of other users — they still receive opaque absolute paths from the core. `ctx.fs` is rooted at `<data>/home/<username>/`, while `ctx.paths.data` continues to point at the MiniApp-private directory inside that home. This is a core-only change.

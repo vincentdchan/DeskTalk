@@ -24,12 +24,12 @@ describe('createFileSystemHook', () => {
   });
 
   it('still allows access to MiniApp-private files under .data/<id>', async () => {
-    mkdirSync(join(tempDir, '.data', 'note'), { recursive: true });
-    writeFileSync(join(tempDir, '.data', 'note', 'welcome.md'), 'hello', 'utf8');
+    mkdirSync(join(tempDir, '.data', 'file-explorer'), { recursive: true });
+    writeFileSync(join(tempDir, '.data', 'file-explorer', 'welcome.md'), 'hello', 'utf8');
 
     const fs = createFileSystemHook(tempDir);
 
-    await expect(fs.readFile('.data/note/welcome.md')).resolves.toBe('hello');
+    await expect(fs.readFile('.data/file-explorer/welcome.md')).resolves.toBe('hello');
   });
 
   it('rejects path traversal outside the home root', async () => {

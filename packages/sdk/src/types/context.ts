@@ -34,13 +34,13 @@ export type LocalizeParam = string | number | boolean | null | undefined;
 export interface MiniAppPaths {
   /** Authenticated user's home directory (e.g., <data>/home/alice/) */
   home: string;
-  /** Scoped data directory (e.g., <data>/home/alice/.data/note/) */
+  /** Scoped data directory (e.g., <data>/home/alice/.data/file-explorer/) */
   data: string;
-  /** Scoped storage file (e.g., <data>/home/alice/.storage/note.json) */
+  /** Scoped storage file (e.g., <data>/home/alice/.storage/file-explorer.json) */
   storage: string;
-  /** Scoped log file (e.g., <logs>/alice/note.log) */
+  /** Scoped log file (e.g., <logs>/alice/file-explorer.log) */
   log: string;
-  /** Scoped cache directory (e.g., <data>/home/alice/.cache/note/) */
+  /** Scoped cache directory (e.g., <data>/home/alice/.cache/file-explorer/) */
   cache: string;
 }
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The TextEdit MiniApp is a code and plain-text editor powered by [Monaco Editor](https://microsoft.github.io/monaco-editor/) (the editor component from VS Code). It opens text files, source code, and Markdown as raw text — unlike the Note MiniApp, which renders Markdown as WYSIWYG with front matter support, TextEdit treats every file as plain text with syntax highlighting determined by the file extension.
+The TextEdit MiniApp is a code and plain-text editor powered by [Monaco Editor](https://microsoft.github.io/monaco-editor/) (the editor component from VS Code). It opens text files, source code, and Markdown as raw text, treating every file as plain text with syntax highlighting determined by the file extension.
 
 TextEdit is launched from the File Explorer when a user opens a text-based file, or by the AI when it needs to view or edit a file's raw content.
 
@@ -109,7 +109,7 @@ Use [Monaco Editor](https://microsoft.github.io/monaco-editor/) via the `monaco-
 
 ### AI File Editing
 
-The AI can read and modify the content of the currently open file through an action-based flow, matching the same pattern used by the Note MiniApp. All edits go through the MiniApp's action broker so the editor stays in control of the edit lifecycle.
+The AI can read and modify the content of the currently open file through an action-based flow. All edits go through the MiniApp's action broker so the editor stays in control of the edit lifecycle.
 
 #### Design Rationale
 
@@ -169,7 +169,7 @@ interface EditFileResult {
 
 **Handling inserts and appends:**
 
-Same model as the Note MiniApp — all operations use `old_text`/`new_text`:
+All operations use `old_text`/`new_text`:
 
 - **Insert at cursor:** Use the text on the cursor line as `old_text`, include the new content in `new_text`.
 - **Append to end:** Use the last line as `old_text`, append content in `new_text`.

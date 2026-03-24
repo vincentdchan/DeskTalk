@@ -4,7 +4,7 @@
 
 DeskTalk is a browser-based, OS-like desktop environment powered by an AI assistant. Users describe what they need in natural language, and the AI generates **LiveApps** — lightweight, interactive applications that run directly in the desktop. LiveApps are the primary way users create and use software in DeskTalk.
 
-The system is distributed as a single npm package and started via a CLI command. Under the hood, DeskTalk also has a **MiniApp** architecture for built-in features (Note, Todo, File Explorer, etc.), but the user-facing experience centers on AI-generated LiveApps.
+The system is distributed as a single npm package and started via a CLI command. Under the hood, DeskTalk also has a **MiniApp** architecture for built-in features like file management, preview, settings, and terminal access, but the user-facing experience centers on AI-generated LiveApps.
 
 ## Architecture
 
@@ -22,7 +22,7 @@ DeskTalk has two distinct application models:
 | **Discovery**  | Auto-detected by scanning directory for `index.html`                                     | Registered at startup from npm packages                 |
 | **Launchpad**  | Appears alongside MiniApps, display name from `<title>`                                  | Appears with manifest name and optional PNG icon        |
 | **Rendering**  | Sandboxed iframe hosted by Preview MiniApp                                               | Own frontend module mounted into window                 |
-| **Use case**   | User-requested tools, dashboards, visualizations, utilities                              | Core system features (notes, files, settings, terminal) |
+| **Use case**   | User-requested tools, dashboards, visualizations, utilities                              | Core system features (files, preview, settings, terminal) |
 
 ### High-Level Stack
 
@@ -45,8 +45,6 @@ desktalk/
   packages/
     core/                  # @desktalk/core — main application shell (CLI, server, window manager, AI panel)
     sdk/                   # @desktalk/sdk — shared types and React hooks for MiniApp development
-    miniapp-note/          # @desktalk/miniapp-note
-    miniapp-todo/          # @desktalk/miniapp-todo
     miniapp-file-explorer/ # @desktalk/miniapp-file-explorer
     miniapp-preview/       # @desktalk/miniapp-preview (also serves as LiveApp renderer)
     miniapp-preference/    # @desktalk/miniapp-preference
@@ -253,8 +251,6 @@ For the full MiniApp system architecture (registration, activation, process isol
 
 | MiniApp       | Summary                                                                                                          |
 | ------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Note          | Markdown note-taking with YAML front matter and Milkdown editor.                                                 |
-| Todo          | Task management similar to macOS Reminders.                                                                      |
 | File Explorer | Simple filesystem browser.                                                                                       |
 | Preview       | Content viewer for images and HTML. **Also the LiveApp renderer** — hosts the sandboxed iframe for all LiveApps. |
 | Preference    | App and window configuration. Privileged — sole MiniApp with write access to global config.                      |
@@ -291,8 +287,7 @@ Using `<config>`, `<data>`, `<logs>`, `<cache>` as shorthand for the platform-re
           my-app_stream-id/
             index.html
             app.js
-        note/                  # MiniApp-private data directories
-        todo/
+        file-explorer/         # MiniApp-private data directories
         preview/
         <third-party-id>/
       .storage/
@@ -300,23 +295,20 @@ Using `<config>`, `<data>`, `<logs>`, `<cache>` as shorthand for the platform-re
           my-app_stream-id/
             settings.json      # KV store file
             tasks.jsonl        # Collection op-log (source of truth)
-        note.json              # MiniApp key-value stores
-        todo.json
+        file-explorer.json     # MiniApp key-value stores
         preference.json
       .cache/
         liveapps/              # LiveApp query cache (disposable, see liveapp-storage.md)
           my-app_stream-id/
             tasks.sqlite
-        note/
-        todo/
+        file-explorer/
       documents/               # User-visible files exposed through ctx.fs
       pictures/
 
 <logs>/
   core.log
   <username>/
-    note.log
-    todo.log
+    file-explorer.log
     ...
 
 <cache>/
@@ -397,8 +389,8 @@ Actions are the bridge between the AI and the MiniApp UI.
 ```jsx
 <ActionsProvider>
   <Action
-    name="Add a TODO"
-    description="Create a new todo item"
+    name="Refresh Files"
+    description="Reload the current directory listing"
     handler={async (params) => {
       /* ... */
     }}
@@ -491,12 +483,12 @@ This is the primary AI interaction — creating a LiveApp:
 
 ### Action Invocation Flow
 
-1. User types a prompt, e.g. _"Create a note titled Shopping List"_.
+1. User types a prompt, e.g. _"Open my Documents folder"_.
 2. Backend calls `session.prompt(message)`.
 3. Pi calls `desktop` to see what windows are open and their available actions.
-4. Pi calls `action` with `{ name: "Create Note", params: { title: "Shopping List" } }`.
-5. The core resolves the handler registered by the Note MiniApp's `<Action>` component and executes it.
-6. Pi generates a final text response: _"I've created a note titled 'Shopping List'."_
+4. Pi calls `action` with `{ name: "Open Folder", params: { path: "./documents" } }`.
+5. The core resolves the handler registered by the File Explorer MiniApp's `<Action>` component and executes it.
+6. Pi generates a final text response: _"I've opened your Documents folder."_
 
 ### File Edit Flow
 

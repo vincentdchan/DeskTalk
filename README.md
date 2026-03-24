@@ -41,8 +41,6 @@ desktalk start --host 0.0.0.0 --port 8080
 
 DeskTalk comes with a few built-in MiniApps out of the box:
 
-- **Note** — a simple note-taking app
-- **Todo** — task management
 - **File Explorer** — browse and manage files
 - **Preferences** — system settings
 

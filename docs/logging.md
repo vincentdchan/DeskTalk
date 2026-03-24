@@ -24,7 +24,7 @@ We need a unified system where core and MiniApps use the same logging library, w
 - **Fastest Node.js logger.** Benchmarks consistently show pino at 5-10x faster than winston/bunyan due to its async, low-overhead design.
 - **JSON by default.** Structured logs out of the box — ideal for production log ingestion.
 - **pino-pretty for dev.** The companion `pino-pretty` package provides colorized, human-readable output piped through stdout. It is a dev-only dependency.
-- **Child loggers.** `logger.child({ miniAppId: "note" })` creates scoped loggers with zero-copy overhead — exactly what MiniApps need.
+- **Child loggers.** `logger.child({ miniAppId: "file-explorer" })` creates scoped loggers with zero-copy overhead — exactly what MiniApps need.
 - **Level filtering.** Built-in level support (`trace`, `debug`, `info`, `warn`, `error`, `fatal`) with runtime level changes.
 - **Transport system.** pino v7+ transports (file, rotating file, custom) run in a worker thread — non-blocking I/O without `appendFileSync`.
 - **Fastify integration.** We can pass the same pino instance to `Fastify({ logger: pinoInstance })` to unify HTTP request logging with app logging.
@@ -52,9 +52,9 @@ We need a unified system where core and MiniApps use the same logging library, w
                              │               │
               ┌──────────────▼──┐    ┌───────▼──────────────┐
               │  Core Logger    │    │  MiniApp Loggers      │
-              │  { scope:"core"}│    │  { scope:"note" }     │
-              │                 │    │  { scope:"todo" }     │
-              │  Used by:       │    │  { scope:"file-exp" } │
+              │  { scope:"core"}│    │  { scope:"file-explorer" } │
+              │                 │    │  { scope:"preview" }       │
+              │  Used by:       │    │  { scope:"terminal" }      │
               │  - CLI          │    │  { scope:"pref" }     │
               │  - Server       │    │                       │
               │  - ProcessMgr   │    │  Injected as          │
@@ -267,11 +267,11 @@ MiniApps and `@desktalk/sdk` do **not** add pino as a dependency. They consume t
 ```
 14:23:01.442 INFO  [core]: Initializing workspace...
 14:23:01.445 INFO  [core]:   Config: ~/Library/Application Support/DeskTalk
-14:23:01.501 INFO  [registry]: Registered built-in MiniApp: note
-14:23:01.502 INFO  [registry]: Registered built-in MiniApp: todo
+14:23:01.501 INFO  [registry]: Registered built-in MiniApp: file-explorer
+14:23:01.502 INFO  [registry]: Registered built-in MiniApp: preview
 14:23:01.510 INFO  [http]: Server listening on http://localhost:3000
-14:23:02.100 INFO  [note]: MiniApp activated
-14:23:05.300 INFO  [note]: Created note "Shopping List"
+14:23:02.100 INFO  [file-explorer]: MiniApp activated
+14:23:05.300 INFO  [file-explorer]: Opened directory "./documents"
 14:23:08.200 DEBUG [voice]: Session abc123 started (pcm_s16le, 16000Hz, 1ch)
 ```
 
@@ -279,7 +279,7 @@ MiniApps and `@desktalk/sdk` do **not** add pino as a dependency. They consume t
 
 ```json
 {"level":30,"time":1710400981442,"scope":"core","msg":"Initializing workspace..."}
-{"level":30,"time":1710400981501,"scope":"registry","msg":"Registered built-in MiniApp: note"}
+{"level":30,"time":1710400981501,"scope":"registry","msg":"Registered built-in MiniApp: file-explorer"}
 {"level":30,"time":1710400981510,"scope":"http","msg":"Server listening on http://localhost:3000"}
-{"level":30,"time":1710400982100,"scope":"note","msg":"MiniApp activated"}
+{"level":30,"time":1710400982100,"scope":"file-explorer","msg":"MiniApp activated"}
 ```

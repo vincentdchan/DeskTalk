@@ -179,8 +179,6 @@ export async function registerBuiltinMiniApps(logger?: pino.Logger): Promise<voi
   // Built-in MiniApps are imported dynamically from their backend sub-path.
   // During development, these resolve via pnpm workspace links.
   const builtins = [
-    '@desktalk/miniapp-note/backend',
-    '@desktalk/miniapp-todo/backend',
     '@desktalk/miniapp-file-explorer/backend',
     '@desktalk/miniapp-preference/backend',
     '@desktalk/miniapp-preview/backend',
