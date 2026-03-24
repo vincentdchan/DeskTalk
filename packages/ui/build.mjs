@@ -61,7 +61,7 @@ const outputConfigs = [
     entryPoints: [mainEntryPoint],
     format: 'iife',
     globalName: 'DeskTalkUI',
-    outfile: resolve(distDir, 'index.umd.js'),
+    outfile: resolve(distDir, 'desktalk-ui.js'),
   },
   {
     entryPoints: [chartEntryPoint],

@@ -188,13 +188,14 @@ export async function createServer(options: ServerOptions) {
     '/api/setup/status',
     '/api/setup',
     '/api/preferences/public',
-    '/api/ui/desktalk-ui.js',
     '/api/ui/desktalk-theme.css',
   ]);
 
   app.addHook('onRequest', async (req, reply) => {
     // Skip auth for public routes
     if (PUBLIC_ROUTES.has(req.url)) return;
+
+    if (req.url.startsWith('/api/ui/') && req.url.endsWith('.js')) return;
 
     // Skip auth for static file requests (non-API, non-WS)
     if (!req.url.startsWith('/api/') && !req.url.startsWith('/ws')) return;
@@ -828,32 +829,30 @@ export async function createServer(options: ServerOptions) {
     return next;
   }
 
-  app.get('/api/ui/desktalk-ui.js', async (_req, reply) => {
-    const { body, etag } = await getUiBundle('index.umd.js', 'ui');
-    reply.header('Content-Type', 'application/javascript; charset=utf-8');
-    reply.header('Cache-Control', 'public, max-age=86400, immutable');
-    reply.header('ETag', etag);
-    return reply.send(body);
-  });
+  app.get<{ Params: { file: string } }>('/api/ui/:file(^[^/]+\\.js$)', async (req, reply) => {
+    const fileName = req.params.file;
+    if (
+      !fileName ||
+      fileName.includes('/') ||
+      fileName.includes('\\') ||
+      fileName.endsWith('.map')
+    ) {
+      reply.code(404);
+      return { error: 'Not found' };
+    }
+    let bundle: { body: Buffer; etag: string };
+    try {
+      bundle = await getUiBundle(fileName, fileName);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        reply.code(404);
+        return { error: 'Not found' };
+      }
 
-  app.get('/api/ui/chart.js', async (_req, reply) => {
-    const { body, etag } = await getUiBundle('chart.umd.js', 'chart');
-    reply.header('Content-Type', 'application/javascript; charset=utf-8');
-    reply.header('Cache-Control', 'public, max-age=86400, immutable');
-    reply.header('ETag', etag);
-    return reply.send(body);
-  });
+      throw error;
+    }
 
-  app.get('/api/ui/marked.js', async (_req, reply) => {
-    const { body, etag } = await getUiBundle('marked.umd.js', 'marked');
-    reply.header('Content-Type', 'application/javascript; charset=utf-8');
-    reply.header('Cache-Control', 'public, max-age=86400, immutable');
-    reply.header('ETag', etag);
-    return reply.send(body);
-  });
-
-  app.get('/api/ui/milkdown.js', async (_req, reply) => {
-    const { body, etag } = await getUiBundle('milkdown.umd.js', 'milkdown');
+    const { body, etag } = bundle;
     reply.header('Content-Type', 'application/javascript; charset=utf-8');
     reply.header('Cache-Control', 'public, max-age=86400, immutable');
     reply.header('ETag', etag);
