@@ -9,7 +9,7 @@ const readManualSchema = Type.Object({
   page: Type.Optional(
     Type.String({
       description:
-        'Manual page path to read, such as "html/tokens" or "editing/preview". Omit to list available pages.',
+        'Manual page path to read, such as "html/tokens", "html/components/dt-card", or "editing/preview". Omit to list available pages.',
     }),
   ),
 });
@@ -23,13 +23,31 @@ function getManualPagesDir(): string {
 }
 
 function renderOverview(): string {
+  const groups: { label: string; prefix: string }[] = [
+    { label: 'HTML Generation', prefix: 'html/' },
+    { label: 'Component Reference', prefix: 'html/components/' },
+    { label: 'Desktop', prefix: 'desktop/' },
+    { label: 'Editing', prefix: 'editing/' },
+  ];
+
   const lines = ['# DeskTalk Manual', '', 'Available pages:', ''];
 
-  for (const page of MANUAL_PAGES) {
-    lines.push(`- ${page.path} - ${page.description}`);
+  for (const group of groups) {
+    const pages = MANUAL_PAGES.filter(
+      (page) =>
+        page.path.startsWith(group.prefix) &&
+        // Avoid listing component pages under the generic html/ group
+        (group.prefix === 'html/components/' || !page.path.startsWith('html/components/')),
+    );
+    if (pages.length === 0) continue;
+    lines.push(`## ${group.label}`, '');
+    for (const page of pages) {
+      lines.push(`- ${page.path} - ${page.description}`);
+    }
+    lines.push('');
   }
 
-  lines.push('', 'Call `read_manual` with `page` set to one of the paths above.');
+  lines.push('Call `read_manual` with `page` set to one of the paths above.');
   return lines.join('\n');
 }
 
@@ -62,11 +80,12 @@ export function createReadManualTool(): ToolDefinition {
     name: 'read_manual',
     label: 'Read Manual',
     description:
-      'Read a page from the DeskTalk system manual. Covers HTML generation, desktop window management, actions, and Preview editing workflows. Call without a page to list available pages.',
+      'Read a page from the DeskTalk system manual. Covers HTML generation, per-component references (html/components/dt-*), desktop window management, actions, and Preview editing workflows. Call without a page to list available pages.',
     promptSnippet: 'Read the DeskTalk manual for detailed tool usage and system guidelines.',
     promptGuidelines: [
       'Call without params to see the manual table of contents.',
       'Read only the pages needed for the current task instead of loading everything.',
+      'For component details, read the per-component page (e.g. "html/components/dt-card") instead of the overview.',
       'Use related page references at the bottom of each page to drill deeper when needed.',
     ],
     parameters: readManualSchema,

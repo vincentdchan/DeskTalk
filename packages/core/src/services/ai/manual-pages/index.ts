@@ -17,9 +17,10 @@ export const MANUAL_PAGES: ManualPageMeta[] = [
   {
     path: 'html/components',
     title: 'HTML Components',
-    description: 'DeskTalk web components, injected utilities, and pre-styled typography rules.',
+    description:
+      'Overview of all DeskTalk web components, auto-injected assets, typography, and utility classes.',
     file: 'html-components.md',
-    related: ['html/tokens', 'html/layouts', 'html/bridge', 'html/examples'],
+    related: ['html/tokens', 'html/layouts', 'html/examples'],
   },
   {
     path: 'html/layouts',
@@ -45,10 +46,115 @@ export const MANUAL_PAGES: ManualPageMeta[] = [
   {
     path: 'html/examples',
     title: 'HTML Examples',
-    description: 'Complete examples showing valid DeskTalk preview structure and styling.',
+    description:
+      'Multi-component full-page examples showing valid DeskTalk preview structure and styling.',
     file: 'html-examples.md',
     related: ['html/tokens', 'html/components', 'html/layouts', 'html/bridge', 'html/storage'],
   },
+
+  // ── Per-component pages ──────────────────────────────────────────────
+
+  {
+    path: 'html/components/dt-card',
+    title: 'dt-card',
+    description: 'Visually grouped content container with variant styles.',
+    file: 'dt-card.md',
+    related: ['html/components', 'html/layouts', 'html/components/dt-grid'],
+  },
+  {
+    path: 'html/components/dt-tooltip',
+    title: 'dt-tooltip',
+    description: 'Hover or focus hint tooltip for interactive elements.',
+    file: 'dt-tooltip.md',
+    related: ['html/components', 'html/components/dt-button'],
+  },
+  {
+    path: 'html/components/dt-select',
+    title: 'dt-select',
+    description: 'Dropdown select component.',
+    file: 'dt-select.md',
+    related: ['html/components', 'html/components/dt-button'],
+  },
+  {
+    path: 'html/components/dt-grid',
+    title: 'dt-grid',
+    description: 'Auto-responsive grid layout with configurable columns and gap.',
+    file: 'dt-grid.md',
+    related: ['html/components', 'html/layouts', 'html/components/dt-stack'],
+  },
+  {
+    path: 'html/components/dt-stack',
+    title: 'dt-stack',
+    description: 'Flexbox stack for vertical or horizontal layouts.',
+    file: 'dt-stack.md',
+    related: ['html/components', 'html/layouts', 'html/components/dt-grid'],
+  },
+  {
+    path: 'html/components/dt-stat',
+    title: 'dt-stat',
+    description: 'Metric/KPI display with label, value, trend, and description.',
+    file: 'dt-stat.md',
+    related: ['html/components', 'html/components/dt-grid', 'html/components/dt-card'],
+  },
+  {
+    path: 'html/components/dt-badge',
+    title: 'dt-badge',
+    description: 'Inline status pill/badge with variant colors.',
+    file: 'dt-badge.md',
+    related: ['html/components', 'html/components/dt-button'],
+  },
+  {
+    path: 'html/components/dt-divider',
+    title: 'dt-divider',
+    description: 'Horizontal or vertical separator line.',
+    file: 'dt-divider.md',
+    related: ['html/components', 'html/components/dt-stack'],
+  },
+  {
+    path: 'html/components/dt-list-view',
+    title: 'dt-list-view',
+    description: 'Virtualized list for long collections with templates.',
+    file: 'dt-list-view.md',
+    related: ['html/components', 'html/components/dt-table-view', 'html/components/dt-card'],
+  },
+  {
+    path: 'html/components/dt-table-view',
+    title: 'dt-table-view',
+    description: 'Virtualized table for structured row/column data with sorting.',
+    file: 'dt-table-view.md',
+    related: ['html/components', 'html/components/dt-list-view', 'html/components/dt-card'],
+  },
+  {
+    path: 'html/components/dt-chart',
+    title: 'dt-chart',
+    description: 'Interactive Chart.js chart with declarative dt-dataset children.',
+    file: 'dt-chart.md',
+    related: ['html/components', 'html/components/dt-card', 'html/components/dt-grid'],
+  },
+  {
+    path: 'html/components/dt-markdown',
+    title: 'dt-markdown',
+    description: 'Themed markdown renderer for rich text and documentation.',
+    file: 'dt-markdown.md',
+    related: ['html/components', 'html/components/dt-markdown-editor', 'html/components/dt-card'],
+  },
+  {
+    path: 'html/components/dt-markdown-editor',
+    title: 'dt-markdown-editor',
+    description: 'WYSIWYG markdown editor powered by Milkdown.',
+    file: 'dt-markdown-editor.md',
+    related: ['html/components', 'html/components/dt-markdown', 'html/storage'],
+  },
+  {
+    path: 'html/components/dt-button',
+    title: 'dt-button',
+    description: 'Themed button component with variant and size options.',
+    file: 'dt-button.md',
+    related: ['html/components', 'html/components/dt-stack'],
+  },
+
+  // ── Desktop & editing pages ──────────────────────────────────────────
+
   {
     path: 'desktop/windows',
     title: 'Desktop Windows',
