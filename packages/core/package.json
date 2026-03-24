@@ -27,6 +27,7 @@
   "dependencies": {
     "@desktalk/miniapp-file-explorer": "workspace:*",
     "@desktalk/miniapp-note": "workspace:*",
+    "@desktalk/miniapp-player": "workspace:*",
     "@desktalk/miniapp-preference": "workspace:*",
     "@desktalk/miniapp-preview": "workspace:*",
     "@desktalk/miniapp-terminal": "workspace:*",

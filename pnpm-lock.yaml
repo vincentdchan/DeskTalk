@@ -44,6 +44,9 @@ importers:
       '@desktalk/miniapp-note':
         specifier: workspace:*
         version: link:../miniapp-note
+      '@desktalk/miniapp-player':
+        specifier: workspace:*
+        version: link:../miniapp-player
       '@desktalk/miniapp-preference':
         specifier: workspace:*
         version: link:../miniapp-preference
@@ -214,6 +217,28 @@ importers:
       '@milkdown/react':
         specifier: ^7.6.2
         version: 7.19.0(@codemirror/language@6.12.2)(@codemirror/state@6.6.0)(@codemirror/view@6.40.0)(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.4(react@19.2.4)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.3(@types/react@19.2.14)
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
+  packages/miniapp-player:
+    dependencies:
+      '@desktalk/sdk':
+        specifier: workspace:*
+        version: link:../sdk
       react:
         specifier: ^19.0.0
         version: 19.2.4

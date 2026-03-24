@@ -17,7 +17,7 @@ import { ContextMenu, type ContextMenuAction } from './components/ContextMenu';
 import { createFileExplorerStore } from './store';
 import styles from './FileExplorerApp.module.css';
 
-const DEFAULT_OPEN_APP_IDS = ['preview', 'text-edit'];
+const DEFAULT_OPEN_APP_IDS = ['player', 'preview', 'text-edit'];
 
 function getNextDirectoryName(entries: FileEntry[]): string {
   const names = new Set(

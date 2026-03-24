@@ -17,6 +17,7 @@ const builtinLoaders: Record<string, () => Promise<MiniAppFrontendModule>> = {
   preference: () =>
     import('@desktalk/miniapp-preference/frontend') as Promise<MiniAppFrontendModule>,
   preview: () => import('@desktalk/miniapp-preview/frontend') as Promise<MiniAppFrontendModule>,
+  player: () => import('@desktalk/miniapp-player/frontend') as Promise<MiniAppFrontendModule>,
   terminal: () => import('@desktalk/miniapp-terminal/frontend') as Promise<MiniAppFrontendModule>,
   'text-edit': () =>
     import('@desktalk/miniapp-text-edit/frontend') as Promise<MiniAppFrontendModule>,
