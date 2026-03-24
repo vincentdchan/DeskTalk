@@ -2,6 +2,13 @@
  * Static metadata — read by the core at discovery time.
  * Analogous to the `contributes` section in a VSCode extension's package.json.
  */
+export interface MiniAppFileAssociation {
+  /** MIME types this MiniApp can open, e.g. ["image/png"] */
+  mimeTypes?: string[];
+  /** File extensions this MiniApp can open, e.g. [".md", ".txt"] */
+  extensions?: string[];
+}
+
 export interface MiniAppManifest {
   /** Unique identifier, e.g. "note" */
   id: string;
@@ -15,6 +22,8 @@ export interface MiniAppManifest {
   version: string;
   /** Optional human-readable description */
   description?: string;
+  /** Optional file associations used by File Explorer and Open With flows */
+  fileAssociations?: MiniAppFileAssociation;
 }
 
 /**

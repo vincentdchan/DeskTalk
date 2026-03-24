@@ -401,15 +401,19 @@
   position: fixed;
   z-index: 1000;
   min-width: 160px;
-  padding: 4px 0;
   border: 1px solid var(--dt-border);
   border-radius: 8px;
   background: var(--dt-surface);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
+.contextMenuList {
+  padding: 4px 0;
+}
+
 .contextMenuItem {
-  display: block;
+  display: flex;
+  align-items: center;
   width: 100%;
   padding: 7px 14px;
   border: none;
@@ -424,6 +428,34 @@
 
 .contextMenuItem:hover {
   background: var(--dt-surface-hover);
+}
+
+.contextMenuSubmenuTrigger {
+  position: relative;
+}
+
+.contextSubmenu {
+  position: absolute;
+  top: -5px;
+  left: calc(100% - 2px);
+  z-index: 1001;
+  display: none;
+  min-width: 160px;
+  padding: 4px 0;
+  border: 1px solid var(--dt-border);
+  border-radius: 8px;
+  background: var(--dt-surface);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.contextMenuSubmenuTrigger:hover > .contextSubmenu {
+  display: block;
+}
+
+.contextMenuChevron {
+  margin-left: auto;
+  color: var(--dt-text-muted);
+  font-size: 11px;
 }
 
 .contextMenuSeparator {

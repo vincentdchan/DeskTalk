@@ -198,6 +198,10 @@ export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation
 
 ```ts
 export interface MiniAppManifest {
+  fileAssociations?: {
+    mimeTypes?: string[];
+    extensions?: string[];
+  };
   /** Unique identifier, e.g. "note" */
   id: string;
   /** Display name shown in the Dock */
@@ -212,6 +216,8 @@ export interface MiniAppManifest {
   description?: string;
 }
 ```
+
+`fileAssociations` is optional. When present, File Explorer uses it to decide which MiniApps appear in `Open with`, and to resolve a file's default app when several MiniApps can open the same format.
 
 ### MiniAppBackendActivation
 

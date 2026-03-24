@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import type { FileEntry, SortColumn, SortDirection } from '../types';
 import styles from '../FileExplorerApp.module.css';
 
@@ -116,6 +116,24 @@ export function FileList({
   const renameInputRef = useRef<HTMLInputElement>(null);
   const sorted = sortEntries(entries, sortColumn, sortDirection);
 
+  useEffect(() => {
+    if (!renamingPath || !renameInputRef.current) {
+      return;
+    }
+
+    const entry = entries.find((item) => item.path === renamingPath);
+    if (!entry) {
+      return;
+    }
+
+    const input = renameInputRef.current;
+    const dotIndex = entry.type === 'file' ? entry.name.lastIndexOf('.') : -1;
+    const selectionEnd = dotIndex > 0 ? dotIndex : entry.name.length;
+
+    input.focus();
+    input.setSelectionRange(0, selectionEnd);
+  }, [entries, renamingPath]);
+
   const handleRenameKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter') {
@@ -181,7 +199,9 @@ export function FileList({
                       value={renameValue}
                       onChange={(e) => onRenameChange(e.target.value)}
                       onKeyDown={handleRenameKeyDown}
-                      onBlur={onRenameCancel}
+                      onBlur={() => {
+                        onRenameSubmit();
+                      }}
                       autoFocus
                     />
                   ) : (

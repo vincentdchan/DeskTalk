@@ -2,6 +2,8 @@ import {
   readFileSync,
   writeFileSync,
   unlinkSync,
+  renameSync,
+  rmSync,
   readdirSync,
   mkdirSync,
   statSync,
@@ -61,7 +63,23 @@ export function createFileSystemHook(rootDir: string): FileSystemHook {
 
     async deleteFile(path: string): Promise<void> {
       const abs = safePath(path);
+      const stat = statSync(abs);
+      if (stat.isDirectory()) {
+        rmSync(abs, { recursive: true, force: true });
+        return;
+      }
+
       unlinkSync(abs);
+    },
+
+    async rename(oldPath: string, newPath: string): Promise<void> {
+      const oldAbs = safePath(oldPath);
+      const newAbs = safePath(newPath);
+      const parent = resolve(newAbs, '..');
+      if (!existsSync(parent)) {
+        mkdirSync(parent, { recursive: true });
+      }
+      renameSync(oldAbs, newAbs);
     },
 
     async readDir(path: string): Promise<FileEntry[]> {

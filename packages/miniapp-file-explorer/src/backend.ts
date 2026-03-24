@@ -253,18 +253,7 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
       const parentDir = oldPath.includes('/') ? oldPath.slice(0, oldPath.lastIndexOf('/')) : '.';
       const newPath = parentDir === '.' ? req.newName : joinPath(parentDir, req.newName);
 
-      // Read content if file, then recreate with new name
-      const stat = await ctx.fs.stat(oldPath);
-
-      if (stat.type === 'file') {
-        const content = await ctx.fs.readFile(oldPath);
-        await ctx.fs.writeFile(newPath, content);
-        await ctx.fs.deleteFile(oldPath);
-      } else {
-        // For directories: create new, move contents recursively, delete old
-        await copyRecursive(oldPath, newPath);
-        await deleteRecursive(oldPath);
-      }
+      await ctx.fs.rename(oldPath, newPath);
 
       const newStat = await ctx.fs.stat(newPath);
       ctx.logger.info(`Renamed: ${oldPath} -> ${newPath}`);
@@ -283,13 +272,7 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
 
   ctx.messaging.onCommand<{ path: string }, void>('files.delete', async (req) => {
     const targetPath = normalizePath(req.path);
-    const stat = await ctx.fs.stat(targetPath);
-
-    if (stat.type === 'directory') {
-      await deleteRecursive(targetPath);
-    } else {
-      await ctx.fs.deleteFile(targetPath);
-    }
+    await ctx.fs.deleteFile(targetPath);
 
     ctx.logger.info(`Deleted: ${targetPath}`);
   });
@@ -302,16 +285,7 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
       const source = normalizePath(req.source);
       const destination = normalizePath(req.destination);
 
-      const stat = await ctx.fs.stat(source);
-
-      if (stat.type === 'file') {
-        const content = await ctx.fs.readFile(source);
-        await ctx.fs.writeFile(destination, content);
-        await ctx.fs.deleteFile(source);
-      } else {
-        await copyRecursive(source, destination);
-        await deleteRecursive(source);
-      }
+      await ctx.fs.rename(source, destination);
 
       const newStat = await ctx.fs.stat(destination);
       const name = destination.includes('/') ? destination.split('/').pop()! : destination;
@@ -374,21 +348,6 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
       for (const entry of entries) {
         await copyRecursive(joinPath(source, entry.name), joinPath(destination, entry.name));
       }
-    }
-  }
-
-  async function deleteRecursive(path: string): Promise<void> {
-    const stat = await ctx.fs.stat(path);
-
-    if (stat.type === 'file') {
-      await ctx.fs.deleteFile(path);
-    } else {
-      const entries = await ctx.fs.readDir(path);
-      for (const entry of entries) {
-        await deleteRecursive(joinPath(path, entry.name));
-      }
-      // Delete the now-empty directory
-      await ctx.fs.deleteFile(path);
     }
   }
 

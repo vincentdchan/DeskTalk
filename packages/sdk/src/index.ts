@@ -7,6 +7,7 @@ export { simplifyPath } from './utils/path';
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type {
+  MiniAppFileAssociation,
   MiniAppManifest,
   MiniAppBackendActivation,
   MiniAppFrontendActivation,

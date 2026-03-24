@@ -69,6 +69,7 @@ export interface FileSystemHook {
   /** Write a file from a base64-encoded string. */
   writeFileBase64(path: string, contentBase64: string): Promise<void>;
   deleteFile(path: string): Promise<void>;
+  rename(oldPath: string, newPath: string): Promise<void>;
   readDir(path: string): Promise<FileEntry[]>;
   mkdir(path: string): Promise<void>;
   stat(path: string): Promise<FileStat>;

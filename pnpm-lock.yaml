@@ -177,12 +177,18 @@ importers:
       '@desktalk/sdk':
         specifier: workspace:*
         version: link:../sdk
+      ahooks:
+        specifier: ^3.9.5
+        version: 3.9.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react:
         specifier: ^19.0.0
         version: 19.2.4
       react-dom:
         specifier: ^19.0.0
         version: 19.2.4(react@19.2.4)
+      zustand:
+        specifier: ^5.0.8
+        version: 5.0.11(@types/react@19.2.14)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
     devDependencies:
       '@types/react':
         specifier: ^19.0.0
