@@ -7,7 +7,7 @@ These layout rules are mandatory when using `create_liveapp`.
 Always use the built-in layout components for structure:
 
 - **`<dt-grid>`** — for multi-column layouts. Auto-responsive by default.
-- **`<dt-stack>`** — for linear arrangements (vertical lists, horizontal button rows).
+- **`<dt-stack>`** — for linear arrangements (vertical lists, horizontal button rows). Use `direction="row"` for horizontal and `direction="column"` for vertical. Never use `horizontal` or `vertical` as attribute values.
 
 Do not create custom grid or flexbox layouts with raw CSS unless absolutely necessary.
 
@@ -44,6 +44,7 @@ The layout components (`<dt-grid>`, `<dt-stack>`) handle responsive behavior int
 - `<dt-grid>` without `cols` attribute uses `auto-fit` — items wrap naturally
 - `<dt-grid>` with `cols` collapses to single column below 480px
 - `<dt-stack direction="row">` wraps to column below 480px
+- `<dt-stack>` only accepts `direction="row"` or `direction="column"`
 - Body padding is responsive (smaller on narrow views)
 
 Do not add custom media queries for basic responsive behavior.
@@ -54,7 +55,8 @@ Do not add custom media queries for basic responsive behavior.
 2. Use `<dt-grid>` or `<dt-stack>` for layout containers.
 3. Wrap each visible content section in `<dt-card>`.
 4. Use `<dt-stat>` for metrics, `<dt-badge>` for status indicators, `<dt-button>` for actions.
-5. Apply visual color only through `--dt-*` tokens and utility classes.
+5. Use `<dt-list-view>` for long lists and `<dt-table-view>` for structured multi-column data instead of hand-rolling custom scrollers.
+6. Apply visual color only through `--dt-*` tokens and utility classes.
 
 ## Examples
 
@@ -94,4 +96,33 @@ Do not add custom media queries for basic responsive behavior.
     <dt-button size="sm">View All</dt-button>
   </dt-card>
 </dt-stack>
+```
+
+### Long Collection in a Card
+
+```html
+<dt-card>
+  <h3>Recent Jobs</h3>
+  <dt-list-view item-height="68" dividers style="height: 320px;">
+    <template>
+      <dt-stack direction="row" align="center" gap="8">
+        <strong data-field="name"></strong>
+        <dt-badge data-field="state" data-field-variant="stateVariant"></dt-badge>
+      </dt-stack>
+    </template>
+  </dt-list-view>
+</dt-card>
+```
+
+### Structured Data Table
+
+```html
+<dt-card>
+  <h3>Running Processes</h3>
+  <dt-table-view row-height="40" striped style="height: 320px;">
+    <dt-column field="name" header="Process" width="220"></dt-column>
+    <dt-column field="cpu" header="CPU %" align="right" width="100"></dt-column>
+    <dt-column field="memory" header="Memory" align="right" width="120"></dt-column>
+  </dt-table-view>
+</dt-card>
 ```

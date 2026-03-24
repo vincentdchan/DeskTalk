@@ -27,6 +27,7 @@
   "dependencies": {
     "@desktalk/miniapp-file-explorer": "workspace:*",
     "@desktalk/miniapp-note": "workspace:*",
+    "@desktalk/miniapp-player": "workspace:*",
     "@desktalk/miniapp-preference": "workspace:*",
     "@desktalk/miniapp-preview": "workspace:*",
     "@desktalk/miniapp-terminal": "workspace:*",
@@ -48,6 +49,7 @@
     "culori": "^4.0.2",
     "env-paths": "^3.0.0",
     "fastify": "^5.0.0",
+    "monaco-editor": "^0.52.0",
     "partial-json": "^0.1.7",
     "pino": "^10.3.1",
     "sharp": "^0.34.5",

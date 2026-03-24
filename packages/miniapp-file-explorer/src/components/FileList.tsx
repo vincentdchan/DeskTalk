@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import type { FileEntry, SortColumn, SortDirection } from '../types';
-import styles from '../FileExplorerApp.module.css';
+import styles from './FileList.module.css';
 
 interface FileListProps {
   entries: FileEntry[];

@@ -6,6 +6,14 @@ type StackDirection = 'column' | 'row';
 type StackGap = '0' | '4' | '8' | '12' | '16' | '20' | '24' | '32';
 type StackAlign = 'start' | 'center' | 'end' | 'stretch';
 
+function normalizeDirection(value: string | null): StackDirection {
+  if (value === 'row' || value === 'horizontal') {
+    return 'row';
+  }
+
+  return 'column';
+}
+
 /**
  * `<dt-stack>` — framework-agnostic flexbox stack web component.
  *
@@ -47,13 +55,11 @@ export class DtStack extends HTMLElement {
 
   // ── Attribute helpers ───────────────────────────────────────────────────
   get direction(): StackDirection {
-    const val = this.getAttribute('direction');
-    if (val === 'row') return 'row';
-    return 'column';
+    return normalizeDirection(this.getAttribute('direction'));
   }
 
   set direction(val: StackDirection) {
-    this.setAttribute('direction', val);
+    this.setAttribute('direction', normalizeDirection(val));
   }
 
   get gap(): StackGap {
@@ -90,6 +96,16 @@ export class DtStack extends HTMLElement {
 
   // ── Lifecycle ───────────────────────────────────────────────────────────
 
+  connectedCallback() {
+    this.#normalizeAttributes();
+  }
+
+  attributeChangedCallback(name: string): void {
+    if (name === 'direction') {
+      this.#normalizeAttributes();
+    }
+  }
+
   constructor() {
     super();
     const shadow = this.attachShadow({ mode: 'open' });
@@ -102,5 +118,13 @@ export class DtStack extends HTMLElement {
     wrapper.className = STACK_CLS;
     wrapper.innerHTML = '<slot></slot>';
     shadow.appendChild(wrapper);
+  }
+
+  #normalizeAttributes(): void {
+    const rawDirection = this.getAttribute('direction');
+    const normalizedDirection = normalizeDirection(rawDirection);
+    if (rawDirection !== null && rawDirection !== normalizedDirection) {
+      this.setAttribute('direction', normalizedDirection);
+    }
   }
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import styles from '../FileExplorerApp.module.css';
+import styles from './ContextMenu.module.css';
 
 export interface ContextMenuAction {
   label: string;

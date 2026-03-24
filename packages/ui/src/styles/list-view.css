@@ -1,0 +1,99 @@
+:host {
+  display: block;
+  min-height: 120px;
+  color: var(--dt-text);
+  font-family: var(
+    --font-mono,
+    'SF Mono',
+    Monaco,
+    'Cascadia Code',
+    'Roboto Mono',
+    Consolas,
+    monospace
+  );
+}
+
+.dt-list-view {
+  position: relative;
+  display: block;
+  min-height: inherit;
+  height: 100%;
+  overflow: auto;
+  background: var(--dt-surface);
+  border: 1px solid var(--dt-border);
+  border-radius: 2px;
+}
+
+.dt-list-view::before,
+.dt-list-view::after {
+  content: '';
+  position: sticky;
+  z-index: 2;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+}
+
+.dt-list-view::before {
+  top: 0;
+  left: 0;
+  display: block;
+  border-top: 2px solid var(--dt-accent);
+  border-left: 2px solid var(--dt-accent);
+}
+
+.dt-list-view::after {
+  right: 0;
+  bottom: 0;
+  float: right;
+  border-right: 2px solid var(--dt-accent);
+  border-bottom: 2px solid var(--dt-accent);
+}
+
+.dt-list-spacer {
+  position: relative;
+  min-height: 100%;
+}
+
+.dt-list-items {
+  position: relative;
+}
+
+.dt-list-item {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  color: inherit;
+}
+
+.dt-list-item--interactive {
+  cursor: pointer;
+}
+
+.dt-list-item--interactive:hover {
+  background: var(--dt-surface-hover);
+}
+
+.dt-list-item--selected {
+  background: var(--dt-accent-subtle);
+}
+
+:host([dividers]) .dt-list-item {
+  border-bottom: 1px solid var(--dt-border-subtle);
+}
+
+:host([dividers]) .dt-list-item:last-child {
+  border-bottom: 0;
+}
+
+.dt-list-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: 20px;
+  color: var(--dt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+}

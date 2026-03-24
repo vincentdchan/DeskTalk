@@ -184,6 +184,7 @@ export async function registerBuiltinMiniApps(logger?: pino.Logger): Promise<voi
     '@desktalk/miniapp-file-explorer/backend',
     '@desktalk/miniapp-preference/backend',
     '@desktalk/miniapp-preview/backend',
+    '@desktalk/miniapp-player/backend',
     '@desktalk/miniapp-terminal/backend',
     '@desktalk/miniapp-text-edit/backend',
   ];

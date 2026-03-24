@@ -1,0 +1,117 @@
+.shell {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 32px 20px 40px;
+  background:
+    radial-gradient(circle at top, rgba(126, 224, 186, 0.15), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+}
+
+.hero {
+  display: flex;
+  width: min(100%, 460px);
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.icon {
+  display: flex;
+  width: 132px;
+  height: 132px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 28px;
+  background: linear-gradient(145deg, rgba(126, 224, 186, 0.18), rgba(88, 124, 255, 0.12));
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+  font-size: 52px;
+}
+
+.title {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 24px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seekGroup,
+.volumeGroup {
+  display: flex;
+  width: min(100%, 460px);
+  align-items: center;
+  gap: 12px;
+}
+
+.time {
+  width: 42px;
+  color: rgba(244, 247, 251, 0.72);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.time:last-child {
+  text-align: right;
+}
+
+.slider {
+  width: 100%;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.transportButton,
+.playButton,
+.muteButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.transportButton,
+.muteButton {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 16px;
+}
+
+.playButton {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #7ee0ba, #5f9cff);
+  color: #081018;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.label {
+  width: 56px;
+  color: rgba(244, 247, 251, 0.72);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.transportButton:disabled,
+.playButton:disabled,
+.muteButton:disabled {
+  cursor: default;
+  opacity: 0.4;
+}

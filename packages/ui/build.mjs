@@ -6,12 +6,14 @@ import { build, context } from 'esbuild';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const distDir = resolve(packageDir, 'dist');
-const entryPoint = resolve(packageDir, 'src/index.ts');
+const mainEntryPoint = resolve(packageDir, 'src/index.ts');
+const chartEntryPoint = resolve(packageDir, 'src/chart-entry.ts');
+const markedEntryPoint = resolve(packageDir, 'src/marked-entry.ts');
+const milkdownEntryPoint = resolve(packageDir, 'src/milkdown-entry.ts');
 const isWatch = process.argv.includes('--watch');
 
 const sharedOptions = {
   bundle: true,
-  entryPoints: [entryPoint],
   platform: 'browser',
   sourcemap: true,
   target: 'es2022',
@@ -20,10 +22,22 @@ const sharedOptions = {
     {
       name: 'raw-css-loader',
       setup(pluginBuild) {
-        pluginBuild.onResolve({ filter: /\.css\?raw$/ }, (args) => ({
-          path: resolve(args.resolveDir, args.path.replace(/\?raw$/, '')),
-          namespace: 'raw-css',
-        }));
+        pluginBuild.onResolve({ filter: /\.css\?raw$/ }, async (args) => {
+          const resolved = await pluginBuild.resolve(args.path.replace(/\?raw$/, ''), {
+            kind: args.kind,
+            importer: args.importer,
+            resolveDir: args.resolveDir,
+          });
+
+          if (resolved.errors.length > 0) {
+            return { errors: resolved.errors };
+          }
+
+          return {
+            path: resolved.path,
+            namespace: 'raw-css',
+          };
+        });
 
         pluginBuild.onLoad({ filter: /\.css$/, namespace: 'raw-css' }, async (args) => {
           const css = await readFile(args.path, 'utf8');
@@ -39,13 +53,33 @@ const sharedOptions = {
 
 const outputConfigs = [
   {
+    entryPoints: [mainEntryPoint],
     format: 'esm',
     outfile: resolve(distDir, 'index.js'),
   },
   {
+    entryPoints: [mainEntryPoint],
     format: 'iife',
     globalName: 'DeskTalkUI',
-    outfile: resolve(distDir, 'index.umd.js'),
+    outfile: resolve(distDir, 'desktalk-ui.js'),
+  },
+  {
+    entryPoints: [chartEntryPoint],
+    format: 'iife',
+    globalName: '__DtChartBundle',
+    outfile: resolve(distDir, 'chart.umd.js'),
+  },
+  {
+    entryPoints: [markedEntryPoint],
+    format: 'iife',
+    globalName: '__DtMarkedBundle',
+    outfile: resolve(distDir, 'marked.umd.js'),
+  },
+  {
+    entryPoints: [milkdownEntryPoint],
+    format: 'iife',
+    globalName: '__DtMilkdownBundle',
+    outfile: resolve(distDir, 'milkdown.umd.js'),
   },
 ];
 

@@ -3,7 +3,6 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type {
   PreviewFile,
-  HtmlPreviewFile,
   SiblingList,
   SiblingEntry,
   PreviewBridgeConfirmPayload,
@@ -18,7 +17,6 @@ import { runBridgeCommand, validateExecInput } from './bridge-command-runner';
 import { LiveAppStorage } from './bridge-storage';
 import {
   fileName,
-  getExtension,
   getMimeType,
   isSupported,
   loadStreamedHtml,
@@ -126,19 +124,6 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
   ctx.messaging.onCommand<{ path: string }, PreviewFile>('preview.open', async (req) =>
     buildPreviewFile(req.path),
   );
-
-  // ─── preview.open-html ──────────────────────────────────────────────────
-
-  ctx.messaging.onCommand<{ path: string }, HtmlPreviewFile>('preview.open-html', async (req) => {
-    const name = fileName(req.path);
-    const ext = getExtension(name);
-    if (ext !== '.html' && ext !== '.htm') {
-      throw new Error(`Not an HTML file: ${name}`);
-    }
-
-    const content = await ctx.fs.readFile(req.path);
-    return { name, path: req.path, content };
-  });
 
   ctx.messaging.onCommand<{ streamId: string; title: string }, StreamedHtmlSnapshot | null>(
     'preview.stream.load-html',

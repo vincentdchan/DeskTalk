@@ -21,6 +21,7 @@ interface PreviewToolbarProps {
   /** Shown in stream mode when content is still arriving. */
   streaming?: boolean;
   onRefreshFromFile?: () => void;
+  onEditSource?: () => void;
 }
 
 export function PreviewToolbar({
@@ -38,6 +39,7 @@ export function PreviewToolbar({
   onNext,
   streaming,
   onRefreshFromFile,
+  onEditSource,
 }: PreviewToolbarProps) {
   // HTML and stream modes: browser-like toolbar
   if (mode === 'html' || mode === 'stream') {
@@ -115,21 +117,32 @@ export function PreviewToolbar({
           )}
         </div>
 
-        {/* Right: spacer to balance layout */}
-        <div className={styles.browserNavGroup} style={{ visibility: 'hidden' }}>
-          <button className={styles.browserNavBtn} disabled>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
+        {/* Right: html actions */}
+        <div className={styles.browserNavGroup}>
+          {onEditSource && !streaming ? (
+            <button
+              className={styles.browserNavBtn}
+              onClick={onEditSource}
+              title="Edit in TextEdit"
+              aria-label="Edit in TextEdit"
             >
-              <polyline points="23 4 23 10 17 10"></polyline>
-              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-            </svg>
-          </button>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4Z"></path>
+              </svg>
+            </button>
+          ) : (
+            <div className={styles.browserActionSpacer} aria-hidden="true" />
+          )}
         </div>
       </div>
     );

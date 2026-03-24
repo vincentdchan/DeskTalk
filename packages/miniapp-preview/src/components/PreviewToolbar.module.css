@@ -100,6 +100,11 @@
   opacity: 0.3;
 }
 
+.browserActionSpacer {
+  width: 28px;
+  height: 28px;
+}
+
 .addressBar {
   display: flex;
   flex: 1;

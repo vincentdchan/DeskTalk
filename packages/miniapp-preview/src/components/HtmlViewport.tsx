@@ -4,7 +4,9 @@ import type { PreviewBridgeRequestMessage, PreviewBridgeResponseMessage } from '
 
 interface HtmlViewportProps {
   /** The full HTML string to render (static or accumulated streaming content). */
-  html: string;
+  html?: string;
+  /** Direct URL for iframe-based loading. */
+  src?: string;
   /** Whether the content is still streaming. */
   streaming?: boolean;
   /** Receive bridge requests from generated HTML. */
@@ -14,7 +16,7 @@ interface HtmlViewportProps {
   ) => void;
 }
 
-export function HtmlViewport({ html, streaming, onBridgeRequest }: HtmlViewportProps) {
+export function HtmlViewport({ html, src, streaming, onBridgeRequest }: HtmlViewportProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   /** How many characters of `html` have been written to the document so far. */
   const writtenLengthRef = useRef(0);
@@ -53,6 +55,17 @@ export function HtmlViewport({ html, streaming, onBridgeRequest }: HtmlViewportP
   // avoids re-executing scripts or losing DOM state on each update.
 
   useEffect(() => {
+    if (src) {
+      writtenLengthRef.current = 0;
+      docOpenRef.current = false;
+      wasStreamingRef.current = false;
+      return;
+    }
+
+    if (html === undefined) {
+      return;
+    }
+
     const iframe = iframeRef.current;
     if (!iframe) return;
 
@@ -101,7 +114,7 @@ export function HtmlViewport({ html, streaming, onBridgeRequest }: HtmlViewportP
       doc.write(newContent);
       writtenLengthRef.current = html.length;
     }
-  }, [html, streaming]);
+  }, [html, src, streaming]);
 
   return (
     <iframe
@@ -109,6 +122,7 @@ export function HtmlViewport({ html, streaming, onBridgeRequest }: HtmlViewportP
       className={styles.htmlViewport}
       sandbox="allow-scripts allow-same-origin"
       title="HTML Preview"
+      src={src}
     />
   );
 }

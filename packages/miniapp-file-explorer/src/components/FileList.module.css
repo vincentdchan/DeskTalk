@@ -1,0 +1,136 @@
+.sortIndicator {
+  margin-left: 4px;
+  font-size: 10px;
+}
+
+.fileTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.fileTableHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--dt-window-body);
+}
+
+.fileTableHead th {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--dt-border);
+  color: var(--dt-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-align: left;
+  text-transform: uppercase;
+  transition: color 0.15s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.fileTableHead th:hover {
+  color: var(--dt-text);
+}
+
+.colName {
+  width: auto;
+}
+
+.colSize {
+  width: 90px;
+}
+
+.colModified {
+  width: 110px;
+}
+
+.fileRow {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.fileRow:hover {
+  background: var(--dt-surface-hover);
+}
+
+.fileRowSelected {
+  composes: fileRow;
+  background: var(--dt-surface);
+}
+
+.fileRow td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--dt-border);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fileIcon {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.fileNameText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileSize {
+  color: var(--dt-text-muted);
+  font-size: 12px;
+}
+
+.fileModified {
+  color: var(--dt-text-muted);
+  font-size: 12px;
+}
+
+.fileListScroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.emptyState {
+  display: flex;
+  height: 100%;
+  min-height: 220px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 16px;
+  color: var(--dt-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.emptyStateHint {
+  max-width: 320px;
+  color: var(--dt-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.renameInput {
+  width: 100%;
+  padding: 2px 6px;
+  border: 1px solid var(--dt-accent);
+  border-radius: 4px;
+  background: var(--dt-surface);
+  color: var(--dt-text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}

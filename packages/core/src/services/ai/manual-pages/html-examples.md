@@ -1,6 +1,6 @@
 # HTML Examples
 
-Use these examples as structure references, not as fixed templates.
+Multi-component examples showing valid DeskTalk preview structure and styling. For single-component examples, see each component's own manual page.
 
 ## Dashboard Grid
 
@@ -33,40 +33,6 @@ Use these examples as structure references, not as fixed templates.
     </dt-grid>
   </body>
 </html>
-```
-
-## Stat Cards
-
-```html
-<dt-grid cols="3" min-width="150">
-  <dt-stat label="CPU Usage" value="42%"></dt-stat>
-  <dt-stat label="Memory" value="8.2 GB" description="of 16 GB used"></dt-stat>
-  <dt-stat label="Disk" value="256 GB" description="free space" variant="filled"></dt-stat>
-</dt-grid>
-```
-
-## Action Buttons
-
-```html
-<dt-stack direction="row" gap="12" align="center">
-  <dt-button>Primary</dt-button>
-  <dt-button variant="secondary">Secondary</dt-button>
-  <dt-button variant="ghost">Ghost</dt-button>
-  <dt-button variant="danger">Danger</dt-button>
-</dt-stack>
-```
-
-## Status Badges
-
-```html
-<dt-stack direction="row" gap="8">
-  <dt-badge>Default</dt-badge>
-  <dt-badge variant="success">Success</dt-badge>
-  <dt-badge variant="warning">Warning</dt-badge>
-  <dt-badge variant="danger">Error</dt-badge>
-  <dt-badge variant="info">Info</dt-badge>
-  <dt-badge variant="neutral">Neutral</dt-badge>
-</dt-stack>
 ```
 
 ## System Monitor

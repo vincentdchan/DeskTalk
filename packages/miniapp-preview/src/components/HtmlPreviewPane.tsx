@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { useCommand, useEvent, useWindowId } from '@desktalk/sdk';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCommand, useEvent, useOpenMiniApp, useWindowId } from '@desktalk/sdk';
 import type {
-  HtmlPreviewFile,
   PreviewActionState,
   PreviewBridgeConfirmPayload,
   PreviewBridgeExecPayload,
@@ -14,8 +13,8 @@ import type {
 } from '../types';
 import { HtmlViewport } from './HtmlViewport';
 import { PreviewToolbar } from './PreviewToolbar';
-import { injectDtRuntime, type PreviewThemeRuntime } from '../html-injections';
-import { isLiveAppPath, matchesPreviewFilePath } from '../preview-paths';
+import type { PreviewThemeRuntime } from '../html-injections';
+import { isLiveAppPath, matchesPreviewFilePath, normalizePreviewPath } from '../preview-paths';
 import { BridgeConfirmDialog } from './BridgeConfirmDialog';
 import styles from './HtmlPreviewPane.module.css';
 
@@ -50,6 +49,44 @@ function requestCoreBridgeState(selector: PreviewBridgeGetStatePayload['selector
   return result;
 }
 
+function getFileName(path: string | undefined): string | null {
+  const normalized = normalizePreviewPath(path);
+  if (!normalized) {
+    return null;
+  }
+
+  const parts = normalized.split('/').filter(Boolean);
+  return parts.at(-1) ?? normalized;
+}
+
+function buildDtfsUrl(
+  path: string,
+  options?: {
+    streamId?: string;
+    token?: string;
+    accentColor?: string;
+    theme?: 'light' | 'dark';
+    cacheBust?: string;
+  },
+): string {
+  const normalized = normalizePreviewPath(path) ?? path;
+  const encodedPath = normalized
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+  const params = new URLSearchParams();
+
+  if (options?.streamId) params.set('streamId', options.streamId);
+  if (options?.token) params.set('token', options.token);
+  if (options?.accentColor) params.set('accent', options.accentColor);
+  if (options?.theme) params.set('theme', options.theme);
+  if (options?.cacheBust) params.set('t', options.cacheBust);
+
+  const query = params.toString();
+  return query ? `/@dtfs/${encodedPath}?${query}` : `/@dtfs/${encodedPath}`;
+}
+
 interface HtmlPreviewPaneProps {
   initialPath?: string;
   liveAppId?: string;
@@ -66,8 +103,8 @@ export function HtmlPreviewPane({
   onActionStateChange,
 }: HtmlPreviewPaneProps) {
   const windowId = useWindowId();
-  const [htmlFile, setHtmlFile] = useState<HtmlPreviewFile | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const openMiniApp = useOpenMiniApp();
+  const [reloadKey, setReloadKey] = useState(0);
   const [pendingBridgeConfirm, setPendingBridgeConfirm] = useState<{
     confirmationRequestId: string;
     bridgeRequestId: string;
@@ -76,7 +113,6 @@ export function HtmlPreviewPane({
     reason: string;
     respond: (response: PreviewBridgeResponseMessage) => void;
   } | null>(null);
-  const openHtmlFile = useCommand<{ path: string }, HtmlPreviewFile>('preview.open-html');
   const registerBridgeSession = useCommand<{ streamId: string; token: string }, void>(
     'preview.bridge.registerSession',
   );
@@ -90,47 +126,32 @@ export function HtmlPreviewPane({
     'preview.bridge.storage',
   );
 
+  const normalizedPath = normalizePreviewPath(initialPath);
+  const fileName = useMemo(() => getFileName(initialPath), [initialPath]);
   const shouldInjectRuntime = Boolean(liveAppId && bridgeToken && isLiveAppPath(initialPath));
+  const canEditLiveAppSource = Boolean(shouldInjectRuntime && normalizedPath);
 
-  const applyRuntime = useCallback(
-    (file: HtmlPreviewFile): HtmlPreviewFile => ({
-      ...file,
-      content:
-        shouldInjectRuntime && liveAppId && bridgeToken
-          ? injectDtRuntime(file.content, {
-              theme,
-              streamId: liveAppId,
-              bridgeToken,
-            })
-          : file.content,
-    }),
-    [bridgeToken, liveAppId, shouldInjectRuntime, theme],
-  );
+  const iframeSrc = useMemo(() => {
+    if (!normalizedPath) {
+      return null;
+    }
+
+    return buildDtfsUrl(normalizedPath, {
+      streamId: shouldInjectRuntime ? liveAppId : undefined,
+      token: shouldInjectRuntime ? bridgeToken : undefined,
+      accentColor: shouldInjectRuntime ? theme.accentColor : undefined,
+      theme: shouldInjectRuntime ? theme.mode : undefined,
+      cacheBust: reloadKey > 0 ? String(reloadKey) : undefined,
+    });
+  }, [bridgeToken, liveAppId, normalizedPath, reloadKey, shouldInjectRuntime, theme]);
 
   useEvent<{ filePath: string; content: string }>('preview.file-changed', (data) => {
-    if (!matchesPreviewFilePath(data.filePath, htmlFile?.path ?? initialPath)) {
+    if (!matchesPreviewFilePath(data.filePath, normalizedPath)) {
       return;
     }
 
-    setHtmlFile((currentFile) =>
-      currentFile
-        ? applyRuntime({
-            ...currentFile,
-            content: data.content,
-          })
-        : currentFile,
-    );
+    setReloadKey(Date.now());
   });
-
-  useEffect(() => {
-    if (!initialPath) {
-      return;
-    }
-
-    openHtmlFile({ path: initialPath })
-      .then((file) => setHtmlFile(applyRuntime(file)))
-      .catch((err) => setError(String(err)));
-  }, [applyRuntime, initialPath, openHtmlFile]);
 
   useEffect(() => {
     if (!shouldInjectRuntime || !liveAppId || !bridgeToken) {
@@ -157,14 +178,14 @@ export function HtmlPreviewPane({
             windowId,
             mode: 'html',
             liveAppId,
-            title: htmlFile?.name ?? initialPath ?? null,
-            path: htmlFile?.path ?? initialPath ?? null,
+            title: fileName,
+            path: normalizedPath,
           };
         default:
           throw new Error(`Unsupported DeskTalk bridge selector: ${String(payload.selector)}`);
       }
     },
-    [htmlFile?.name, htmlFile?.path, initialPath, liveAppId, windowId],
+    [fileName, liveAppId, normalizedPath, windowId],
   );
 
   const respondToBridgeRequest = useCallback(
@@ -267,8 +288,8 @@ export function HtmlPreviewPane({
       liveAppId,
       pendingBridgeConfirm,
       resolveBridgeState,
-      storageBridgeCommand,
       shouldInjectRuntime,
+      storageBridgeCommand,
     ],
   );
 
@@ -312,26 +333,40 @@ export function HtmlPreviewPane({
     [bridgeToken, confirmBridgeCommand, liveAppId, pendingBridgeConfirm],
   );
 
+  const handleEditSource = useCallback(() => {
+    if (!normalizedPath || !shouldInjectRuntime) {
+      return;
+    }
+
+    openMiniApp('text-edit', { path: normalizedPath });
+  }, [normalizedPath, openMiniApp, shouldInjectRuntime]);
+
   useEffect(() => {
     onActionStateChange({
       mode: 'html',
       streaming: false,
-      file: htmlFile
-        ? {
-            name: htmlFile.name,
-            path: htmlFile.path,
-            kind: 'html',
-          }
-        : null,
+      file:
+        normalizedPath && fileName
+          ? {
+              name: fileName,
+              path: normalizedPath,
+              kind: 'html',
+            }
+          : null,
     });
-  }, [htmlFile, onActionStateChange]);
+  }, [fileName, normalizedPath, onActionStateChange]);
 
-  if (htmlFile) {
+  if (iframeSrc && fileName) {
     return (
       <>
-        <PreviewToolbar filename={htmlFile.name} filepath={htmlFile.path} mode="html" />
+        <PreviewToolbar
+          filename={fileName}
+          filepath={normalizedPath ?? undefined}
+          mode="html"
+          onEditSource={canEditLiveAppSource ? handleEditSource : undefined}
+        />
         <HtmlViewport
-          html={htmlFile.content}
+          src={iframeSrc}
           onBridgeRequest={shouldInjectRuntime ? respondToBridgeRequest : undefined}
         />
         {pendingBridgeConfirm ? (
@@ -348,15 +383,6 @@ export function HtmlPreviewPane({
           />
         ) : null}
       </>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className={styles.errorState}>
-        <span className={styles.errorIcon}>{'\u26A0'}</span>
-        <span>{error}</span>
-      </div>
     );
   }
 

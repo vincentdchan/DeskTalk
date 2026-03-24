@@ -142,7 +142,7 @@ For the full development guide, see [miniapp-development.md](./miniapp-developme
 
 ## Built-in MiniApps
 
-DeskTalk ships with seven built-in MiniApps. Each has its own detailed spec in `docs/miniapps/`.
+DeskTalk ships with eight built-in MiniApps. Each has its own detailed spec in `docs/miniapps/`.
 
 | MiniApp       | Summary                                                                                                                                                       |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -150,6 +150,7 @@ DeskTalk ships with seven built-in MiniApps. Each has its own detailed spec in `
 | Todo          | Task management similar to macOS Reminders.                                                                                                                   |
 | File Explorer | Simple filesystem browser.                                                                                                                                    |
 | Preview       | Content viewer supporting images and HTML files. Also serves as the **LiveApp renderer** — it hosts the sandboxed iframe that displays AI-generated LiveApps. |
+| Player        | Audio and video player supporting MP3, WAV, OGG, FLAC, AAC, M4A, MP4, WebM, and MOV.                                                                          |
 | Preference    | App and window configuration UI. Privileged — sole MiniApp with write access to global config.                                                                |
 | Terminal      | Terminal emulator powered by xterm.js.                                                                                                                        |
 | Text Edit     | Plain text file editor.                                                                                                                                       |

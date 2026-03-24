@@ -1,0 +1,40 @@
+.breadcrumb {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.breadcrumbSegment {
+  padding: 2px 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--dt-text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  transition:
+    background 0.1s,
+    color 0.1s;
+  white-space: nowrap;
+}
+
+.breadcrumbSegment:hover {
+  background: var(--dt-surface-hover);
+  color: var(--dt-text);
+}
+
+.breadcrumbSegmentActive {
+  composes: breadcrumbSegment;
+  color: var(--dt-text);
+  font-weight: 500;
+}
+
+.breadcrumbSeparator {
+  color: var(--dt-text-muted);
+  font-size: 11px;
+  opacity: 0.5;
+}

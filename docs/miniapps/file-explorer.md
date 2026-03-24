@@ -19,6 +19,8 @@ The File Explorer MiniApp is a system-level filesystem browser that lets users n
 - Text files (`.md`, `.txt`, `.json`, `.ts`, `.js`, etc.) open in the **TextEdit** MiniApp on double-click.
 - Image files (`.png`, `.jpg`, `.jpeg`, `.webp`) open in the **Preview** MiniApp on double-click.
 - HTML files (`.html`) open in the **Preview** MiniApp for iframe rendering.
+- Audio files (`.mp3`, `.wav`, `.ogg`, `.flac`, `.aac`, `.m4a`) open in the **Player** MiniApp on double-click.
+- Video files (`.mp4`, `.webm`, `.mov`) open in the **Player** MiniApp on double-click.
 - Other files show name, size, type, and last-modified metadata in an inline pane.
 
 ## UI Layout
@@ -49,6 +51,8 @@ Note: The Actions Bar is a global element managed by the core shell (see `docs/s
 - Double-click a text file (`.md`, `.txt`, `.json`, `.ts`, `.js`, `.py`, `.yaml`, `.toml`, `.css`, `.sh`, etc.) to open it in the **TextEdit** MiniApp.
 - Double-click an `.html` file to open it in the **Preview** MiniApp (HTML mode).
 - Double-click an image file (`.png`, `.jpg`, `.jpeg`, `.webp`) to open it in the **Preview** MiniApp.
+- Double-click an audio file (`.mp3`, `.wav`, `.ogg`, `.flac`, `.aac`, `.m4a`) to open it in the **Player** MiniApp.
+- Double-click a video file (`.mp4`, `.webm`, `.mov`) to open it in the **Player** MiniApp.
 - Double-click other file types to open an inline metadata/preview pane.
 - Right-click for a context menu with `Open`, `Open with`, rename, delete, copy, and move actions.
 - Drag and drop for moving files (optional stretch goal).
@@ -62,6 +66,8 @@ When a user double-clicks a file, the File Explorer determines which MiniApp to 
 | Text / code / Markdown  | TextEdit       | `{ path: "<relative-path>" }` |
 | HTML                    | Preview        | `{ path: "<relative-path>" }` |
 | Image (JPEG, PNG, WebP) | Preview        | `{ path: "<relative-path>" }` |
+| Audio (MP3, WAV, etc.)  | Player         | `{ path: "<relative-path>" }` |
+| Video (MP4, WebM, MOV)  | Player         | `{ path: "<relative-path>" }` |
 | Other                   | (inline pane)  | —                             |
 
 The File Explorer opens the target MiniApp by requesting the core to launch a new window with the appropriate `miniAppId` and `args`. The `path` value is the file's path relative to the user's home directory (e.g., `"documents/notes.md"`). See [miniapp-development.md](../miniapp-development.md) — Launch Arguments for how `args` are passed to the target MiniApp's `activate(ctx)`.

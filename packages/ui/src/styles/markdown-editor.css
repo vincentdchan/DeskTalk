@@ -1,0 +1,221 @@
+:host {
+  display: block;
+  min-height: 240px;
+  color: var(--dt-text);
+  font-family: var(--font-sans, 'Inter', sans-serif);
+}
+
+.dt-markdown-editor {
+  position: relative;
+  height: 100%;
+  min-height: inherit;
+  overflow: hidden;
+  border: 1px solid var(--dt-border);
+  border-radius: 2px;
+  background: var(--dt-surface);
+}
+
+.dt-markdown-editor::before,
+.dt-markdown-editor::after {
+  content: '';
+  position: absolute;
+  z-index: 3;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+}
+
+.dt-markdown-editor::before {
+  top: -1px;
+  left: -1px;
+  border-top: 2px solid var(--dt-accent);
+  border-left: 2px solid var(--dt-accent);
+}
+
+.dt-markdown-editor::after {
+  right: -1px;
+  bottom: -1px;
+  border-right: 2px solid var(--dt-accent);
+  border-bottom: 2px solid var(--dt-accent);
+}
+
+.dt-markdown-editor__surface {
+  height: 100%;
+  min-height: inherit;
+}
+
+.dt-markdown-editor__content {
+  height: 100%;
+  min-height: inherit;
+}
+
+.dt-markdown-editor__status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--dt-surface) 84%, transparent);
+  color: var(--dt-text-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dt-markdown-editor__status[hidden] {
+  display: none;
+}
+
+.milkdown {
+  --crepe-color-background: transparent;
+  --crepe-color-on-background: var(--dt-text);
+  --crepe-color-surface: var(--dt-surface);
+  --crepe-color-surface-low: color-mix(in srgb, var(--dt-surface) 94%, var(--dt-accent) 6%);
+  --crepe-color-on-surface: var(--dt-text);
+  --crepe-color-on-surface-variant: var(--dt-text-muted);
+  --crepe-color-outline: var(--dt-border);
+  --crepe-color-primary: var(--dt-accent);
+  --crepe-color-secondary: color-mix(in srgb, var(--dt-surface) 84%, var(--dt-accent) 16%);
+  --crepe-color-on-secondary: var(--dt-text);
+  --crepe-color-inverse: var(--dt-text);
+  --crepe-color-on-inverse: var(--dt-surface);
+  --crepe-color-inline-code: var(--dt-accent);
+  --crepe-color-error: var(--dt-danger, #ff6a6a);
+  --crepe-color-hover: var(--dt-surface-hover);
+  --crepe-color-selected: color-mix(in srgb, var(--dt-surface) 82%, var(--dt-accent) 18%);
+  --crepe-color-inline-area: color-mix(in srgb, var(--dt-surface) 90%, var(--dt-accent) 10%);
+  --crepe-font-title: var(--font-sans, 'Inter', sans-serif);
+  --crepe-font-default: var(--font-sans, 'Inter', sans-serif);
+  --crepe-font-code: var(
+    --font-mono,
+    'SF Mono',
+    Monaco,
+    'Cascadia Code',
+    'Roboto Mono',
+    Consolas,
+    monospace
+  );
+  --crepe-shadow-1: 0 0 0 1px color-mix(in srgb, var(--dt-surface) 82%, var(--dt-accent) 18%);
+  --crepe-shadow-2:
+    0 0 0 1px color-mix(in srgb, var(--dt-surface) 78%, var(--dt-accent) 22%),
+    0 8px 24px color-mix(in srgb, var(--dt-accent) 12%, transparent);
+
+  height: 100%;
+  background: transparent;
+  color: var(--dt-text);
+}
+
+.milkdown .editor {
+  min-height: 100%;
+  padding: 16px 18px 20px;
+  outline: none;
+  color: var(--dt-text);
+  font-family: var(--font-sans, 'Inter', sans-serif);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.milkdown .editor > :first-child {
+  margin-top: 0;
+}
+
+.milkdown .editor h1,
+.milkdown .editor h2,
+.milkdown .editor h3,
+.milkdown .editor h4,
+.milkdown .editor h5,
+.milkdown .editor h6 {
+  margin: 0.95em 0 0.45em;
+  line-height: 1.2;
+}
+
+.milkdown .editor h1 {
+  color: var(--dt-accent);
+  font-size: 1.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.milkdown .editor h2 {
+  font-size: 1.28rem;
+}
+
+.milkdown .editor h3 {
+  font-size: 1.08rem;
+}
+
+.milkdown .editor p {
+  margin: 0.65em 0;
+}
+
+.milkdown .editor code {
+  padding: 2px 5px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--dt-surface) 88%, var(--dt-accent) 12%);
+  font-family: var(
+    --font-mono,
+    'SF Mono',
+    Monaco,
+    'Cascadia Code',
+    'Roboto Mono',
+    Consolas,
+    monospace
+  );
+  font-size: 0.9em;
+}
+
+.milkdown .editor pre {
+  overflow-x: auto;
+  margin: 0.9em 0;
+  padding: 12px 14px;
+  border: 1px solid var(--dt-border);
+  border-radius: 2px;
+  background: var(--dt-surface);
+}
+
+.milkdown .editor pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.milkdown .editor blockquote {
+  margin: 0.9em 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--dt-accent);
+  color: var(--dt-text-muted);
+}
+
+.milkdown .editor a {
+  color: var(--dt-accent);
+  text-decoration: none;
+}
+
+.milkdown .editor a:hover {
+  text-decoration: underline;
+}
+
+.milkdown .editor hr {
+  border: 0;
+  border-top: 1px solid var(--dt-border);
+}
+
+.milkdown .editor ul,
+.milkdown .editor ol {
+  padding-left: 1.5rem;
+}
+
+.milkdown .editor img {
+  max-width: 100%;
+  border-radius: 2px;
+}
+
+.milkdown .editor table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.milkdown .editor th,
+.milkdown .editor td {
+  border: 1px solid var(--dt-border);
+}

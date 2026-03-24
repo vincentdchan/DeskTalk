@@ -1,0 +1,14 @@
+.frame {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at top, rgba(95, 156, 255, 0.16), transparent 40%), #05070c;
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}

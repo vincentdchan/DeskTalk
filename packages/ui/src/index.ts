@@ -14,9 +14,31 @@ import { DtStat } from './dt-stat';
 import { DtBadge } from './dt-badge';
 import { DtButton } from './dt-button';
 import { DtDivider } from './dt-divider';
+import { DtColumn, DtTableView } from './dt-table-view';
+import { DtListView } from './dt-list-view';
+import { DtChart, DtDataset } from './dt-chart';
+import { DtMarkdown } from './dt-markdown';
+import { DtMarkdownEditor } from './dt-markdown-editor';
 import './ui-elements';
 
-export { DtTooltip, DtCard, DtSelect, DtGrid, DtStack, DtStat, DtBadge, DtButton, DtDivider };
+export {
+  DtTooltip,
+  DtCard,
+  DtSelect,
+  DtGrid,
+  DtStack,
+  DtStat,
+  DtBadge,
+  DtButton,
+  DtDivider,
+  DtListView,
+  DtTableView,
+  DtColumn,
+  DtChart,
+  DtDataset,
+  DtMarkdown,
+  DtMarkdownEditor,
+};
 
 // ── Auto-register ────────────────────────────────────────────────────────────
 
@@ -54,4 +76,32 @@ if (!customElements.get('dt-button')) {
 
 if (!customElements.get('dt-divider')) {
   customElements.define('dt-divider', DtDivider);
+}
+
+if (!customElements.get('dt-list-view')) {
+  customElements.define('dt-list-view', DtListView);
+}
+
+if (!customElements.get('dt-table-view')) {
+  customElements.define('dt-table-view', DtTableView);
+}
+
+if (!customElements.get('dt-column')) {
+  customElements.define('dt-column', DtColumn);
+}
+
+if (!customElements.get('dt-chart')) {
+  customElements.define('dt-chart', DtChart);
+}
+
+if (!customElements.get('dt-dataset')) {
+  customElements.define('dt-dataset', DtDataset);
+}
+
+if (!customElements.get('dt-markdown')) {
+  customElements.define('dt-markdown', DtMarkdown);
+}
+
+if (!customElements.get('dt-markdown-editor')) {
+  customElements.define('dt-markdown-editor', DtMarkdownEditor);
 }

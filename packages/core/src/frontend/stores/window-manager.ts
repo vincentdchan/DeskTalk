@@ -280,16 +280,29 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
       args,
     };
 
+    // Resolve 'auto' split direction from focused tile dimensions
+    let resolvedDirection = state.nextSplitDirection;
+    if (resolvedDirection === 'auto' && state.tree) {
+      const targetId =
+        state.focusedWindowId && containsWindow(state.tree, state.focusedWindowId)
+          ? state.focusedWindowId
+          : getLeafIds(state.tree)[0];
+      const targetRect = state.tileRects.find((r) => r.windowId === targetId);
+      if (targetRect) {
+        resolvedDirection = targetRect.width >= targetRect.height ? 'horizontal' : 'vertical';
+      }
+    }
+
     // Insert into tiling tree
     let newTree: TilingNode;
     if (!state.tree) {
       newTree = { type: 'leaf', windowId: id };
     } else if (state.focusedWindowId && containsWindow(state.tree, state.focusedWindowId)) {
-      newTree = insertWindow(state.tree, state.focusedWindowId, id, state.nextSplitDirection);
+      newTree = insertWindow(state.tree, state.focusedWindowId, id, resolvedDirection);
     } else {
       // Focus lost or focused window not in tree — split the first leaf
       const leafIds = getLeafIds(state.tree);
-      newTree = insertWindow(state.tree, leafIds[0], id, state.nextSplitDirection);
+      newTree = insertWindow(state.tree, leafIds[0], id, resolvedDirection);
     }
 
     const { rects, bars } = recomputeLayout(newTree, state.desktopBounds);
@@ -302,7 +315,6 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
       tree: newTree,
       focusedWindowId: id,
       fullscreenWindowId: null,
-      nextSplitDirection: 'auto',
       tileRects: rects,
       splitBars: bars,
       focusedWindowActions: [],

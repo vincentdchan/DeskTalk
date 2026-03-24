@@ -46,6 +46,45 @@
   border-color: var(--dt-border);
 }
 
+/* ─── Split mode toggle ──────────────────────────────────────────────── */
+
+.splitToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dt-text);
+  cursor: pointer;
+  opacity: 0.72;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+
+  &:hover {
+    background: color-mix(in oklab, var(--dt-surface) 64%, transparent);
+    border-color: var(--dt-border-subtle);
+    opacity: 1;
+  }
+}
+
+.splitToggleActive {
+  border-color: color-mix(in oklab, var(--dt-accent) 50%, transparent);
+  color: var(--dt-accent);
+  opacity: 1;
+
+  &:hover {
+    background: var(--dt-accent-ghost);
+    border-color: var(--dt-accent);
+  }
+}
+
 /* ─── Separator / Actions ────────────────────────────────────────────── */
 
 .separator {

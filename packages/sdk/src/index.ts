@@ -3,6 +3,7 @@
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
 export { simplifyPath } from './utils/path';
+export { createHtmlBridgeScript } from './utils/html-bridge-script';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
