@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useCommand, useEvent, useWindowId } from '@desktalk/sdk';
+import { useCommand, useEvent, useOpenMiniApp, useWindowId } from '@desktalk/sdk';
 import type {
   PreviewActionState,
   PreviewBridgeConfirmPayload,
@@ -103,6 +103,7 @@ export function HtmlPreviewPane({
   onActionStateChange,
 }: HtmlPreviewPaneProps) {
   const windowId = useWindowId();
+  const openMiniApp = useOpenMiniApp();
   const [reloadKey, setReloadKey] = useState(0);
   const [pendingBridgeConfirm, setPendingBridgeConfirm] = useState<{
     confirmationRequestId: string;
@@ -128,6 +129,7 @@ export function HtmlPreviewPane({
   const normalizedPath = normalizePreviewPath(initialPath);
   const fileName = useMemo(() => getFileName(initialPath), [initialPath]);
   const shouldInjectRuntime = Boolean(liveAppId && bridgeToken && isLiveAppPath(initialPath));
+  const canEditLiveAppSource = Boolean(shouldInjectRuntime && normalizedPath);
 
   const iframeSrc = useMemo(() => {
     if (!normalizedPath) {
@@ -331,6 +333,14 @@ export function HtmlPreviewPane({
     [bridgeToken, confirmBridgeCommand, liveAppId, pendingBridgeConfirm],
   );
 
+  const handleEditSource = useCallback(() => {
+    if (!normalizedPath || !shouldInjectRuntime) {
+      return;
+    }
+
+    openMiniApp('text-edit', { path: normalizedPath });
+  }, [normalizedPath, openMiniApp, shouldInjectRuntime]);
+
   useEffect(() => {
     onActionStateChange({
       mode: 'html',
@@ -349,7 +359,12 @@ export function HtmlPreviewPane({
   if (iframeSrc && fileName) {
     return (
       <>
-        <PreviewToolbar filename={fileName} filepath={normalizedPath ?? undefined} mode="html" />
+        <PreviewToolbar
+          filename={fileName}
+          filepath={normalizedPath ?? undefined}
+          mode="html"
+          onEditSource={canEditLiveAppSource ? handleEditSource : undefined}
+        />
         <HtmlViewport
           src={iframeSrc}
           onBridgeRequest={shouldInjectRuntime ? respondToBridgeRequest : undefined}
