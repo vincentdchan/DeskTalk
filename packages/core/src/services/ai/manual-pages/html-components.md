@@ -326,6 +326,58 @@ Example:
 </script>
 ```
 
+### `<dt-chart>` and `<dt-dataset>`
+
+Interactive chart component powered by Chart.js. Prefer declarative `<dt-dataset>` children so streamed LiveApp HTML can reveal datasets incrementally.
+
+`<dt-chart>` attributes:
+
+- `type` — `bar` (default), `line`, `area`, `pie`, `doughnut`, `radar`, `scatter`, `bubble`
+- `labels` — comma-separated category labels such as `labels="Jan,Feb,Mar"`
+- `legend` — `top`, `bottom`, `left`, `right`, `none` (default)
+- `stacked` — stacks bar and line datasets
+- `.data` JS property — escape hatch for scatter, bubble, or computed data; overrides child datasets
+- `.options` JS property — advanced Chart.js options override; rarely needed
+- `dt-chart-click` event — emitted with `{ label, datasetIndex, index, value }`
+
+`<dt-dataset>` attributes:
+
+- `label` — legend label for the series
+- `values` — comma-separated numbers such as `values="12,19,3,5"`
+- `color` — optional CSS color override for the series
+
+**When to use:** Use for charts, graphs, trends, comparisons, and composition breakdowns. Prefer `<dt-stat>` for single KPIs.
+
+Examples:
+
+```html
+<dt-chart type="bar" legend="top" labels="Jan,Feb,Mar,Apr" style="height: 300px">
+  <dt-dataset label="Revenue" values="12,19,3,5"></dt-dataset>
+  <dt-dataset label="Costs" values="7,11,5,8"></dt-dataset>
+</dt-chart>
+
+<dt-chart type="doughnut" legend="right" labels="Electronics,Clothing,Food" style="height: 250px">
+  <dt-dataset label="Sales" values="35,25,22"></dt-dataset>
+</dt-chart>
+
+<dt-chart id="scatter" type="scatter" style="height: 300px"></dt-chart>
+
+<script>
+  document.getElementById('scatter').data = {
+    datasets: [
+      {
+        label: 'Samples',
+        data: [
+          { x: 1, y: 2 },
+          { x: 3, y: 4 },
+          { x: 5, y: 1 },
+        ],
+      },
+    ],
+  };
+</script>
+```
+
 ### `<dt-markdown>`
 
 Themed markdown renderer for rich text, documentation, notes, and AI-generated prose. Content can be inline between the tags or assigned through the `.content` JS property.

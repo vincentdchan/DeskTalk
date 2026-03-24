@@ -183,6 +183,35 @@ type DtColumnJSXProps = DtColumnAttributes & {
   key?: string | number | null;
 };
 
+type DtChartAttributes = Partial<{
+  type: 'bar' | 'line' | 'area' | 'pie' | 'doughnut' | 'radar' | 'scatter' | 'bubble';
+  legend: 'top' | 'bottom' | 'left' | 'right' | 'none';
+  stacked: boolean;
+  labels: string;
+  class: string;
+  style: string | Record<string, string>;
+}>;
+
+type DtChartJSXProps = DtChartAttributes & {
+  children?: unknown;
+  ref?: unknown;
+  key?: string | number | null;
+};
+
+type DtDatasetAttributes = Partial<{
+  label: string;
+  values: string;
+  color: string;
+  class: string;
+  style: string | Record<string, string>;
+}>;
+
+type DtDatasetJSXProps = DtDatasetAttributes & {
+  children?: unknown;
+  ref?: unknown;
+  key?: string | number | null;
+};
+
 type DtMarkdownAttributes = Partial<{
   streaming: boolean;
   'unsafe-html': boolean;
@@ -225,6 +254,8 @@ declare module 'react' {
       'dt-list-view': DtListViewJSXProps;
       'dt-table-view': DtTableViewJSXProps;
       'dt-column': DtColumnJSXProps;
+      'dt-chart': DtChartJSXProps;
+      'dt-dataset': DtDatasetJSXProps;
       'dt-markdown': DtMarkdownJSXProps;
       'dt-markdown-editor': DtMarkdownEditorJSXProps;
     }

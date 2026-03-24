@@ -7,6 +7,7 @@ import { build, context } from 'esbuild';
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const distDir = resolve(packageDir, 'dist');
 const mainEntryPoint = resolve(packageDir, 'src/index.ts');
+const chartEntryPoint = resolve(packageDir, 'src/chart-entry.ts');
 const markedEntryPoint = resolve(packageDir, 'src/marked-entry.ts');
 const milkdownEntryPoint = resolve(packageDir, 'src/milkdown-entry.ts');
 const isWatch = process.argv.includes('--watch');
@@ -61,6 +62,12 @@ const outputConfigs = [
     format: 'iife',
     globalName: 'DeskTalkUI',
     outfile: resolve(distDir, 'index.umd.js'),
+  },
+  {
+    entryPoints: [chartEntryPoint],
+    format: 'iife',
+    globalName: '__DtChartBundle',
+    outfile: resolve(distDir, 'chart.umd.js'),
   },
   {
     entryPoints: [markedEntryPoint],

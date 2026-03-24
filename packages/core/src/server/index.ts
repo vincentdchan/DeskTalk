@@ -836,6 +836,14 @@ export async function createServer(options: ServerOptions) {
     return reply.send(body);
   });
 
+  app.get('/api/ui/chart.js', async (_req, reply) => {
+    const { body, etag } = await getUiBundle('chart.umd.js', 'chart');
+    reply.header('Content-Type', 'application/javascript; charset=utf-8');
+    reply.header('Cache-Control', 'public, max-age=86400, immutable');
+    reply.header('ETag', etag);
+    return reply.send(body);
+  });
+
   app.get('/api/ui/marked.js', async (_req, reply) => {
     const { body, etag } = await getUiBundle('marked.umd.js', 'marked');
     reply.header('Content-Type', 'application/javascript; charset=utf-8');
