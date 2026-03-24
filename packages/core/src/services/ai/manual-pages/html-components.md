@@ -37,7 +37,7 @@ Each component has its own manual page with full attributes and examples.
 ### Layout
 
 - `html/components/dt-grid` — Auto-responsive grid layout
-- `html/components/dt-stack` — Flexbox stack for vertical or horizontal layouts
+- `html/components/dt-stack` — Flexbox stack for vertical or horizontal layouts (`direction` must be `row` or `column`, never `horizontal` / `vertical`)
 
 ### Display
 

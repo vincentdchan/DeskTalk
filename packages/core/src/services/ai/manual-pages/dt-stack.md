@@ -2,9 +2,12 @@
 
 Flexbox stack for vertical or horizontal layouts.
 
+Use `direction="row"` for horizontal layouts and `direction="column"` for vertical layouts.
+Never use `direction="horizontal"` or `direction="vertical"`.
+
 ## Attributes
 
-- `direction` — stack direction: `column` (default) or `row`
+- `direction` — stack direction: `column` (default) or `row` only
 - `gap` — spacing between items: `0`, `4`, `8`, `12`, `16`, `20`, `24`, `32` (default: `16`)
 - `align` — cross-axis alignment: `start`, `center`, `end`, `stretch` (default: `stretch`)
 

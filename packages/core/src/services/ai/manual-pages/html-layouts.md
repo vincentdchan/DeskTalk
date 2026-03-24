@@ -7,7 +7,7 @@ These layout rules are mandatory when using `create_liveapp`.
 Always use the built-in layout components for structure:
 
 - **`<dt-grid>`** — for multi-column layouts. Auto-responsive by default.
-- **`<dt-stack>`** — for linear arrangements (vertical lists, horizontal button rows).
+- **`<dt-stack>`** — for linear arrangements (vertical lists, horizontal button rows). Use `direction="row"` for horizontal and `direction="column"` for vertical. Never use `horizontal` or `vertical` as attribute values.
 
 Do not create custom grid or flexbox layouts with raw CSS unless absolutely necessary.
 
@@ -44,6 +44,7 @@ The layout components (`<dt-grid>`, `<dt-stack>`) handle responsive behavior int
 - `<dt-grid>` without `cols` attribute uses `auto-fit` — items wrap naturally
 - `<dt-grid>` with `cols` collapses to single column below 480px
 - `<dt-stack direction="row">` wraps to column below 480px
+- `<dt-stack>` only accepts `direction="row"` or `direction="column"`
 - Body padding is responsive (smaller on narrow views)
 
 Do not add custom media queries for basic responsive behavior.
