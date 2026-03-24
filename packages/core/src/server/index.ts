@@ -811,23 +811,41 @@ export async function createServer(options: ServerOptions) {
   // via a <script> tag without needing an external CDN.
 
   const require = createRequire(import.meta.url);
-  const uiBundlePath = join(
-    dirname(require.resolve('@desktalk/ui/package.json')),
-    'dist',
-    'index.umd.js',
-  );
-  let uiBundleCache: { body: Buffer; etag: string } | null = null;
+  const uiDistDir = join(dirname(require.resolve('@desktalk/ui/package.json')), 'dist');
+  const uiBundleCache = new Map<string, { body: Buffer; etag: string }>();
 
-  async function getUiBundle(): Promise<{ body: Buffer; etag: string }> {
-    if (uiBundleCache) return uiBundleCache;
-    const body = await readFile(uiBundlePath);
-    const etag = `"ui-${body.length.toString(36)}"`;
-    uiBundleCache = { body, etag };
-    return uiBundleCache;
+  async function getUiBundle(
+    fileName: string,
+    cacheKey: string,
+  ): Promise<{ body: Buffer; etag: string }> {
+    const cached = uiBundleCache.get(cacheKey);
+    if (cached) return cached;
+
+    const body = await readFile(join(uiDistDir, fileName));
+    const etag = `"${cacheKey}-${body.length.toString(36)}"`;
+    const next = { body, etag };
+    uiBundleCache.set(cacheKey, next);
+    return next;
   }
 
   app.get('/api/ui/desktalk-ui.js', async (_req, reply) => {
-    const { body, etag } = await getUiBundle();
+    const { body, etag } = await getUiBundle('index.umd.js', 'ui');
+    reply.header('Content-Type', 'application/javascript; charset=utf-8');
+    reply.header('Cache-Control', 'public, max-age=86400, immutable');
+    reply.header('ETag', etag);
+    return reply.send(body);
+  });
+
+  app.get('/api/ui/marked.js', async (_req, reply) => {
+    const { body, etag } = await getUiBundle('marked.umd.js', 'marked');
+    reply.header('Content-Type', 'application/javascript; charset=utf-8');
+    reply.header('Cache-Control', 'public, max-age=86400, immutable');
+    reply.header('ETag', etag);
+    return reply.send(body);
+  });
+
+  app.get('/api/ui/milkdown.js', async (_req, reply) => {
+    const { body, etag } = await getUiBundle('milkdown.umd.js', 'milkdown');
     reply.header('Content-Type', 'application/javascript; charset=utf-8');
     reply.header('Cache-Control', 'public, max-age=86400, immutable');
     reply.header('ETag', etag);

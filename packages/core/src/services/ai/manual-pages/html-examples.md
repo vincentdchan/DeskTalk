@@ -327,3 +327,108 @@ Use these examples as structure references, not as fixed templates.
   </body>
 </html>
 ```
+
+## Markdown Viewer
+
+```html
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Release Notes</title>
+    <style>
+      body {
+        background: var(--dt-bg);
+      }
+
+      #notes {
+        max-height: 420px;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Release Notes</h1>
+    <dt-card>
+      <dt-markdown id="notes"></dt-markdown>
+    </dt-card>
+
+    <script>
+      document.getElementById('notes').content = `# DeskTalk 0.8.0
+
+## Highlights
+
+- Added virtualized list and table components
+- Improved miniapp activation performance
+- Refined storage docs for LiveApps
+
+## Verification
+
+| Package | Status |
+| ------- | ------ |
+| Core    | Passed |
+| UI      | Passed |
+| Miniapp | Passed |
+
+> Use \`dt-link-click\` if you want to intercept links inside rendered markdown.`;
+    </script>
+  </body>
+</html>
+```
+
+## Markdown Note Editor
+
+```html
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Notes</title>
+    <style>
+      body {
+        background: var(--dt-bg);
+      }
+
+      #editor {
+        height: 420px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Operations Notes</h1>
+    <dt-stack gap="12">
+      <dt-stack direction="row" align="center" gap="8">
+        <dt-button id="save">Save</dt-button>
+        <dt-badge id="status" variant="neutral">Saved</dt-badge>
+      </dt-stack>
+      <dt-card>
+        <dt-markdown-editor id="editor" placeholder="Capture findings..."></dt-markdown-editor>
+      </dt-card>
+    </dt-stack>
+
+    <script>
+      const editor = document.getElementById('editor');
+      const status = document.getElementById('status');
+      const save = document.getElementById('save');
+      const saved =
+        window.DeskTalk.storage.get('ops.note') ||
+        '# Incident Review\n\n## Timeline\n\n- 09:00 Started investigation';
+
+      editor.value = saved;
+
+      editor.addEventListener('dt-change', () => {
+        status.textContent = 'Unsaved';
+        status.setAttribute('variant', 'warning');
+      });
+
+      save.addEventListener('click', () => {
+        window.DeskTalk.storage.set('ops.note', editor.value);
+        status.textContent = 'Saved';
+        status.setAttribute('variant', 'success');
+      });
+    </script>
+  </body>
+</html>
+```

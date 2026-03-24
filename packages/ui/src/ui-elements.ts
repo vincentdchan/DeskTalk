@@ -183,6 +183,32 @@ type DtColumnJSXProps = DtColumnAttributes & {
   key?: string | number | null;
 };
 
+type DtMarkdownAttributes = Partial<{
+  streaming: boolean;
+  'unsafe-html': boolean;
+  class: string;
+  style: string | Record<string, string>;
+}>;
+
+type DtMarkdownJSXProps = DtMarkdownAttributes & {
+  children?: unknown;
+  ref?: unknown;
+  key?: string | number | null;
+};
+
+type DtMarkdownEditorAttributes = Partial<{
+  placeholder: string;
+  readonly: boolean;
+  class: string;
+  style: string | Record<string, string>;
+}>;
+
+type DtMarkdownEditorJSXProps = DtMarkdownEditorAttributes & {
+  children?: unknown;
+  ref?: unknown;
+  key?: string | number | null;
+};
+
 declare module 'react' {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
@@ -199,6 +225,8 @@ declare module 'react' {
       'dt-list-view': DtListViewJSXProps;
       'dt-table-view': DtTableViewJSXProps;
       'dt-column': DtColumnJSXProps;
+      'dt-markdown': DtMarkdownJSXProps;
+      'dt-markdown-editor': DtMarkdownEditorJSXProps;
     }
   }
 }

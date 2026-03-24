@@ -16,6 +16,8 @@ import { DtButton } from './dt-button';
 import { DtDivider } from './dt-divider';
 import { DtColumn, DtTableView } from './dt-table-view';
 import { DtListView } from './dt-list-view';
+import { DtMarkdown } from './dt-markdown';
+import { DtMarkdownEditor } from './dt-markdown-editor';
 import './ui-elements';
 
 export {
@@ -31,6 +33,8 @@ export {
   DtListView,
   DtTableView,
   DtColumn,
+  DtMarkdown,
+  DtMarkdownEditor,
 };
 
 // ── Auto-register ────────────────────────────────────────────────────────────
@@ -81,4 +85,12 @@ if (!customElements.get('dt-table-view')) {
 
 if (!customElements.get('dt-column')) {
   customElements.define('dt-column', DtColumn);
+}
+
+if (!customElements.get('dt-markdown')) {
+  customElements.define('dt-markdown', DtMarkdown);
+}
+
+if (!customElements.get('dt-markdown-editor')) {
+  customElements.define('dt-markdown-editor', DtMarkdownEditor);
 }

@@ -326,6 +326,75 @@ Example:
 </script>
 ```
 
+### `<dt-markdown>`
+
+Themed markdown renderer for rich text, documentation, notes, and AI-generated prose. Content can be inline between the tags or assigned through the `.content` JS property.
+
+- `streaming` — shows a blinking caret and tolerates incomplete markdown while content updates
+- `unsafe-html` — allows raw HTML in the markdown source
+- `.content` JS property — markdown source string; overrides inline text content
+- `dt-link-click` event — emitted with `{ href }` when a rendered link is clicked
+
+**When to use:** Use for READMEs, release notes, help panels, generated reports, and any text that is more naturally authored as markdown than raw HTML.
+
+Examples:
+
+```html
+<dt-markdown id="release-notes"></dt-markdown>
+
+<dt-markdown id="stream-output" streaming></dt-markdown>
+
+<script>
+  document.getElementById('release-notes').content = `# Release Notes
+
+- Added virtualized tables
+- Improved command latency
+- Fixed stale auth session refresh
+
+> All systems are operational.`;
+
+  const output = document.getElementById('stream-output');
+  output.content = '# Build Report\n\nCollecting results';
+  setTimeout(() => {
+    output.content = '# Build Report\n\nCollecting results...\n\n- Core: passed\n- UI: passed';
+    output.streaming = false;
+  }, 600);
+</script>
+```
+
+### `<dt-markdown-editor>`
+
+WYSIWYG markdown editor powered by Milkdown. Users edit formatted content directly, while the component stores and returns markdown.
+
+- `placeholder` — empty editor hint text
+- `readonly` — makes the editor read-only
+- `.value` JS property — get or replace the current markdown document
+- `dt-change` event — emitted with `{ value }` after content changes (debounced)
+- `dt-focus` event — emitted when the editor gains focus
+- `dt-blur` event — emitted when the editor loses focus
+
+**When to use:** Use for notes, documentation, comments, change logs, prompts, and any workflow that needs rich text authoring without building your own editor UI.
+
+Example:
+
+```html
+<dt-markdown-editor
+  id="note-editor"
+  placeholder="Write something..."
+  style="height: 400px"
+></dt-markdown-editor>
+<dt-button id="save-note">Save</dt-button>
+
+<script>
+  const editor = document.getElementById('note-editor');
+  editor.value = '# Team Notes\n\n- Review onboarding docs\n- Schedule release check';
+
+  document.getElementById('save-note').addEventListener('click', () => {
+    window.DeskTalk.storage.set('notes.latest', editor.value);
+  });
+</script>
+```
+
 ---
 
 ## Interactive Components
