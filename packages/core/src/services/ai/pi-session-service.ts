@@ -942,12 +942,14 @@ export class PiSessionService {
       // Prepend the dynamic desktop context to the user's message so the AI
       // always sees the current windows, MiniApps, and available actions
       // without requiring an extra tool call.
+      const userHomeDir = getUserHomeDir(this.getCurrentUsername());
       const desktopContext = this.windowManager.getDesktopContext(
         registry.getManifests(),
-        listLiveApps(getUserHomeDir(this.getCurrentUsername())).map((app) => ({
+        listLiveApps(userHomeDir).map((app) => ({
           id: app.id,
           name: app.name,
         })),
+        userHomeDir,
       );
       const augmentedText = `${desktopContext}\n\n${input.text}`;
       await this.session.prompt(augmentedText);

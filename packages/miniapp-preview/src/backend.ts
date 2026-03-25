@@ -1,6 +1,6 @@
 import type { MiniAppManifest, MiniAppContext, MiniAppBackendActivation } from '@desktalk/sdk';
 import { mkdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import type {
   PreviewFile,
   SiblingList,
@@ -73,7 +73,7 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
     cwd: string | undefined,
     timeoutMs: number,
   ) {
-    if (activeBridgeExecs >= 15) {
+    if (activeBridgeExecs >= 2) {
       throw new Error('Too many bridge commands are already running.');
     }
 
@@ -141,14 +141,6 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
   ctx.messaging.onCommand<{ path: string }, PreviewFile>('preview.open', async (req) =>
     buildPreviewFile(req.path),
   );
-
-  ctx.messaging.onCommand<{ path: string }, string>('preview.resolveAbsolutePath', async (req) => {
-    if (!req?.path || typeof req.path !== 'string') {
-      throw new Error('path is required');
-    }
-
-    return resolve(ctx.paths.home, req.path);
-  });
 
   ctx.messaging.onCommand<{ streamId: string; title: string }, StreamedHtmlSnapshot | null>(
     'preview.stream.load-html',

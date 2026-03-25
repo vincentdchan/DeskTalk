@@ -34,26 +34,6 @@ export function PreviewActions({
   onInvokeLiveAppAction,
 }: PreviewActionsProps) {
   const openFile = useCommand<{ path: string }, PreviewFile>('preview.open');
-  const resolveAbsolutePath = useCommand<{ path: string }, string>('preview.resolveAbsolutePath');
-
-  const toAbsolutePath = useCallback(
-    async (path: string | null | undefined) => {
-      if (!path) {
-        return path ?? null;
-      }
-
-      return resolveAbsolutePath({ path });
-    },
-    [resolveAbsolutePath],
-  );
-
-  const toAgentFile = useCallback(
-    async (file: PreviewFile) => ({
-      ...file,
-      path: await toAbsolutePath(file.path),
-    }),
-    [toAbsolutePath],
-  );
 
   const handleOpen = useCallback(
     async (params?: Record<string, unknown>) => {
@@ -61,24 +41,12 @@ export function PreviewActions({
       if (!path) return { error: 'path parameter is required' };
       const file = await openFile({ path });
       onFileOpened(file);
-      return toAgentFile(file);
+      return file;
     },
-    [onFileOpened, openFile, toAgentFile],
+    [openFile, onFileOpened],
   );
 
-  const handleGetState = useCallback(async () => {
-    if (!state.file?.path) {
-      return state;
-    }
-
-    return {
-      ...state,
-      file: {
-        ...state.file,
-        path: await toAbsolutePath(state.file.path),
-      },
-    };
-  }, [state, toAbsolutePath]);
+  const handleGetState = useCallback(async () => state, [state]);
 
   const handleZoomIn = useCallback(async () => {
     onZoomIn();
