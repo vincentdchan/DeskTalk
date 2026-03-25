@@ -1,6 +1,6 @@
 import type { Preview } from '@storybook/web-components-vite';
 
-import { generateThemeCSS, type ThemeMode } from '../../core/src/services/theme-css';
+import { generateThemeCSS, type ThemeMode } from '../src/theme-css';
 import '../src/index';
 
 const THEME_STYLE_ID = 'dt-storybook-theme';

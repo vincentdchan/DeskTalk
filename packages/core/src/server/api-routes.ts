@@ -23,7 +23,7 @@ import {
   DEFAULT_THEME_PREFERENCES,
   generateThemeCSS,
   HTML_BASE_STYLESHEET,
-} from '../services/theme-css';
+} from '@desktalk/ui/theme-css';
 import { getUserHomeDir } from '../services/workspace';
 import { validateSession } from '../services/user-db';
 import { COOKIE_NAME } from './auth-routes';

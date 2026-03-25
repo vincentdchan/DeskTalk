@@ -3,7 +3,7 @@ import { Type } from '@sinclair/typebox';
 import type { SendAiCommand } from './desktop-tool';
 import { broadcastEvent } from '../messaging';
 import { randomUUID } from 'node:crypto';
-import { DEFAULT_THEME_PREFERENCES, type ThemePreferences } from '../theme-css';
+import { DEFAULT_THEME_PREFERENCES, type ThemePreferences } from '@desktalk/ui/theme-css';
 import { createHtmlBridgeScript } from './html-bridge-script';
 import { createThemeLinkTag } from './html-theme-link';
 import { UI_BUNDLE_SCRIPT_TAG } from './html-ui-script';

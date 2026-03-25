@@ -9,6 +9,7 @@
   "jsdelivr": "./dist/desktalk-ui.js",
   "files": [
     "dist",
+    "src/theme-css.ts",
     "types.d.ts"
   ],
   "exports": {
@@ -16,6 +17,11 @@
       "types": "./types.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./theme-css": {
+      "types": "./src/theme-css.ts",
+      "import": "./dist/theme-css.js",
+      "default": "./dist/theme-css.js"
     },
     "./umd": "./dist/desktalk-ui.js",
     "./package.json": "./package.json"
@@ -28,6 +34,7 @@
     "storybook:build": "storybook build -c .storybook"
   },
   "devDependencies": {
+    "@types/culori": "^4.0.1",
     "@storybook/addon-a11y": "^10.3.1",
     "@storybook/web-components-vite": "^10.3.1",
     "esbuild": "^0.24.0",
@@ -39,6 +46,7 @@
     "@milkdown/crepe": "^7.19.0",
     "@milkdown/kit": "^7.19.0",
     "chart.js": "^4.5.1",
+    "culori": "^4.0.2",
     "marked": "^17.0.5"
   }
 }
