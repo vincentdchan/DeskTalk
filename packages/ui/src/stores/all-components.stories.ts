@@ -233,6 +233,24 @@ export const AllComponents: StoryObj = {
         </div>
       </div>
 
+      <h3>Text Input</h3>
+      <div class="section">
+        <div class="component-grid cols-3">
+          <div>
+            <label>Default</label>
+            <input type="text" placeholder="Enter text..." />
+          </div>
+          <div>
+            <label>With Value</label>
+            <input type="text" value="Hello World" />
+          </div>
+          <div>
+            <label>Disabled</label>
+            <input type="text" disabled placeholder="Disabled input" />
+          </div>
+        </div>
+      </div>
+
       <!-- H2: Content Display -->
       <h2>Content Display</h2>
       
