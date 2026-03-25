@@ -101,7 +101,9 @@
   --desktop-wallpaper: var(--dt-wallpaper);
   --desktop-window-bg: var(--dt-info-panel-bg);
 
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-display: 'Sora', system-ui, -apple-system, sans-serif;
+  --font-ui: 'Work Sans', system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-ui);
   --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
 
   --dock-height: 64px;

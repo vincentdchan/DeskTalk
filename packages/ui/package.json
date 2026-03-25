@@ -9,6 +9,8 @@
   "jsdelivr": "./dist/desktalk-ui.js",
   "files": [
     "dist",
+    "src/theme-css.ts",
+    "src/fonts",
     "types.d.ts"
   ],
   "exports": {
@@ -17,6 +19,12 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./theme-css": {
+      "types": "./src/theme-css.ts",
+      "import": "./dist/theme-css.js",
+      "default": "./dist/theme-css.js"
+    },
+    "./fonts.css": "./src/fonts/fonts.css",
     "./umd": "./dist/desktalk-ui.js",
     "./package.json": "./package.json"
   },
@@ -29,7 +37,9 @@
   },
   "devDependencies": {
     "@storybook/addon-a11y": "^10.3.1",
+    "@storybook/addon-docs": "^10.3.3",
     "@storybook/web-components-vite": "^10.3.1",
+    "@types/culori": "^4.0.1",
     "esbuild": "^0.24.0",
     "storybook": "^10.3.1",
     "typescript": "^5.7.0",
@@ -39,6 +49,7 @@
     "@milkdown/crepe": "^7.19.0",
     "@milkdown/kit": "^7.19.0",
     "chart.js": "^4.5.1",
+    "culori": "^4.0.2",
     "marked": "^17.0.5"
   }
 }

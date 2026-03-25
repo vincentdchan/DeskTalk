@@ -2,6 +2,12 @@ import React, { useCallback, useState, useEffect } from 'react';
 import type { PreferenceSchema } from '../schema';
 import styles from '../styles/PreferenceApp.module.css';
 
+interface DtSelectElement extends HTMLElement {
+  options: Array<{ value: string; label: string }>;
+  value: string;
+  disabled: boolean;
+}
+
 interface PreferenceRowProps {
   schema: PreferenceSchema;
   value: string | number | boolean;
@@ -73,19 +79,45 @@ function ColorControl({
     setLocalValue(value);
   }, [value]);
 
-  const commit = useCallback(() => {
-    if (localValue !== value) {
-      onChange(schema.key, localValue.trim());
-    }
-  }, [localValue, onChange, schema.key, value]);
+  const commit = useCallback(
+    (nextValue?: string) => {
+      const resolvedValue = (nextValue ?? localValue).trim();
+      if (resolvedValue !== value) {
+        onChange(schema.key, resolvedValue);
+      }
+    },
+    [localValue, onChange, schema.key, value],
+  );
+
+  const handlePickerInput = useCallback((e: React.FormEvent<HTMLInputElement>) => {
+    setLocalValue(e.currentTarget.value);
+  }, []);
 
   const handlePickerChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setLocalValue(e.target.value);
-      onChange(schema.key, e.target.value);
+      const nextValue = e.target.value;
+      setLocalValue(nextValue);
+      commit(nextValue);
     },
-    [onChange, schema.key],
+    [commit],
   );
+
+  const handleTextChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalValue(e.target.value);
+  }, []);
+
+  const handleTextKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        commit();
+      }
+    },
+    [commit],
+  );
+
+  const handleTextBlur = useCallback(() => {
+    commit();
+  }, [commit]);
 
   const pickerValue = isHexColor(localValue) ? localValue : '#7c6ff7';
 
@@ -95,6 +127,7 @@ function ColorControl({
         type="color"
         className={styles.colorInput}
         value={pickerValue}
+        onInput={handlePickerInput}
         onChange={handlePickerChange}
         aria-label={`${schema.label} picker`}
       />
@@ -102,13 +135,9 @@ function ColorControl({
         type="text"
         className={styles.textInput}
         value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            commit();
-          }
-        }}
+        onChange={handleTextChange}
+        onBlur={handleTextBlur}
+        onKeyDown={handleTextKeyDown}
         placeholder="#7c6ff7"
       />
     </div>
@@ -156,20 +185,68 @@ function DropdownControl({
   onChange: (key: string, value: string) => void;
 }) {
   const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      onChange(schema.key, e.target.value);
+    (nextValue: string) => {
+      onChange(schema.key, nextValue);
     },
     [schema.key, onChange],
   );
 
   return (
-    <select className={styles.dropdown} value={value} onChange={handleChange}>
-      {(schema.options ?? []).map((opt) => (
-        <option key={opt} value={opt}>
-          {opt}
-        </option>
-      ))}
-    </select>
+    <DtSelectControl
+      value={value}
+      options={(schema.options ?? []).map((opt) => ({ value: opt, label: opt }))}
+      onChange={handleChange}
+    />
+  );
+}
+
+function DtSelectControl({
+  value,
+  options,
+  disabled = false,
+  onChange,
+}: {
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const [selectElement, setSelectElement] = useState<DtSelectElement | null>(null);
+
+  useEffect(() => {
+    if (!selectElement) {
+      return;
+    }
+
+    selectElement.options = options;
+  }, [options, selectElement]);
+
+  useEffect(() => {
+    if (!selectElement) {
+      return;
+    }
+
+    selectElement.value = value;
+    selectElement.disabled = disabled;
+  }, [disabled, selectElement, value]);
+
+  useEffect(() => {
+    if (!selectElement) {
+      return;
+    }
+
+    const handleSelectChange = (event: Event) => {
+      onChange((event as CustomEvent<{ value: string }>).detail.value);
+    };
+
+    selectElement.addEventListener('dt-change', handleSelectChange);
+    return () => selectElement.removeEventListener('dt-change', handleSelectChange);
+  }, [onChange, selectElement]);
+
+  return (
+    <div className={styles.selectWrap}>
+      <dt-select ref={(element: DtSelectElement | null) => setSelectElement(element)} />
+    </div>
   );
 }
 

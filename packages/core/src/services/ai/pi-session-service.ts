@@ -8,6 +8,9 @@ import {
   readTool,
   writeTool,
   bashTool,
+  grepTool,
+  findTool,
+  lsTool,
   SessionManager,
   type AgentSession,
   type AgentSessionEvent,
@@ -402,6 +405,7 @@ export class PiSessionService {
 
     const resourceLoader = new DefaultResourceLoader({
       cwd: process.cwd(),
+      additionalSkillPaths: [join(workspacePaths.data, 'skills')],
       appendSystemPromptOverride: (base) => [...base, DESKTALK_SYSTEM_PROMPT],
     });
     await resourceLoader.reload();
@@ -478,7 +482,7 @@ export class PiSessionService {
       modelRegistry,
       model: initialModel,
       sessionManager,
-      tools: [readTool, writeTool, bashTool],
+      tools: [readTool, writeTool, bashTool, grepTool, findTool, lsTool],
       customTools,
       resourceLoader,
     });
@@ -507,7 +511,7 @@ export class PiSessionService {
       modelRegistry: this.modelRegistry,
       model: this.session.model,
       sessionManager,
-      tools: [readTool],
+      tools: [readTool, writeTool, bashTool, grepTool, findTool, lsTool],
       customTools: this.customTools,
       resourceLoader: this.resourceLoader,
     });
@@ -572,6 +576,10 @@ export class PiSessionService {
         updatedAt: Date.now(),
       }
     );
+  }
+
+  async abort(): Promise<void> {
+    await this.session.abort();
   }
 
   private maybeAssignSessionTitle(inputText: string): void {
@@ -934,12 +942,14 @@ export class PiSessionService {
       // Prepend the dynamic desktop context to the user's message so the AI
       // always sees the current windows, MiniApps, and available actions
       // without requiring an extra tool call.
+      const userHomeDir = getUserHomeDir(this.getCurrentUsername());
       const desktopContext = this.windowManager.getDesktopContext(
         registry.getManifests(),
-        listLiveApps(getUserHomeDir(this.getCurrentUsername())).map((app) => ({
+        listLiveApps(userHomeDir).map((app) => ({
           id: app.id,
           name: app.name,
         })),
+        userHomeDir,
       );
       const augmentedText = `${desktopContext}\n\n${input.text}`;
       await this.session.prompt(augmentedText);

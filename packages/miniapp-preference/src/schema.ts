@@ -21,14 +21,26 @@ export type Config = Record<string, string | number | boolean>;
 export const CATEGORIES = ['General', 'Server', 'AI', 'Voice'] as const;
 export type Category = (typeof CATEGORIES)[number];
 
-interface AiProviderDefinition {
+export interface AiProviderDefinition {
   id: string;
   label: string;
   supportsApiKey: boolean;
   supportsBaseUrl: boolean;
 }
 
-const AI_PROVIDER_DEFINITIONS: AiProviderDefinition[] = [
+export interface VoiceProviderDefinition {
+  id: string;
+  label: string;
+  supportsApiKey: boolean;
+  supportsBaseUrl: boolean;
+  supportsModel: boolean;
+  supportsAzureDeployment: boolean;
+  supportsAzureApiVersion: boolean;
+}
+
+export const DEFAULT_AI_PROVIDER_ID = 'openai';
+
+export const AI_PROVIDER_DEFINITIONS: AiProviderDefinition[] = [
   { id: 'anthropic', label: 'Anthropic', supportsApiKey: true, supportsBaseUrl: false },
   {
     id: 'azure-openai-responses',
@@ -36,7 +48,7 @@ const AI_PROVIDER_DEFINITIONS: AiProviderDefinition[] = [
     supportsApiKey: true,
     supportsBaseUrl: true,
   },
-  { id: 'openai', label: 'OpenAI', supportsApiKey: true, supportsBaseUrl: true },
+  { id: DEFAULT_AI_PROVIDER_ID, label: 'OpenAI', supportsApiKey: true, supportsBaseUrl: true },
   { id: 'google', label: 'Google Gemini', supportsApiKey: true, supportsBaseUrl: false },
   {
     id: 'mistral',
@@ -89,14 +101,151 @@ const AI_PROVIDER_DEFINITIONS: AiProviderDefinition[] = [
   { id: 'ollama', label: 'Ollama', supportsApiKey: false, supportsBaseUrl: true },
 ];
 
+export const DEFAULT_VOICE_PROVIDER_ID = 'openai-whisper';
+
+export const VOICE_PROVIDER_DEFINITIONS: VoiceProviderDefinition[] = [
+  {
+    id: DEFAULT_VOICE_PROVIDER_ID,
+    label: 'OpenAI Whisper',
+    supportsApiKey: true,
+    supportsBaseUrl: true,
+    supportsModel: true,
+    supportsAzureDeployment: false,
+    supportsAzureApiVersion: false,
+  },
+  {
+    id: 'azure-openai-whisper',
+    label: 'Azure OpenAI Whisper',
+    supportsApiKey: true,
+    supportsBaseUrl: true,
+    supportsModel: false,
+    supportsAzureDeployment: true,
+    supportsAzureApiVersion: true,
+  },
+];
+
+const AI_PROVIDER_IDS = new Set(AI_PROVIDER_DEFINITIONS.map((provider) => provider.id));
+const VOICE_PROVIDER_IDS = new Set(VOICE_PROVIDER_DEFINITIONS.map((provider) => provider.id));
+
+export function getAiProviderDefinition(providerId: string): AiProviderDefinition | undefined {
+  return AI_PROVIDER_DEFINITIONS.find((provider) => provider.id === providerId);
+}
+
+export function getAiProviderConfigKeys(providerId: string): string[] {
+  const definition = getAiProviderDefinition(providerId);
+  if (!definition) {
+    return [];
+  }
+
+  const keys = [`ai.providers.${providerId}.model`];
+  if (definition.supportsApiKey) {
+    keys.push(`ai.providers.${providerId}.apiKey`);
+  }
+  if (definition.supportsBaseUrl) {
+    keys.push(`ai.providers.${providerId}.baseUrl`);
+  }
+  return keys;
+}
+
+export function parseAiEnabledProviders(value: unknown): string[] {
+  if (typeof value !== 'string') {
+    return [DEFAULT_AI_PROVIDER_ID];
+  }
+
+  const providers = value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(
+      (item, index, items) => item && items.indexOf(item) === index && AI_PROVIDER_IDS.has(item),
+    );
+
+  return providers.length > 0 ? providers : [DEFAULT_AI_PROVIDER_ID];
+}
+
+export function serializeAiEnabledProviders(providerIds: string[]): string {
+  return parseAiEnabledProviders(providerIds.join(',')).join(',');
+}
+
+export function hasAiProviderConfig(config: Config, providerId: string): boolean {
+  return getAiProviderConfigKeys(providerId).some((key) => {
+    const value = config[key];
+    return typeof value === 'string' && value.trim().length > 0;
+  });
+}
+
+export function getVoiceProviderDefinition(
+  providerId: string,
+): VoiceProviderDefinition | undefined {
+  return VOICE_PROVIDER_DEFINITIONS.find((provider) => provider.id === providerId);
+}
+
+export function getVoiceProviderConfigKeys(providerId: string): string[] {
+  const definition = getVoiceProviderDefinition(providerId);
+  if (!definition) {
+    return [];
+  }
+
+  const keys: string[] = [];
+  if (definition.supportsApiKey) {
+    keys.push(`voice.providers.${providerId}.apiKey`);
+  }
+  if (definition.supportsModel) {
+    keys.push(`voice.providers.${providerId}.model`);
+  }
+  if (definition.supportsBaseUrl) {
+    keys.push(`voice.providers.${providerId}.baseUrl`);
+  }
+  if (definition.supportsAzureDeployment) {
+    keys.push(`voice.providers.${providerId}.azureDeployment`);
+  }
+  if (definition.supportsAzureApiVersion) {
+    keys.push(`voice.providers.${providerId}.azureApiVersion`);
+  }
+  return keys;
+}
+
+export function parseVoiceEnabledProviders(value: unknown): string[] {
+  if (typeof value !== 'string') {
+    return [DEFAULT_VOICE_PROVIDER_ID];
+  }
+
+  const providers = value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(
+      (item, index, items) => item && items.indexOf(item) === index && VOICE_PROVIDER_IDS.has(item),
+    );
+
+  return providers.length > 0 ? providers : [DEFAULT_VOICE_PROVIDER_ID];
+}
+
+export function serializeVoiceEnabledProviders(providerIds: string[]): string {
+  return parseVoiceEnabledProviders(providerIds.join(',')).join(',');
+}
+
+export function hasVoiceProviderConfig(config: Config, providerId: string): boolean {
+  return getVoiceProviderConfigKeys(providerId).some((key) => {
+    const value = config[key];
+    return typeof value === 'string' && value.trim().length > 0;
+  });
+}
+
 function getAiProviderPreferenceSchemas(): PreferenceSchema[] {
   const schemas: PreferenceSchema[] = [
+    {
+      key: 'ai.enabledProviders',
+      label: 'Enabled Providers',
+      description: 'Ordered list of configured AI providers.',
+      type: 'string',
+      default: DEFAULT_AI_PROVIDER_ID,
+      category: 'AI',
+    },
     {
       key: 'ai.defaultProvider',
       label: 'Default Provider',
       description: 'Provider selected by default for chat and tool execution.',
       type: 'string',
-      default: 'openai',
+      default: DEFAULT_AI_PROVIDER_ID,
       options: AI_PROVIDER_DEFINITIONS.map((provider) => provider.id),
       category: 'AI',
     },
@@ -151,6 +300,93 @@ function getAiProviderPreferenceSchemas(): PreferenceSchema[] {
 }
 
 const AI_PREFERENCE_SCHEMAS = getAiProviderPreferenceSchemas();
+
+function getVoiceProviderPreferenceSchemas(): PreferenceSchema[] {
+  const schemas: PreferenceSchema[] = [
+    {
+      key: 'voice.enabledProviders',
+      label: 'Enabled Providers',
+      description: 'Ordered list of configured STT providers.',
+      type: 'string',
+      default: DEFAULT_VOICE_PROVIDER_ID,
+      category: 'Voice',
+    },
+    {
+      key: 'voice.defaultProvider',
+      label: 'Default Provider',
+      description: 'Provider selected by default for voice transcription.',
+      type: 'string',
+      default: DEFAULT_VOICE_PROVIDER_ID,
+      options: VOICE_PROVIDER_DEFINITIONS.map((provider) => provider.id),
+      category: 'Voice',
+    },
+  ];
+
+  for (const provider of VOICE_PROVIDER_DEFINITIONS) {
+    if (provider.supportsApiKey) {
+      schemas.push({
+        key: `voice.providers.${provider.id}.apiKey`,
+        label: `${provider.label} API Key`,
+        description: `API key for ${provider.label}.`,
+        type: 'string',
+        default: '',
+        category: 'Voice',
+        sensitive: true,
+      });
+    }
+
+    if (provider.supportsModel) {
+      schemas.push({
+        key: `voice.providers.${provider.id}.model`,
+        label: `${provider.label} Model`,
+        description: `Model identifier to use when ${provider.label} is selected.`,
+        type: 'string',
+        default: 'whisper-1',
+        category: 'Voice',
+      });
+    }
+
+    if (provider.supportsBaseUrl) {
+      schemas.push({
+        key: `voice.providers.${provider.id}.baseUrl`,
+        label: `${provider.label} Base URL`,
+        description:
+          provider.id === 'azure-openai-whisper'
+            ? 'Base URL for Azure OpenAI Whisper requests.'
+            : `Optional custom API base URL for ${provider.label}.`,
+        type: 'string',
+        default: provider.id === DEFAULT_VOICE_PROVIDER_ID ? 'https://api.openai.com/v1' : '',
+        category: 'Voice',
+      });
+    }
+
+    if (provider.supportsAzureDeployment) {
+      schemas.push({
+        key: `voice.providers.${provider.id}.azureDeployment`,
+        label: `${provider.label} Deployment`,
+        description: 'Azure OpenAI deployment name for Whisper transcription.',
+        type: 'string',
+        default: '',
+        category: 'Voice',
+      });
+    }
+
+    if (provider.supportsAzureApiVersion) {
+      schemas.push({
+        key: `voice.providers.${provider.id}.azureApiVersion`,
+        label: `${provider.label} API Version`,
+        description: 'Azure OpenAI API version used for transcription requests.',
+        type: 'string',
+        default: '2024-06-01',
+        category: 'Voice',
+      });
+    }
+  }
+
+  return schemas;
+}
+
+const VOICE_PREFERENCE_SCHEMAS = getVoiceProviderPreferenceSchemas();
 
 export const PREFERENCE_SCHEMAS: PreferenceSchema[] = [
   // ─── General ─────────────────────────────────────────────────────────────
@@ -217,57 +453,7 @@ export const PREFERENCE_SCHEMAS: PreferenceSchema[] = [
   ...AI_PREFERENCE_SCHEMAS,
 
   // ─── Voice ────────────────────────────────────────────────────────────
-  {
-    key: 'voice.provider',
-    label: 'STT Provider',
-    description: 'Speech-to-text provider to use for voice transcription.',
-    type: 'string',
-    default: 'openai-whisper',
-    options: ['openai-whisper', 'azure-openai-whisper'],
-    category: 'Voice',
-  },
-  {
-    key: 'voice.apiKey',
-    label: 'API Key',
-    description: 'API key for the STT provider.',
-    type: 'string',
-    default: '',
-    category: 'Voice',
-    sensitive: true,
-  },
-  {
-    key: 'voice.model',
-    label: 'Model',
-    description: 'STT model identifier for OpenAI-compatible providers (e.g. whisper-1).',
-    type: 'string',
-    default: 'whisper-1',
-    category: 'Voice',
-  },
-  {
-    key: 'voice.baseUrl',
-    label: 'API Base URL',
-    description:
-      'Base URL for the STT provider API. For Azure use your resource URL (e.g. https://YOUR-RESOURCE.openai.azure.com).',
-    type: 'string',
-    default: 'https://api.openai.com/v1',
-    category: 'Voice',
-  },
-  {
-    key: 'voice.azureDeployment',
-    label: 'Azure Deployment',
-    description: 'Azure OpenAI deployment name for Whisper transcription.',
-    type: 'string',
-    default: '',
-    category: 'Voice',
-  },
-  {
-    key: 'voice.azureApiVersion',
-    label: 'Azure API Version',
-    description: 'Azure OpenAI API version used for transcription requests.',
-    type: 'string',
-    default: '2024-06-01',
-    category: 'Voice',
-  },
+  ...VOICE_PREFERENCE_SCHEMAS,
   {
     key: 'voice.silenceTimeoutMs',
     label: 'Silence Timeout',

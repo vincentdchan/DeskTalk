@@ -31,9 +31,41 @@ function createThemeLinkTag(accentColor: string, mode: 'light' | 'dark'): string
   return `<link rel="stylesheet" href="/api/ui/desktalk-theme.css?${params.toString()}" data-dt-theme>`;
 }
 
+function createThemeSyncScript(accentColor: string, mode: 'light' | 'dark'): string {
+  return `<script data-dt-theme-sync>
+(() => {
+  const THEME_MESSAGE = 'desktalk:theme-update';
+  const THEME_SELECTOR = 'link[data-dt-theme]';
+  const updateTheme = (nextAccent, nextMode) => {
+    const params = new URLSearchParams({ accent: nextAccent, theme: nextMode });
+    const href = '/api/ui/desktalk-theme.css?' + params.toString();
+    let link = document.querySelector(THEME_SELECTOR);
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.setAttribute('data-dt-theme', '');
+      document.head.prepend(link);
+    }
+    link.href = href;
+    document.documentElement.dataset.theme = nextMode;
+    document.documentElement.style.colorScheme = nextMode;
+    document.documentElement.style.backgroundColor = nextMode === 'dark' ? '#101114' : '#f7f7fa';
+    document.body?.style.setProperty('background-color', nextMode === 'dark' ? '#101114' : '#f7f7fa');
+  };
+  updateTheme(${JSON.stringify(accentColor)}, ${JSON.stringify(mode)});
+  window.addEventListener('message', (event) => {
+    const data = event.data;
+    if (!data || data.type !== THEME_MESSAGE) return;
+    updateTheme(data.accentColor, data.mode === 'light' ? 'light' : 'dark');
+  });
+})();
+</script>`;
+}
+
 function stripDtInjections(html: string): string {
   return html
     .replace(/<link[^>]*data-dt-theme[^>]*>\s*/gi, '')
+    .replace(/<script[^>]*data-dt-theme-sync[^>]*>[\s\S]*?<\/script>\s*/gi, '')
     .replace(/<script[^>]*data-dt-ui[^>]*><\/script>\s*/gi, '')
     .replace(/<script[^>]*data-dt-bridge[^>]*>[\s\S]*?<\/script>\s*/gi, '');
 }
@@ -60,6 +92,7 @@ function injectDtRuntime(
   const cleanHtml = stripDtInjections(html);
   const snippet = [
     createThemeLinkTag(options.accentColor, options.theme),
+    createThemeSyncScript(options.accentColor, options.theme),
     '<script src="/api/ui/desktalk-ui.js" data-dt-ui></script>',
     createHtmlBridgeScript(options.streamId, options.bridgeToken),
   ].join('\n');

@@ -7,15 +7,7 @@
   border: 1px solid var(--dt-accent);
   border-radius: 2px;
   padding: 12px;
-  font-family: var(
-    --font-mono,
-    'SF Mono',
-    Monaco,
-    'Cascadia Code',
-    'Roboto Mono',
-    Consolas,
-    monospace
-  );
+  font-family: var(--font-ui, 'Work Sans', system-ui, sans-serif);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -50,15 +42,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: var(
-    --font-mono,
-    'SF Mono',
-    Monaco,
-    'Cascadia Code',
-    'Roboto Mono',
-    Consolas,
-    monospace
-  );
+  font-family: var(--font-display, 'Sora', system-ui, sans-serif);
 }
 
 .dt-stat-inner .description {

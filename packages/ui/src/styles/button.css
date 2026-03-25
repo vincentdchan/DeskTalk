@@ -13,15 +13,7 @@
   border-radius: 2px;
   font-size: 0.8125rem;
   font-weight: 600;
-  font-family: var(
-    --font-mono,
-    'SF Mono',
-    Monaco,
-    'Cascadia Code',
-    'Roboto Mono',
-    Consolas,
-    monospace
-  );
+  font-family: var(--font-ui, 'Work Sans', system-ui, sans-serif);
   line-height: 1.2;
   cursor: pointer;
   transition: all 0.1s ease;

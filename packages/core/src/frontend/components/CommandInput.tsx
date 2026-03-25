@@ -7,6 +7,7 @@ import styles from './CommandInput.module.scss';
 
 export interface CommandInputProps {
   onSubmit: () => void;
+  onCancelAi: () => boolean;
   isAiRunning: boolean;
   queuedCount: number;
   isVoiceActive: boolean;
@@ -19,6 +20,7 @@ const MAX_TEXTAREA_HEIGHT = 200;
 
 export function CommandInput({
   onSubmit,
+  onCancelAi,
   isAiRunning,
   queuedCount,
   isVoiceActive,
@@ -30,7 +32,31 @@ export function CommandInput({
   const setDraftInput = useChatSession((state) => state.setDraftInput);
   const clearDraftInput = useChatSession((state) => state.clearDraftInput);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const cancelResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const [isCancelArmed, setIsCancelArmed] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const resetCancelState = useMemoizedFn(() => {
+    if (cancelResetTimeoutRef.current !== null) {
+      clearTimeout(cancelResetTimeoutRef.current);
+      cancelResetTimeoutRef.current = null;
+    }
+    setIsCancelArmed(false);
+    setIsCancelling(false);
+  });
+
+  const armCancelShortcut = useMemoizedFn(() => {
+    if (cancelResetTimeoutRef.current !== null) {
+      clearTimeout(cancelResetTimeoutRef.current);
+    }
+
+    setIsCancelArmed(true);
+    cancelResetTimeoutRef.current = setTimeout(() => {
+      cancelResetTimeoutRef.current = null;
+      setIsCancelArmed(false);
+    }, 1500);
+  });
 
   // Determine if we should show the slash command autocomplete.
   // Only when input starts with "/" and contains no spaces (still typing the command name).
@@ -58,6 +84,23 @@ export function CommandInput({
   });
 
   const handleKeyDown = useMemoizedFn((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' && isAiRunning) {
+      e.preventDefault();
+      if (isCancelArmed) {
+        if (cancelResetTimeoutRef.current !== null) {
+          clearTimeout(cancelResetTimeoutRef.current);
+          cancelResetTimeoutRef.current = null;
+        }
+        setIsCancelArmed(false);
+        if (onCancelAi()) {
+          setIsCancelling(true);
+        }
+      } else {
+        armCancelShortcut();
+      }
+      return;
+    }
+
     if (showSuggestions) {
       if (e.key === 'ArrowUp') {
         e.preventDefault();
@@ -92,6 +135,20 @@ export function CommandInput({
   useLayoutEffect(() => {
     setSelectedIdx(0);
   }, [suggestions.length]);
+
+  useLayoutEffect(() => {
+    if (!isAiRunning) {
+      resetCancelState();
+    }
+  }, [isAiRunning, resetCancelState]);
+
+  useLayoutEffect(() => {
+    return () => {
+      if (cancelResetTimeoutRef.current !== null) {
+        clearTimeout(cancelResetTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Auto-resize the textarea to fit its content, up to MAX_TEXTAREA_HEIGHT.
   useLayoutEffect(() => {
@@ -134,9 +191,13 @@ export function CommandInput({
           onKeyDown={handleKeyDown}
           rows={1}
           placeholder={
-            isAiRunning
-              ? 'AI is thinking... press Enter to queue the next message'
-              : 'Ask the AI...'
+            isCancelling
+              ? 'Cancelling AI...'
+              : isAiRunning
+                ? isCancelArmed
+                  ? 'Press Esc again to cancel AI, or Enter to queue the next message'
+                  : 'AI is thinking... press Esc twice to cancel or Enter to queue the next message'
+                : 'Ask the AI...'
           }
           disabled={!wsReady}
         />

@@ -40,6 +40,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const loadSessions = useChatSession((s) => s.loadSessions);
   const switchSession = useChatSession((s) => s.switchSession);
   const createSession = useChatSession((s) => s.createSession);
+  const cancelAiRequest = useChatSession((s) => s.cancelAiRequest);
   const submitPrompt = useChatSession((s) => s.submitPrompt);
   const clearDraftInput = useChatSession((s) => s.clearDraftInput);
   const handleAiEvent = useChatSession((s) => s.handleAiEvent);
@@ -246,6 +247,14 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     }
   }, [clearDraftInput, createSession, socket]);
 
+  const handleCancelAi = useCallback(() => {
+    if (!socket) {
+      return false;
+    }
+
+    return cancelAiRequest(socket);
+  }, [cancelAiRequest, socket]);
+
   return (
     <div className={styles.infoPanel}>
       <div className={styles.header}>
@@ -346,6 +355,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
 
       <CommandInput
         onSubmit={handleSend}
+        onCancelAi={handleCancelAi}
         isAiRunning={isAiRunning}
         queuedCount={queuedPrompts.length}
         isVoiceActive={isVoiceActive}

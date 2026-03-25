@@ -7,6 +7,7 @@ import { build, context } from 'esbuild';
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const distDir = resolve(packageDir, 'dist');
 const mainEntryPoint = resolve(packageDir, 'src/index.ts');
+const themeCssEntryPoint = resolve(packageDir, 'src/theme-css.ts');
 const chartEntryPoint = resolve(packageDir, 'src/chart-entry.ts');
 const markedEntryPoint = resolve(packageDir, 'src/marked-entry.ts');
 const milkdownEntryPoint = resolve(packageDir, 'src/milkdown-entry.ts');
@@ -14,6 +15,7 @@ const isWatch = process.argv.includes('--watch');
 
 const sharedOptions = {
   bundle: true,
+  minify: !isWatch,
   platform: 'browser',
   sourcemap: true,
   target: 'es2022',
@@ -56,6 +58,11 @@ const outputConfigs = [
     entryPoints: [mainEntryPoint],
     format: 'esm',
     outfile: resolve(distDir, 'index.js'),
+  },
+  {
+    entryPoints: [themeCssEntryPoint],
+    format: 'esm',
+    outfile: resolve(distDir, 'theme-css.js'),
   },
   {
     entryPoints: [mainEntryPoint],

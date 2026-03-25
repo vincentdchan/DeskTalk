@@ -18,6 +18,7 @@ import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { useDragStore } from '../stores/drag-store';
 import { httpClient } from '../http-client';
 import type { ThemePreferences } from '../theme';
+import { HTML_FORM_CONTROLS_STYLESHEET } from '../theme';
 import type { LauncherApp, LiveAppRecord } from './launcher-types';
 import styles from './Shell.module.scss';
 
@@ -26,6 +27,8 @@ const ASSISTANT_MIN_RATIO = 0.18;
 const ASSISTANT_MAX_RATIO = 0.45;
 const ASSISTANT_DEFAULT_RATIO = 0.28;
 const ASSISTANT_WINDOW_ID = '__assistant__';
+const SHELL_FORM_STYLE_ID = 'dt-shell-form-controls';
+const SHELL_SCOPE_SELECTOR = '[data-dt-shell]';
 
 function clampAssistantRatio(ratio: number): number {
   return Math.min(Math.max(ratio, ASSISTANT_MIN_RATIO), ASSISTANT_MAX_RATIO);
@@ -81,6 +84,25 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
   useDesktopBounds(desktopRef);
   useKeyboardShortcuts();
   useBridgeState();
+
+  useEffect(() => {
+    let styleEl = document.getElementById(SHELL_FORM_STYLE_ID) as HTMLStyleElement | null;
+
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = SHELL_FORM_STYLE_ID;
+      document.head.appendChild(styleEl);
+    }
+
+    styleEl.textContent = HTML_FORM_CONTROLS_STYLESHEET.replaceAll(
+      'input[type="',
+      `${SHELL_SCOPE_SELECTOR} input[type="`,
+    );
+
+    return () => {
+      styleEl?.remove();
+    };
+  }, []);
 
   // Detect clicks inside iframes for focus tracking.
   // When an iframe receives focus the parent window blurs.  At that moment
@@ -258,7 +280,7 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
   }, []);
 
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-dt-shell>
       <ConnectionOverlay status={connectionStatus} retryInSeconds={retryInSeconds} />
 
       <div className={styles.actionsBar}>

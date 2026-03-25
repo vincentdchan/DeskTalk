@@ -9,14 +9,12 @@ const workspaceRoot = resolve(configDir, '../../..');
 
 const config: StorybookConfig = {
   stories: ['../src/**/*.stories.ts'],
-  addons: ['@storybook/addon-a11y'],
+  addons: ['@storybook/addon-a11y', '@storybook/addon-docs'],
   framework: {
     name: '@storybook/web-components-vite',
     options: {},
   },
-  docs: {
-    autodocs: 'tag',
-  },
+  staticDirs: ['../src/fonts'],
   async viteFinal(baseConfig) {
     return mergeConfig(baseConfig, {
       server: {

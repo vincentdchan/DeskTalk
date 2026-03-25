@@ -32,16 +32,30 @@ export const MANUAL_PAGES: ManualPageMeta[] = [
   {
     path: 'html/bridge',
     title: 'HTML Bridge',
-    description: 'window.DeskTalk APIs for reading state and running constrained commands.',
+    description:
+      'window.DeskTalk APIs for reading state, making HTTP requests, and running constrained commands.',
     file: 'html-bridge.md',
-    related: ['html/components', 'html/storage', 'desktop/windows', 'desktop/actions'],
+    related: [
+      'html/components',
+      'html/storage',
+      'html/actions',
+      'desktop/windows',
+      'desktop/actions',
+    ],
+  },
+  {
+    path: 'html/actions',
+    title: 'LiveApp Actions',
+    description: 'Register LiveApp actions that the AI can invoke from the focused Preview window.',
+    file: 'html-actions.md',
+    related: ['html/bridge', 'html/storage', 'desktop/actions'],
   },
   {
     path: 'html/storage',
     title: 'HTML Storage',
     description: 'How LiveApps persist data with DeskTalk.storage KV and collections.',
     file: 'html-storage.md',
-    related: ['html/bridge', 'html/examples', 'editing/preview'],
+    related: ['html/bridge', 'html/actions', 'html/examples', 'editing/preview'],
   },
   {
     path: 'html/examples',
@@ -167,7 +181,7 @@ export const MANUAL_PAGES: ManualPageMeta[] = [
     title: 'Desktop Actions',
     description: 'How to use the action tool with the Desktop Context block and window actions.',
     file: 'desktop-actions.md',
-    related: ['desktop/windows', 'editing/preview'],
+    related: ['desktop/windows', 'html/actions', 'editing/preview'],
   },
   {
     path: 'editing/preview',

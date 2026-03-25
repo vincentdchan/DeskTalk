@@ -167,8 +167,134 @@ export function generateThemeCSS(preferences: ThemePreferences): string {
   );
   put('--dt-shadow-color', dark ? oklchValue(0.12, 0.05, h, 0.4) : oklchValue(0.12, 0.05, h, 0.15));
 
+  // Font variables
+  put('--font-display', "'Sora', system-ui, -apple-system, sans-serif");
+  put('--font-ui', "'Work Sans', system-ui, -apple-system, sans-serif");
+  put('--font-mono', "'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace");
+
   return `:root {\n${lines.join('\n')}\n}`;
 }
+
+/**
+ * Base stylesheet for AI-generated HTML.
+ *
+ * Provides sensible defaults for body, headings, tables, cards, buttons, and
+ * code blocks — all using semantic `--dt-*` tokens. This ensures generated HTML
+ * looks native to DeskTalk without the AI needing to emit its own reset/base styles.
+ */
+/**
+ * Font face definitions for self-hosted Google Fonts.
+ * Include this in your HTML <head> before theme CSS.
+ */
+export const FONT_FACES_CSS = `
+/* Sora - Display font for headings and decorative numbers */
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('sora-400.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('sora-500.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('sora-600.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('sora-700.ttf') format('truetype');
+}
+
+/* Work Sans - UI font for body text and buttons */
+@font-face {
+  font-family: 'Work Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('work-sans-400.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Work Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('work-sans-500.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Work Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('work-sans-600.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Work Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('work-sans-700.ttf') format('truetype');
+}
+`.trim();
+
+/**
+ * CSS variables for font families.
+ */
+export const FONT_VARIABLES_CSS = `
+:root {
+  --font-display: 'Sora', system-ui, -apple-system, sans-serif;
+  --font-ui: 'Work Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+}
+`.trim();
+
+export const HTML_FORM_CONTROLS_STYLESHEET = `
+input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="search"], input[type="url"] {
+  font-family: var(--font-mono, 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: var(--dt-text);
+  background: var(--dt-surface);
+  border: 1px solid var(--dt-accent);
+  border-radius: 2px;
+  padding: 6px 10px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: all 0.1s ease;
+  position: relative;
+}
+input[type="text"]:hover, input[type="email"]:hover, input[type="password"]:hover, input[type="number"]:hover, input[type="search"]:hover, input[type="url"]:hover {
+  background: var(--dt-accent);
+  color: var(--dt-text-on-accent);
+}
+input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, input[type="number"]:focus, input[type="search"]:focus, input[type="url"]:focus {
+  background: var(--dt-accent);
+  color: var(--dt-text-on-accent);
+}
+input[type="text"]:disabled, input[type="email"]:disabled, input[type="password"]:disabled, input[type="number"]:disabled, input[type="search"]:disabled, input[type="url"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+input[type="text"]::placeholder, input[type="email"]::placeholder, input[type="password"]::placeholder, input[type="number"]::placeholder, input[type="search"]::placeholder, input[type="url"]::placeholder {
+  color: var(--dt-text-muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+`.trim();
 
 /**
  * Base stylesheet for AI-generated HTML.
@@ -180,58 +306,63 @@ export function generateThemeCSS(preferences: ThemePreferences): string {
 export const HTML_BASE_STYLESHEET = `
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-ui, 'Work Sans'), system-ui, -apple-system, sans-serif;
   background: var(--dt-bg);
   color: var(--dt-text);
-  line-height: 1.6;
-  padding: 24px;
+  line-height: 1.5;
+  padding: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 h1, h2, h3, h4, h5, h6 {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  font-family: var(--font-display, 'Sora'), system-ui, -apple-system, sans-serif !important;
   color: var(--dt-text) !important;
-  line-height: 1.3 !important;
+  line-height: 1.2 !important;
   margin-top: 0 !important;
   margin-bottom: 0.5em !important;
   font-style: normal !important;
   text-transform: none !important;
-  letter-spacing: -0.01em !important;
+  letter-spacing: -0.02em !important;
 }
-h1 { font-size: 2rem !important; font-weight: 700 !important; letter-spacing: -0.02em !important; }
-h2 { font-size: 1.5rem !important; font-weight: 600 !important; }
-h3 { font-size: 1.25rem !important; font-weight: 600 !important; }
-h4 { font-size: 1.125rem !important; font-weight: 600 !important; }
-h5 { font-size: 1rem !important; font-weight: 600 !important; }
-h6 { font-size: 0.875rem !important; font-weight: 600 !important; text-transform: uppercase !important; letter-spacing: 0.05em !important; }
+h1 { font-size: 1.5rem !important; font-weight: 500 !important; letter-spacing: -0.03em !important; }
+h2 { font-size: 1.25rem !important; font-weight: 500 !important; letter-spacing: -0.02em !important; }
+h3 { font-size: 1.125rem !important; font-weight: 500 !important; }
+h4 { font-size: 1rem !important; font-weight: 500 !important; }
+h5 { font-size: 0.875rem !important; font-weight: 500 !important; }
+h6 { font-size: 0.75rem !important; font-weight: 600 !important; text-transform: uppercase !important; letter-spacing: 0.1em !important; }
 p {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
-  font-size: 1rem !important;
+  font-family: var(--font-ui, 'Work Sans'), system-ui, -apple-system, sans-serif !important;
+  font-size: 0.9375rem !important;
   font-weight: 400 !important;
-  line-height: 1.6 !important;
+  line-height: 1.5 !important;
   color: var(--dt-text-secondary) !important;
   margin-top: 0 !important;
   margin-bottom: 1em !important;
 }
-a { color: var(--dt-accent); text-decoration: none; }
-a:hover { color: var(--dt-accent-hover); text-decoration: underline; }
+a { color: var(--dt-accent); text-decoration: none; font-weight: 500; }
+a:hover { color: var(--dt-accent-hover); text-decoration: none; }
 hr {
   border: none;
   border-top: 1px solid var(--dt-border);
-  margin: 1.5em 0;
+  margin: 1.25em 0;
 }
 table {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 1em;
+  font-size: 0.875rem;
 }
 th, td {
-  padding: 8px 12px;
+  padding: 10px 12px;
   text-align: left;
   border-bottom: 1px solid var(--dt-border);
 }
 th {
   background: var(--dt-surface);
   color: var(--dt-text);
-  font-weight: 600;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
 }
 tr:hover td { background: var(--dt-surface-hover); }
 code {
@@ -239,18 +370,21 @@ code {
   background: var(--dt-surface);
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 0.875em;
+  font-size: 0.8125em;
+  font-weight: 400;
 }
 pre {
   background: var(--dt-surface);
   border: 1px solid var(--dt-border);
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: 6px;
+  padding: 14px;
   overflow-x: auto;
   margin-bottom: 1em;
+  font-size: 0.8125rem;
 }
 pre code { background: none; padding: 0; }
 .text-muted { color: var(--dt-text-muted); }
 .text-secondary { color: var(--dt-text-secondary); }
 .accent-bg { background: var(--dt-accent-subtle); }
+${HTML_FORM_CONTROLS_STYLESHEET}
 `.trim();

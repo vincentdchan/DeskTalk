@@ -9,15 +9,7 @@
   border-radius: 2px;
   padding: 12px;
   color: var(--dt-text);
-  font-family: var(
-    --font-mono,
-    'SF Mono',
-    Monaco,
-    'Cascadia Code',
-    'Roboto Mono',
-    Consolas,
-    monospace
-  );
+  font-family: var(--font-ui, 'Work Sans', system-ui, sans-serif);
   position: relative;
 }
 
@@ -63,15 +55,7 @@
   color: var(--dt-accent);
   margin: 0 0 6px;
   line-height: 1.2;
-  font-family: var(
-    --font-mono,
-    'SF Mono',
-    Monaco,
-    'Cascadia Code',
-    'Roboto Mono',
-    Consolas,
-    monospace
-  );
+  font-family: var(--font-display, 'Sora', system-ui, sans-serif);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -82,15 +66,7 @@
   color: var(--dt-text-secondary);
   margin: 0 0 6px;
   line-height: 1.4;
-  font-family: var(
-    --font-mono,
-    'SF Mono',
-    Monaco,
-    'Cascadia Code',
-    'Roboto Mono',
-    Consolas,
-    monospace
-  );
+  font-family: var(--font-ui, 'Work Sans', system-ui, sans-serif);
   font-size: 0.8125rem;
 }
 

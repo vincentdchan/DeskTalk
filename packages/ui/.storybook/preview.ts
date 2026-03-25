@@ -1,6 +1,6 @@
 import type { Preview } from '@storybook/web-components-vite';
 
-import { generateThemeCSS, type ThemeMode } from '../../core/src/services/theme-css';
+import { generateThemeCSS, type ThemeMode } from '../src/theme-css';
 import '../src/index';
 
 const THEME_STYLE_ID = 'dt-storybook-theme';
@@ -22,8 +22,9 @@ function applyDeskTalkTheme(mode: ThemeMode, accentColor: string): void {
   ensureStyleTag(THEME_STYLE_ID).textContent = generateThemeCSS({ theme: mode, accentColor });
   ensureStyleTag(PREVIEW_STYLE_ID).textContent = `
     :root {
-      --font-sans: "Avenir Next", "Segoe UI", sans-serif;
-      --font-mono: "IBM Plex Mono", "SF Mono", "Cascadia Code", monospace;
+      --font-display: 'Sora', system-ui, -apple-system, sans-serif;
+      --font-ui: 'Work Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
     }
 
     html, body {
@@ -34,7 +35,7 @@ function applyDeskTalkTheme(mode: ThemeMode, accentColor: string): void {
       margin: 0;
       background: var(--dt-bg);
       color: var(--dt-text);
-      font-family: var(--font-sans);
+      font-family: var(--font-ui);
     }
 
     #storybook-root {
@@ -76,9 +77,9 @@ function applyDeskTalkTheme(mode: ThemeMode, accentColor: string): void {
     .dt-sb-kicker {
       margin: 0 0 8px;
       color: var(--dt-text-muted);
-      font-family: var(--font-mono);
+      font-family: var(--font-display);
       font-size: 11px;
-      font-weight: 700;
+      font-weight: 600;
       letter-spacing: 0.16em;
       text-transform: uppercase;
     }
@@ -86,7 +87,9 @@ function applyDeskTalkTheme(mode: ThemeMode, accentColor: string): void {
     .dt-sb-title {
       margin: 0;
       color: var(--dt-text);
+      font-family: var(--font-display);
       font-size: clamp(1.6rem, 3vw, 2.4rem);
+      font-weight: 700;
       line-height: 1;
     }
 
@@ -114,7 +117,7 @@ function applyDeskTalkTheme(mode: ThemeMode, accentColor: string): void {
       border-radius: 999px;
       background: color-mix(in oklab, var(--dt-surface) 82%, transparent);
       color: var(--dt-text-secondary);
-      font-family: var(--font-mono);
+      font-family: var(--font-ui);
       font-size: 11px;
       font-weight: 700;
       letter-spacing: 0.08em;

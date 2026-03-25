@@ -111,6 +111,89 @@
   gap: 16px;
 }
 
+.providerList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.providerCard {
+  margin: 0;
+}
+
+.providerCard :global(dt-card) {
+  display: block;
+  margin: 0;
+}
+
+.providerCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.providerCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.providerCardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.providerCardTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--onb-text);
+}
+
+.providerDefaultBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--onb-accent-ghost);
+  color: var(--onb-accent);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.providerCardActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.providerButtonWrap,
+.providerActionButtonWrap {
+  display: inline-flex;
+}
+
+.providerButtonWrap :global(dt-button),
+.providerActionButtonWrap :global(dt-button) {
+  display: inline-flex;
+}
+
+.providerSelectWrap {
+  width: 100%;
+}
+
+.providerSelectWrap :global(dt-select) {
+  display: block;
+  width: 100%;
+}
+
+.providerFieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -296,4 +379,40 @@
   display: flex;
   gap: 8px;
   margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .card {
+    width: min(92vw, 520px);
+    padding: 28px 20px 20px;
+  }
+
+  .providerCardHeader,
+  .providerCardActions,
+  .footer,
+  .footerActions {
+    flex-direction: column;
+  }
+
+  .providerCardActions,
+  .footerActions {
+    margin-left: 0;
+  }
+
+  .providerButtonWrap,
+  .providerActionButtonWrap {
+    width: 100%;
+  }
+
+  .providerFieldGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .buttonPrimary,
+  .buttonSecondary,
+  .providerButtonWrap :global(dt-button),
+  .providerActionButtonWrap :global(dt-button) {
+    width: 100%;
+    margin-left: 0;
+  }
 }

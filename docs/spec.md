@@ -153,13 +153,14 @@ The raw HTML on disk is always clean — runtime injections are stripped before 
 
 Every LiveApp receives a `window.DeskTalk` bridge object in its iframe context. This provides:
 
-| API                                  | Description                                                                                             |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `exec(command)` / `execute(command)` | Execute a shell command. Accepts a string (`"ls -la"`) or explicit args (`"ls", ["-la"]`).              |
-| `getTheme()`                         | Read current theme preferences (accent color, light/dark mode).                                         |
-| `onThemeChange(callback)`            | Subscribe to theme changes.                                                                             |
-| `storage.get/set/delete/list`        | KV store for simple JSON values. See [liveapp-storage.md](./liveapp-storage.md).                        |
-| `storage.collection(name)`           | Collection API for structured records (JSONL + SQLite). See [liveapp-storage.md](./liveapp-storage.md). |
+| API                                  | Description                                                                                                                              |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `exec(command)` / `execute(command)` | Execute a shell command. Accepts a string (`"ls -la"`) or explicit args (`"ls", ["-la"]`).                                               |
+| `request(url, options)`              | Make an HTTP request through the Preview backend. Blocks private/localhost destinations. See [liveapp-request.md](./liveapp-request.md). |
+| `getTheme()`                         | Read current theme preferences (accent color, light/dark mode).                                                                          |
+| `onThemeChange(callback)`            | Subscribe to theme changes.                                                                                                              |
+| `storage.get/set/delete/list`        | KV store for simple JSON values. See [liveapp-storage.md](./liveapp-storage.md).                                                         |
+| `storage.collection(name)`           | Collection API for structured records (JSONL + SQLite). See [liveapp-storage.md](./liveapp-storage.md).                                  |
 
 The bridge communicates with the core via `postMessage` and a per-session `bridgeToken` for authentication.
 
@@ -457,7 +458,7 @@ DeskTalk uses [pi](https://pi.dev) (`@mariozechner/pi-coding-agent`) as its AI b
 
 ### Custom Tools
 
-Pi's built-in tools stay tightly constrained in DeskTalk. The built-in `read` tool is enabled so the AI can inspect files when needed, but unrestricted filesystem and shell tools remain disabled. The AI interacts with DeskTalk through custom tools:
+DeskTalk enables Pi's built-in coding/navigation tools in addition to DeskTalk-specific custom tools. Built-in tools are `read`, `write`, `bash`, `grep`, `find`, and `ls`.
 
 | Tool             | Description                                                                                                                                                      |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -469,6 +470,15 @@ Pi's built-in tools stay tightly constrained in DeskTalk. The built-in `read` to
 | `undo_edit`      | Restores the previous saved version of a managed file from persistent history.                                                                                   |
 | `redo_edit`      | Re-applies the next saved version of a managed file from persistent history.                                                                                     |
 | `read_manual`    | Returns paged DeskTalk manuals for HTML generation, desktop operations, actions, and editing workflows.                                                          |
+
+### Skills
+
+DeskTalk uses pi's built-in skills system via `DefaultResourceLoader`.
+
+- Skills are auto-discovered from standard pi locations (for example `.pi/skills/` in the project and `~/.pi/agent/skills/` globally).
+- DeskTalk also adds an app-specific location: `<data>/skills/`.
+- Skill metadata (name/description/path) is injected into the system prompt automatically.
+- The AI loads a matched skill's `SKILL.md` on demand via the built-in `read` tool.
 
 ### LiveApp Generation Flow
 

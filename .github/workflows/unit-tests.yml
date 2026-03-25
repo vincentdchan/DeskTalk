@@ -30,8 +30,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build SDK and UI packages
+        run: |
+          pnpm --filter @desktalk/sdk build
+          pnpm --filter @desktalk/ui build
+
       - name: Run typecheck
-        run: pnpm --filter @desktalk/sdk build && pnpm -r exec tsc -p tsconfig.build.json --noEmit
+        run: pnpm -r exec tsc -p tsconfig.build.json --noEmit
 
       - name: Run ESLint
         run: pnpm lint

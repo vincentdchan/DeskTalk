@@ -62,6 +62,52 @@ export interface PreviewBridgeExecPayload {
   options?: PreviewBridgeExecOptions;
 }
 
+export interface PreviewBridgeNetworkRequestOptions {
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+  json?: unknown;
+  timeoutMs?: number;
+}
+
+export interface PreviewBridgeNetworkRequest {
+  url: string;
+  options?: PreviewBridgeNetworkRequestOptions;
+}
+
+export interface PreviewBridgeRequestPayload {
+  streamId: string;
+  token: string;
+  request: PreviewBridgeNetworkRequest;
+}
+
+export interface PreviewBridgeRequestResult {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  headers: Record<string, string>;
+  body: string;
+  truncated: boolean;
+  url: string;
+}
+
+export interface PreviewBridgeActionParam {
+  type: 'string' | 'number' | 'boolean';
+  description?: string;
+  required?: boolean;
+}
+
+export interface PreviewBridgeActionDefinition {
+  name: string;
+  description: string;
+  params?: Record<string, PreviewBridgeActionParam>;
+}
+
+export type PreviewBridgeActionsRequest =
+  | ({ action: 'register' } & PreviewBridgeActionDefinition)
+  | { action: 'unregister'; name: string }
+  | { action: 'clear' };
+
 export interface PreviewBridgeStorageQueryOptions {
   sort?: string;
   order?: 'asc' | 'desc';
@@ -149,7 +195,7 @@ export interface PreviewBridgeRequestMessage {
   streamId: string;
   token: string;
   requestId: string;
-  kind: 'getState' | 'exec' | 'storage';
+  kind: 'getState' | 'exec' | 'storage' | 'request' | 'actions';
   payload: unknown;
 }
 
@@ -161,6 +207,31 @@ export interface PreviewBridgeResponseMessage {
   ok: boolean;
   result?: unknown;
   error?: string;
+}
+
+export interface PreviewInvokeActionMessage {
+  type: 'desktalk:invoke-action';
+  streamId: string;
+  token: string;
+  requestId: string;
+  actionName: string;
+  params: Record<string, unknown> | null;
+}
+
+export interface PreviewInvokeActionResultMessage {
+  type: 'desktalk:invoke-action-result';
+  streamId: string;
+  token: string;
+  requestId: string;
+  ok: boolean;
+  result?: unknown;
+  error?: string;
+}
+
+export interface PreviewThemeUpdateMessage {
+  type: 'desktalk:theme-update';
+  accentColor: string;
+  mode: 'light' | 'dark';
 }
 
 export interface PreviewBridgeWindowSummary {

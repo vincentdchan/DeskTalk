@@ -22,6 +22,7 @@ export interface ChatMessage {
   content: string;
   source?: 'text' | 'voice';
   timestamp?: number;
+  cancelled?: boolean;
   /** When present, this message represents a tool call (rendered as a standalone row). */
   toolCall?: ToolCallInfo;
   /** Chain-of-thought / extended thinking text from the model (if available). */
@@ -67,6 +68,7 @@ export interface AiEventMessage {
   usage?: {
     totalTokens?: number;
   };
+  cancelled?: boolean;
   messages?: ChatMessage[];
   toolCall?: ToolCallInfo;
   sessions?: ChatSessionOption[];
@@ -99,6 +101,7 @@ export interface ChatSessionState {
   loadSessions: (socket: WebSocket) => boolean;
   switchSession: (sessionId: string, socket: WebSocket) => boolean;
   createSession: (socket: WebSocket) => boolean;
+  cancelAiRequest: (socket: WebSocket) => boolean;
   submitPrompt: (text: string, source: 'text' | 'voice', socket: WebSocket) => boolean;
   setDraftInput: (value: string) => void;
   clearDraftInput: () => void;
@@ -208,6 +211,22 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
     socket.send(
       JSON.stringify({
         type: 'ai:sessions:create',
+      }),
+    );
+
+    return true;
+  },
+
+  cancelAiRequest(socket: WebSocket) {
+    const state = get();
+    if (socket.readyState !== WebSocket.OPEN || !state.isAiRunning || !state.activeRequestId) {
+      return false;
+    }
+
+    socket.send(
+      JSON.stringify({
+        type: 'ai:cancel',
+        requestId: state.activeRequestId,
       }),
     );
 
@@ -329,15 +348,32 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
       const endedRequestId = state.activeRequestId;
       const providerOptions = state.providerOptions;
       const selectedProvider = state.selectedProvider;
+      const cancelledMarker = '[Cancelled]';
 
       set((prev) => {
         let messages = prev.messages;
-        // Remove empty assistant message bubble by matching its ID
         if (endedRequestId) {
           const targetId = `assistant-${endedRequestId}`;
           const idx = messages.findIndex((m) => m.id === targetId);
-          if (idx >= 0 && !messages[idx].content && !messages[idx].thinkingContent) {
-            messages = [...messages.slice(0, idx), ...messages.slice(idx + 1)];
+          if (idx >= 0) {
+            const target = messages[idx];
+            if (event.cancelled) {
+              const nextContent = target.content.trim()
+                ? `${target.content.replace(/\s+$/u, '')}\n\n${cancelledMarker}`
+                : cancelledMarker;
+              messages = [
+                ...messages.slice(0, idx),
+                {
+                  ...target,
+                  content: target.cancelled ? target.content : nextContent,
+                  cancelled: true,
+                },
+                ...messages.slice(idx + 1),
+              ];
+            } else if (!target.content && !target.thinkingContent) {
+              // Remove empty assistant message bubble by matching its ID.
+              messages = [...messages.slice(0, idx), ...messages.slice(idx + 1)];
+            }
           }
         }
         return {

@@ -3,7 +3,7 @@ import { Type } from '@sinclair/typebox';
 import type { SendAiCommand } from './desktop-tool';
 import { broadcastEvent } from '../messaging';
 import { randomUUID } from 'node:crypto';
-import { DEFAULT_THEME_PREFERENCES, type ThemePreferences } from '../theme-css';
+import { DEFAULT_THEME_PREFERENCES, type ThemePreferences } from '@desktalk/ui/theme-css';
 import { createHtmlBridgeScript } from './html-bridge-script';
 import { createThemeLinkTag } from './html-theme-link';
 import { UI_BUNDLE_SCRIPT_TAG } from './html-ui-script';
@@ -101,8 +101,9 @@ export function createLiveAppTool(options: CreateLiveAppToolOptions): ToolDefini
       'Follow DeskTalk HTML manual guidance for `<dt-card>` usage, layout rules, and pre-styled typography.',
       'Created LiveApps automatically receive a `window.DeskTalk` bridge for reading safe desktop state, persisting app data, and running constrained commands.',
       'Use `window.DeskTalk.storage` for persistent app data. Prefer KV storage for settings and `storage.collection(name)` for user-editable records such as tasks, rows, or bookmarks.',
+      'Use `window.DeskTalk.request(url, options)` for external HTTP APIs instead of relying on plain browser `fetch()` across origins.',
       'The bridge also exposes `exec` / `execute` — both accept either a shell string (`window.DeskTalk.exec("ls -la")`) or explicit arguments (`window.DeskTalk.exec("ls", ["-la"])`).',
-      'Call `read_manual` with pages such as `html/tokens`, `html/components`, `html/layouts`, `html/bridge`, `html/storage`, or `html/examples` when you need the full DeskTalk reference.',
+      'Call `read_manual` with pages such as `html/tokens`, `html/components`, `html/layouts`, `html/bridge`, `html/actions`, `html/storage`, or `html/examples` when you need the full DeskTalk reference.',
     ],
     parameters: createLiveAppSchema,
     async execute(_toolCallId, params) {

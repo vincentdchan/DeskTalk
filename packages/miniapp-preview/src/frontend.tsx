@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import type { MiniAppFrontendActivation, MiniAppFrontendContext } from '@desktalk/sdk';
 import { useCommand, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
 import type { PreviewFile, PreviewMode, PreviewActionState, SiblingList } from './types';
+import type { PreviewBridgeActionDefinition } from './types';
 import { PreviewToolbar } from './components/PreviewToolbar';
 import { ImageViewport } from './components/ImageViewport';
 import { HtmlPreviewPane } from './components/HtmlPreviewPane';
@@ -14,6 +15,12 @@ import styles from './PreviewApp.module.css';
 const ZOOM_STEP = 0.25;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 10;
+
+interface MiniAppThemeUpdateDetail {
+  windowId: string;
+  miniAppId: string;
+  theme: PreviewThemeRuntime;
+}
 
 // ─── Mode detection ──────────────────────────────────────────────────────────
 
@@ -35,7 +42,8 @@ function PreviewApp({
   streamId,
   streamTitle,
   bridgeToken,
-  theme,
+  theme: initialTheme,
+  windowId,
 }: {
   initialPath?: string;
   mode: PreviewMode;
@@ -44,6 +52,7 @@ function PreviewApp({
   streamTitle?: string;
   bridgeToken?: string;
   theme: PreviewThemeRuntime;
+  windowId: string;
 }) {
   // ─── Image-mode state ───────────────────────────────────────────────────
   const [currentFile, setCurrentFile] = useState<PreviewFile | null>(null);
@@ -51,6 +60,9 @@ function PreviewApp({
   const [zoom, setZoom] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const liveAppActionInvokerRef = useRef<
+    ((actionName: string, params?: Record<string, unknown>) => Promise<unknown>) | null
+  >(null);
   const [htmlActionState, setHtmlActionState] = useState<PreviewActionState>({
     mode: 'html',
     streaming: false,
@@ -67,6 +79,28 @@ function PreviewApp({
         }
       : null,
   });
+  const [liveAppActions, setLiveAppActions] = useState<PreviewBridgeActionDefinition[]>([]);
+  const [theme, setTheme] = useState<PreviewThemeRuntime>(initialTheme);
+
+  useEffect(() => {
+    setTheme(initialTheme);
+  }, [initialTheme]);
+
+  useEffect(() => {
+    const handleThemeUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<MiniAppThemeUpdateDetail>).detail;
+      if (!detail || detail.windowId !== windowId || detail.miniAppId !== 'preview') {
+        return;
+      }
+      setTheme({
+        accentColor: detail.theme.accentColor,
+        mode: detail.theme.mode === 'light' ? 'light' : 'dark',
+      });
+    };
+
+    window.addEventListener('desktalk:theme-update', handleThemeUpdate);
+    return () => window.removeEventListener('desktalk:theme-update', handleThemeUpdate);
+  }, [windowId]);
 
   // ─── Backend commands ───────────────────────────────────────────────────
   const openFile = useCommand<{ path: string }, PreviewFile>('preview.open');
@@ -162,6 +196,26 @@ function PreviewApp({
     }
   }, [currentFile, previousFile, getSiblings]);
 
+  const handleLiveAppActionInvokerChange = useCallback(
+    (
+      invoker: ((actionName: string, params?: Record<string, unknown>) => Promise<unknown>) | null,
+    ) => {
+      liveAppActionInvokerRef.current = invoker;
+    },
+    [],
+  );
+
+  const handleInvokeLiveAppAction = useCallback(
+    async (actionName: string, params?: Record<string, unknown>) => {
+      const invoker = liveAppActionInvokerRef.current;
+      if (!invoker) {
+        throw new Error(`LiveApp action "${actionName}" is unavailable.`);
+      }
+      return invoker(actionName, params);
+    },
+    [],
+  );
+
   // ─── Keyboard shortcuts (image mode only) ──────────────────────────────
 
   useEffect(() => {
@@ -228,6 +282,8 @@ function PreviewApp({
       onPan={handlePan}
       onPrevious={handlePrevious}
       onNext={handleNext}
+      liveAppActions={liveAppActions}
+      onInvokeLiveAppAction={handleInvokeLiveAppAction}
     >
       <div className={styles.root}>
         {mode === 'image' ? (
@@ -269,6 +325,8 @@ function PreviewApp({
             bridgeToken={bridgeToken}
             theme={theme}
             onActionStateChange={setHtmlActionState}
+            onLiveAppActionsChange={setLiveAppActions}
+            onLiveAppActionInvokerChange={handleLiveAppActionInvokerChange}
           />
         ) : (
           <StreamPreviewPane
@@ -277,6 +335,8 @@ function PreviewApp({
             bridgeToken={bridgeToken}
             theme={theme}
             onActionStateChange={setStreamActionState}
+            onLiveAppActionsChange={setLiveAppActions}
+            onLiveAppActionInvokerChange={handleLiveAppActionInvokerChange}
           />
         )}
       </div>
@@ -309,6 +369,7 @@ export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation
           streamTitle={streamTitle}
           bridgeToken={bridgeToken}
           theme={theme}
+          windowId={ctx.windowId}
         />
       </MiniAppIdProvider>
     </WindowIdProvider>,

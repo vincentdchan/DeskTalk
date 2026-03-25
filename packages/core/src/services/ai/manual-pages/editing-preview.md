@@ -5,10 +5,11 @@ Use this workflow when the user asks to change content already shown in a Previe
 ## Preferred Flow
 
 1. Call the focused Preview action `Get State`.
-2. Read `file.path` from the result.
-3. Use the built-in `read` tool on that file.
-4. Call `edit` with an exact `oldText` match.
-5. Use `undo_edit` or `redo_edit` later with the same file path if needed.
+2. Read `file.path` from the result — this is a **home-relative** path.
+3. Join `file.path` with the `Home` directory from `[Desktop Context]` to get the absolute path.
+4. Use the built-in `read` tool on the absolute path.
+5. Call `edit` with an exact `oldText` match. (`edit` accepts both absolute and home-relative paths.)
+6. Use `undo_edit` or `redo_edit` later with the same file path if needed.
 
 ## Rules
 

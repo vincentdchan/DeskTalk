@@ -338,6 +338,7 @@ export class WindowManagerService {
   getDesktopContext(
     availableMiniApps: Array<{ id: string; name: string }>,
     availableLiveApps: Array<{ id: string; name: string }>,
+    userHomeDir: string,
   ): string {
     const focusedWindow = this.getFocusedWindow();
 
@@ -387,6 +388,7 @@ export class WindowManagerService {
 
     return [
       '[Desktop Context]',
+      `Home: ${userHomeDir}`,
       `Focused: ${focusedWindow ? `"${focusedWindow.title}" (${focusedWindow.id}, miniapp: ${focusedWindow.miniAppId})` : 'none'}`,
       ...layoutLines,
       'MiniApps:',

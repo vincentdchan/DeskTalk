@@ -153,14 +153,24 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       displayName: string;
       password: string;
       aiConfig?: {
-        provider: string;
-        apiKey: string;
-        model?: string;
-        baseUrl?: string;
+        defaultProvider: string;
+        providers: Array<{
+          provider: string;
+          apiKey?: string;
+          model?: string;
+          baseUrl?: string;
+        }>;
       };
       voiceConfig?: {
-        provider: string;
-        apiKey: string;
+        defaultProvider: string;
+        providers: Array<{
+          provider: string;
+          apiKey?: string;
+          model?: string;
+          baseUrl?: string;
+          azureDeployment?: string;
+          azureApiVersion?: string;
+        }>;
       };
     };
   }>('/api/setup', async (req, reply) => {

@@ -19,15 +19,25 @@ interface PreferenceStoreFile {
 }
 
 export interface AiOnboardingConfig {
-  provider: string;
-  apiKey: string;
-  model?: string;
-  baseUrl?: string;
+  defaultProvider: string;
+  providers: Array<{
+    provider: string;
+    apiKey?: string;
+    model?: string;
+    baseUrl?: string;
+  }>;
 }
 
 export interface VoiceOnboardingConfig {
-  provider: string;
-  apiKey: string;
+  defaultProvider: string;
+  providers: Array<{
+    provider: string;
+    apiKey?: string;
+    model?: string;
+    baseUrl?: string;
+    azureDeployment?: string;
+    azureApiVersion?: string;
+  }>;
 }
 
 /**
@@ -58,19 +68,46 @@ export function saveOnboardingConfig(
   const config: Record<string, PreferenceValue> = store.config ?? {};
 
   if (aiConfig) {
-    config['ai.defaultProvider'] = aiConfig.provider;
-    config[`ai.providers.${aiConfig.provider}.apiKey`] = aiConfig.apiKey;
-    if (aiConfig.model) {
-      config[`ai.providers.${aiConfig.provider}.model`] = aiConfig.model;
-    }
-    if (aiConfig.baseUrl) {
-      config[`ai.providers.${aiConfig.provider}.baseUrl`] = aiConfig.baseUrl;
+    const enabledProviders = aiConfig.providers.map((provider) => provider.provider).join(',');
+    config['ai.enabledProviders'] = enabledProviders;
+    config['ai.defaultProvider'] = aiConfig.defaultProvider;
+
+    for (const provider of aiConfig.providers) {
+      if (provider.apiKey) {
+        config[`ai.providers.${provider.provider}.apiKey`] = provider.apiKey;
+      }
+      if (provider.model) {
+        config[`ai.providers.${provider.provider}.model`] = provider.model;
+      }
+      if (provider.baseUrl) {
+        config[`ai.providers.${provider.provider}.baseUrl`] = provider.baseUrl;
+      }
     }
   }
 
   if (voiceConfig) {
-    config['voice.provider'] = voiceConfig.provider;
-    config['voice.apiKey'] = voiceConfig.apiKey;
+    config['voice.enabledProviders'] = voiceConfig.providers
+      .map((provider) => provider.provider)
+      .join(',');
+    config['voice.defaultProvider'] = voiceConfig.defaultProvider;
+
+    for (const provider of voiceConfig.providers) {
+      if (provider.apiKey) {
+        config[`voice.providers.${provider.provider}.apiKey`] = provider.apiKey;
+      }
+      if (provider.model) {
+        config[`voice.providers.${provider.provider}.model`] = provider.model;
+      }
+      if (provider.baseUrl) {
+        config[`voice.providers.${provider.provider}.baseUrl`] = provider.baseUrl;
+      }
+      if (provider.azureDeployment) {
+        config[`voice.providers.${provider.provider}.azureDeployment`] = provider.azureDeployment;
+      }
+      if (provider.azureApiVersion) {
+        config[`voice.providers.${provider.provider}.azureApiVersion`] = provider.azureApiVersion;
+      }
+    }
   }
 
   store.config = config;

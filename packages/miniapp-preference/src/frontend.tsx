@@ -5,6 +5,8 @@ import { useCommand, useEvent, MiniAppIdProvider, WindowIdProvider } from '@desk
 import { CATEGORIES, getSchemasByCategory, getDefaultConfig } from './schema';
 import type { Config } from './schema';
 import { PreferenceCategoryList } from './components/PreferenceCategoryList';
+import { AiProviderList } from './components/AiProviderList';
+import { VoiceProviderList } from './components/VoiceProviderList';
 import { PreferenceSection } from './components/PreferenceSection';
 import { PreferenceRow } from './components/PreferenceRow';
 import { PreferenceActions } from './components/PreferenceActions';
@@ -106,24 +108,28 @@ function PreferenceApp() {
   // ─── Render ──────────────────────────────────────────────────────────────
   const categoriesToShow = CATEGORIES.filter((c) => c === activeCategory);
 
-  const getVisibleSchemas = useCallback(
-    (category: string) => {
-      const schemas = getSchemasByCategory(category);
-      if (category !== 'AI') {
-        return schemas;
+  const getVisibleSchemas = useCallback((category: string) => {
+    const schemas = getSchemasByCategory(category);
+    if (category !== 'AI' && category !== 'Voice') {
+      return schemas;
+    }
+
+    return schemas.filter((schema) => {
+      if (category === 'AI') {
+        return (
+          !schema.key.startsWith('ai.providers.') &&
+          schema.key !== 'ai.defaultProvider' &&
+          schema.key !== 'ai.enabledProviders'
+        );
       }
 
-      const selectedProvider = String(config['ai.defaultProvider'] ?? 'openai');
-      return schemas.filter((schema) => {
-        if (!schema.key.startsWith('ai.providers.')) {
-          return true;
-        }
-
-        return schema.key.startsWith(`ai.providers.${selectedProvider}.`);
-      });
-    },
-    [config],
-  );
+      return (
+        !schema.key.startsWith('voice.providers.') &&
+        schema.key !== 'voice.defaultProvider' &&
+        schema.key !== 'voice.enabledProviders'
+      );
+    });
+  }, []);
 
   return (
     <PreferenceActions onConfigChanged={fetchConfig}>
@@ -141,6 +147,10 @@ function PreferenceApp() {
             const schemas = getVisibleSchemas(category);
             return (
               <PreferenceSection key={category} title={category}>
+                {category === 'AI' && <AiProviderList config={config} onChange={handleChange} />}
+                {category === 'Voice' && (
+                  <VoiceProviderList config={config} onChange={handleChange} />
+                )}
                 {schemas.map((schema) => (
                   <PreferenceRow
                     key={schema.key}

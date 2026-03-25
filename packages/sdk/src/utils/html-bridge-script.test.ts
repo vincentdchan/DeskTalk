@@ -16,8 +16,19 @@ interface BridgeStorageCollection {
 
 interface BridgeApi {
   getState: (selector: string) => Promise<unknown>;
+  request: (url: string, options?: unknown) => Promise<unknown>;
   exec: (...args: unknown[]) => Promise<unknown>;
   execute: (...args: unknown[]) => Promise<unknown>;
+  actions: {
+    register: (definition: {
+      name: string;
+      description?: string;
+      params?: Record<string, unknown>;
+      handler: (params?: Record<string, unknown>) => Promise<unknown> | unknown;
+    }) => Promise<void>;
+    unregister: (name: string) => Promise<void>;
+    clear: () => Promise<void>;
+  };
   storage: {
     get: (name: string) => Promise<unknown>;
     set: (name: string, value: unknown) => Promise<void>;
@@ -114,10 +125,51 @@ describe('createHtmlBridgeScript', () => {
     expect(DeskTalk).toBeDefined();
     expect(Object.isFrozen(DeskTalk)).toBe(true);
     expect(typeof DeskTalk.getState).toBe('function');
+    expect(typeof DeskTalk.request).toBe('function');
     expect(typeof DeskTalk.exec).toBe('function');
     expect(typeof DeskTalk.execute).toBe('function');
+    expect(Object.isFrozen(DeskTalk.actions)).toBe(true);
     expect(Object.isFrozen(DeskTalk.storage)).toBe(true);
     expect(typeof DeskTalk.storage.collection).toBe('function');
+  });
+
+  it('sends network request bridge payloads and resolves responses', async () => {
+    const { DeskTalk, postMessage, dispatchMessage, streamId, token } = installBridge();
+
+    const pending = DeskTalk.request('https://api.example.com/tasks', {
+      method: 'POST',
+      json: { title: 'Buy milk' },
+    });
+
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        type: 'desktalk:bridge-request',
+        streamId,
+        token,
+        kind: 'request',
+        payload: {
+          url: 'https://api.example.com/tasks',
+          options: {
+            method: 'POST',
+            json: { title: 'Buy milk' },
+          },
+        },
+      }),
+      '*',
+    );
+
+    const [[request]] = postMessage.mock.calls;
+    dispatchMessage({
+      type: 'desktalk:bridge-response',
+      streamId,
+      token,
+      requestId: request.requestId,
+      ok: true,
+      result: { ok: true, status: 200, body: '[]' },
+    });
+
+    await expect(pending).resolves.toEqual({ ok: true, status: 200, body: '[]' });
   });
 
   it('sends getState requests and resolves matching responses', async () => {
@@ -283,5 +335,153 @@ describe('createHtmlBridgeScript', () => {
     );
     await resolveLatestRequest(postMessage, dispatchMessage, { count: 3 });
     await expect(countPromise).resolves.toBe(3);
+  });
+
+  it('registers, overrides, unregisters, and clears liveapp actions', async () => {
+    const { DeskTalk, postMessage, dispatchMessage } = installBridge();
+
+    const firstHandler = vi.fn(async () => ({ version: 1 }));
+    const secondHandler = vi.fn(async () => ({ version: 2 }));
+
+    const registerFirst = DeskTalk.actions.register({
+      name: 'Sync',
+      description: 'Run the first sync handler',
+      handler: firstHandler,
+    });
+    expect(postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        kind: 'actions',
+        payload: {
+          action: 'register',
+          name: 'Sync',
+          description: 'Run the first sync handler',
+          params: undefined,
+        },
+      }),
+      '*',
+    );
+    await resolveLatestRequest(postMessage, dispatchMessage, {});
+    await expect(registerFirst).resolves.toBeUndefined();
+
+    const registerSecond = DeskTalk.actions.register({
+      name: 'Sync',
+      description: 'Run the replacement sync handler',
+      handler: secondHandler,
+    });
+    await resolveLatestRequest(postMessage, dispatchMessage, {});
+    await expect(registerSecond).resolves.toBeUndefined();
+
+    const [[invokeRequest]] = postMessage.mock.calls.slice(-1);
+    dispatchMessage({
+      type: 'desktalk:invoke-action',
+      streamId: invokeRequest.streamId,
+      token: invokeRequest.token,
+      requestId: 'invoke-1',
+      actionName: 'Sync',
+      params: { force: true },
+    });
+    await vi.waitFor(() => {
+      expect(postMessage).toHaveBeenLastCalledWith(
+        {
+          type: 'desktalk:invoke-action-result',
+          streamId: invokeRequest.streamId,
+          token: invokeRequest.token,
+          requestId: 'invoke-1',
+          ok: true,
+          result: { version: 2 },
+        },
+        '*',
+      );
+    });
+
+    expect(firstHandler).not.toHaveBeenCalled();
+    expect(secondHandler).toHaveBeenCalledWith({ force: true });
+
+    const unregister = DeskTalk.actions.unregister('Sync');
+    expect(postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        kind: 'actions',
+        payload: { action: 'unregister', name: 'Sync' },
+      }),
+      '*',
+    );
+    await resolveLatestRequest(postMessage, dispatchMessage, {});
+    await expect(unregister).resolves.toBeUndefined();
+
+    dispatchMessage({
+      type: 'desktalk:invoke-action',
+      streamId: invokeRequest.streamId,
+      token: invokeRequest.token,
+      requestId: 'invoke-2',
+      actionName: 'Sync',
+      params: null,
+    });
+    await vi.waitFor(() => {
+      expect(postMessage).toHaveBeenLastCalledWith(
+        {
+          type: 'desktalk:invoke-action-result',
+          streamId: invokeRequest.streamId,
+          token: invokeRequest.token,
+          requestId: 'invoke-2',
+          ok: false,
+          error: 'Action "Sync" is not registered.',
+        },
+        '*',
+      );
+    });
+
+    const registerRefresh = DeskTalk.actions.register({
+      name: 'Refresh',
+      description: 'Refresh data',
+      handler: async () => undefined,
+    });
+    await resolveLatestRequest(postMessage, dispatchMessage, {});
+    await expect(registerRefresh).resolves.toBeUndefined();
+
+    const clear = DeskTalk.actions.clear();
+    expect(postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        kind: 'actions',
+        payload: { action: 'clear' },
+      }),
+      '*',
+    );
+    await resolveLatestRequest(postMessage, dispatchMessage, {});
+    await expect(clear).resolves.toBeUndefined();
+  });
+
+  it('returns invocation errors from action handlers', async () => {
+    const { DeskTalk, postMessage, dispatchMessage, streamId, token } = installBridge();
+
+    const register = DeskTalk.actions.register({
+      name: 'Explode',
+      handler: () => {
+        throw new Error('boom');
+      },
+    });
+    await resolveLatestRequest(postMessage, dispatchMessage, {});
+    await expect(register).resolves.toBeUndefined();
+
+    dispatchMessage({
+      type: 'desktalk:invoke-action',
+      streamId,
+      token,
+      requestId: 'invoke-error',
+      actionName: 'Explode',
+      params: {},
+    });
+    await vi.waitFor(() => {
+      expect(postMessage).toHaveBeenLastCalledWith(
+        {
+          type: 'desktalk:invoke-action-result',
+          streamId,
+          token,
+          requestId: 'invoke-error',
+          ok: false,
+          error: 'boom',
+        },
+        '*',
+      );
+    });
   });
 });
