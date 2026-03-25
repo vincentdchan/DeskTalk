@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useCommand, useEvent, useWindowId } from '@desktalk/sdk';
+import { useStore } from 'zustand';
 import type {
   PreviewActionState,
   PreviewBridgeActionDefinition,
@@ -22,6 +23,7 @@ import { PreviewToolbar } from './PreviewToolbar';
 import { BridgeConfirmDialog } from './BridgeConfirmDialog';
 import { getStreamedDirectoryName } from '../liveapp-id';
 import { matchesPreviewFilePath } from '../preview-paths';
+import type { createPreviewStore } from '../store';
 
 function requestCoreBridgeState(selector: PreviewBridgeGetStatePayload['selector']): unknown {
   let result: unknown;
@@ -55,6 +57,7 @@ function requestCoreBridgeState(selector: PreviewBridgeGetStatePayload['selector
 }
 
 interface StreamPreviewPaneProps {
+  previewStore: ReturnType<typeof createPreviewStore>;
   streamId: string;
   streamTitle: string;
   bridgeToken?: string;
@@ -67,6 +70,7 @@ interface StreamPreviewPaneProps {
 }
 
 export function StreamPreviewPane({
+  previewStore,
   streamId,
   streamTitle,
   bridgeToken,
@@ -76,9 +80,9 @@ export function StreamPreviewPane({
   onLiveAppActionInvokerChange,
 }: StreamPreviewPaneProps) {
   const windowId = useWindowId();
+  const streaming = useStore(previewStore, (state) => state.streaming);
   const viewportRef = useRef<HtmlViewportHandle | null>(null);
   const [streamHtml, setStreamHtml] = useState('');
-  const [streaming, setStreaming] = useState(true);
   const [streamSnapshot, setStreamSnapshot] = useState<StreamedHtmlSnapshot | null>(null);
   const [pendingBridgeConfirm, setPendingBridgeConfirm] = useState<{
     confirmationRequestId: string;
@@ -126,6 +130,15 @@ export function StreamPreviewPane({
     'preview.bridge.request',
   );
   const liveAppId = getStreamedDirectoryName(streamId, streamTitle);
+  const switchToHtmlMode = useCallback(() => {
+    previewStore.getState().switchToHtmlMode(`.data/liveapps/${liveAppId}/index.html`, liveAppId);
+  }, [liveAppId, previewStore]);
+  const setPreviewStreaming = useCallback(
+    (nextStreaming: boolean) => {
+      previewStore.getState().setStreaming(nextStreaming);
+    },
+    [previewStore],
+  );
 
   const publishLiveAppActions = useCallback(() => {
     onLiveAppActionsChange(Array.from(liveAppActionsRef.current.values()));
@@ -176,7 +189,7 @@ export function StreamPreviewPane({
       : data.content;
     setStreamHtml(nextHtml);
     streamHtmlRef.current = nextHtml;
-    setStreaming(false);
+    setPreviewStreaming(false);
     setStreamSnapshot((currentSnapshot) =>
       currentSnapshot
         ? {
@@ -185,6 +198,7 @@ export function StreamPreviewPane({
           }
         : currentSnapshot,
     );
+    switchToHtmlMode();
   });
 
   useEvent<{ streamId: string; chunk: string }>('preview.html-chunk', (data) => {
@@ -206,14 +220,17 @@ export function StreamPreviewPane({
 
     clearLiveAppActions();
     rejectPendingActionInvocations('LiveApp reloaded before the action completed.');
-    setStreaming(false);
+    setPreviewStreaming(false);
     const htmlToSave = typeof data.html === 'string' ? data.html : streamHtmlRef.current;
     void saveStreamedHtml({
       streamId,
       title: streamTitle,
       content: htmlToSave,
     })
-      .then(setStreamSnapshot)
+      .then((snapshot) => {
+        setStreamSnapshot(snapshot);
+        switchToHtmlMode();
+      })
       .catch((saveError) => {
         console.error('Failed to save LiveApp HTML:', saveError);
       });
@@ -239,7 +256,8 @@ export function StreamPreviewPane({
         setStreamHtml(nextHtml);
         streamHtmlRef.current = nextHtml;
         setStreamSnapshot(snapshot);
-        setStreaming(false);
+        setPreviewStreaming(false);
+        switchToHtmlMode();
       })
       .catch((loadError) => {
         if (!cancelled) {
@@ -250,7 +268,15 @@ export function StreamPreviewPane({
     return () => {
       cancelled = true;
     };
-  }, [bridgeToken, loadStreamedHtml, streamId, streamTitle, theme]);
+  }, [
+    bridgeToken,
+    loadStreamedHtml,
+    setPreviewStreaming,
+    streamId,
+    streamTitle,
+    switchToHtmlMode,
+    theme,
+  ]);
 
   useEffect(() => {
     if (!bridgeToken) {

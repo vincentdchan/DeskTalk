@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import { useStore } from 'zustand';
 import type { MiniAppFrontendActivation, MiniAppFrontendContext } from '@desktalk/sdk';
 import { useCommand, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
 import type { PreviewFile, PreviewMode, PreviewActionState, SiblingList } from './types';
@@ -10,6 +11,7 @@ import { HtmlPreviewPane } from './components/HtmlPreviewPane';
 import { PreviewActions } from './components/PreviewActions';
 import { StreamPreviewPane } from './components/StreamPreviewPane';
 import type { PreviewThemeRuntime } from './html-injections';
+import { createPreviewStore } from './store';
 import styles from './PreviewApp.module.css';
 
 const ZOOM_STEP = 0.25;
@@ -37,7 +39,7 @@ function detectMode(args?: Record<string, unknown>): PreviewMode {
 
 function PreviewApp({
   initialPath,
-  mode,
+  initialMode,
   liveAppId,
   streamId,
   streamTitle,
@@ -46,7 +48,7 @@ function PreviewApp({
   windowId,
 }: {
   initialPath?: string;
-  mode: PreviewMode;
+  initialMode: PreviewMode;
   liveAppId?: string;
   streamId?: string;
   streamTitle?: string;
@@ -54,6 +56,16 @@ function PreviewApp({
   theme: PreviewThemeRuntime;
   windowId: string;
 }) {
+  const storeRef = useRef<ReturnType<typeof createPreviewStore> | null>(null);
+  if (!storeRef.current) {
+    storeRef.current = createPreviewStore(initialMode, initialPath ?? null, liveAppId ?? null);
+  }
+  const previewStore = storeRef.current;
+  const mode = useStore(previewStore, (state) => state.mode);
+  const storeStreaming = useStore(previewStore, (state) => state.streaming);
+  const resolvedHtmlPath = useStore(previewStore, (state) => state.resolvedHtmlPath);
+  const resolvedLiveAppId = useStore(previewStore, (state) => state.resolvedLiveAppId);
+
   // ─── Image-mode state ───────────────────────────────────────────────────
   const [currentFile, setCurrentFile] = useState<PreviewFile | null>(null);
   const [siblings, setSiblings] = useState<SiblingList | null>(null);
@@ -70,7 +82,7 @@ function PreviewApp({
   });
   const [streamActionState, setStreamActionState] = useState<PreviewActionState>({
     mode: 'stream',
-    streaming: mode === 'stream',
+    streaming: initialMode === 'stream',
     file: streamTitle
       ? {
           name: streamTitle,
@@ -267,7 +279,10 @@ function PreviewApp({
         }
       : mode === 'html'
         ? htmlActionState
-        : streamActionState;
+        : {
+            ...streamActionState,
+            streaming: storeStreaming,
+          };
 
   // ─── Render ─────────────────────────────────────────────────────────────
 
@@ -320,8 +335,8 @@ function PreviewApp({
           )
         ) : mode === 'html' ? (
           <HtmlPreviewPane
-            initialPath={initialPath}
-            liveAppId={liveAppId}
+            initialPath={resolvedHtmlPath ?? initialPath}
+            liveAppId={resolvedLiveAppId ?? liveAppId}
             bridgeToken={bridgeToken}
             theme={theme}
             onActionStateChange={setHtmlActionState}
@@ -330,6 +345,7 @@ function PreviewApp({
           />
         ) : (
           <StreamPreviewPane
+            previewStore={previewStore}
             streamId={streamId!}
             streamTitle={streamTitle ?? 'HTML Preview'}
             bridgeToken={bridgeToken}
@@ -346,7 +362,7 @@ function PreviewApp({
 
 export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation {
   const themedContext = ctx as MiniAppFrontendContext & { theme?: PreviewThemeRuntime };
-  const mode = detectMode(ctx.args);
+  const initialMode = detectMode(ctx.args);
   const initialPath = typeof ctx.args?.path === 'string' ? ctx.args.path : undefined;
   const liveAppId = typeof ctx.args?.liveAppId === 'string' ? ctx.args.liveAppId : undefined;
   const streamId = typeof ctx.args?.streamId === 'string' ? ctx.args.streamId : undefined;
@@ -363,7 +379,7 @@ export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation
       <MiniAppIdProvider miniAppId={ctx.miniAppId}>
         <PreviewApp
           initialPath={initialPath}
-          mode={mode}
+          initialMode={initialMode}
           liveAppId={liveAppId}
           streamId={streamId}
           streamTitle={streamTitle}

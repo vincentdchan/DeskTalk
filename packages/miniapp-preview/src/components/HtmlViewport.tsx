@@ -132,6 +132,8 @@ export const HtmlViewport = forwardRef<HtmlViewportHandle, HtmlViewportProps>(fu
 
   useEffect(() => {
     if (src) {
+      const iframe = iframeRef.current;
+      iframe?.contentDocument?.close();
       writtenLengthRef.current = 0;
       docOpenRef.current = false;
       wasStreamingRef.current = false;
@@ -193,19 +195,23 @@ export const HtmlViewport = forwardRef<HtmlViewportHandle, HtmlViewportProps>(fu
   }, [html, src, streaming]);
 
   return (
-    <iframe
-      ref={iframeRef}
-      className={styles.htmlViewport}
-      sandbox="allow-scripts allow-same-origin"
-      title="HTML Preview"
-      src={src}
-      onLoad={() => {
-        syncThemeToIframe();
-        onLoad?.();
-      }}
-      style={{
-        backgroundColor: theme?.mode === 'dark' ? DARK_IFRAME_BACKGROUND : LIGHT_IFRAME_BACKGROUND,
-      }}
-    />
+    <div className={styles.viewportContainer}>
+      {streaming ? <div className={styles.shimmerOverlay} aria-hidden="true" /> : null}
+      <iframe
+        ref={iframeRef}
+        className={styles.htmlViewport}
+        sandbox={streaming ? 'allow-same-origin' : 'allow-scripts allow-same-origin'}
+        title="HTML Preview"
+        src={src}
+        onLoad={() => {
+          syncThemeToIframe();
+          onLoad?.();
+        }}
+        style={{
+          backgroundColor:
+            theme?.mode === 'dark' ? DARK_IFRAME_BACKGROUND : LIGHT_IFRAME_BACKGROUND,
+        }}
+      />
+    </div>
   );
 });

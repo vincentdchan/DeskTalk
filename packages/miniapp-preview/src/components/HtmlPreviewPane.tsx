@@ -19,7 +19,12 @@ import type {
 import { HtmlViewport, type HtmlViewportHandle } from './HtmlViewport';
 import { PreviewToolbar } from './PreviewToolbar';
 import type { PreviewThemeRuntime } from '../html-injections';
-import { isLiveAppPath, matchesPreviewFilePath, normalizePreviewPath } from '../preview-paths';
+import {
+  buildDtfsUrl,
+  isLiveAppPath,
+  matchesPreviewFilePath,
+  normalizePreviewPath,
+} from '../preview-paths';
 import { BridgeConfirmDialog } from './BridgeConfirmDialog';
 import styles from './HtmlPreviewPane.module.css';
 
@@ -62,34 +67,6 @@ function getFileName(path: string | undefined): string | null {
 
   const parts = normalized.split('/').filter(Boolean);
   return parts.at(-1) ?? normalized;
-}
-
-function buildDtfsUrl(
-  path: string,
-  options?: {
-    streamId?: string;
-    token?: string;
-    accentColor?: string;
-    theme?: 'light' | 'dark';
-    cacheBust?: string;
-  },
-): string {
-  const normalized = normalizePreviewPath(path) ?? path;
-  const encodedPath = normalized
-    .split('/')
-    .filter(Boolean)
-    .map((segment) => encodeURIComponent(segment))
-    .join('/');
-  const params = new URLSearchParams();
-
-  if (options?.streamId) params.set('streamId', options.streamId);
-  if (options?.token) params.set('token', options.token);
-  if (options?.accentColor) params.set('accent', options.accentColor);
-  if (options?.theme) params.set('theme', options.theme);
-  if (options?.cacheBust) params.set('t', options.cacheBust);
-
-  const query = params.toString();
-  return query ? `/@dtfs/${encodedPath}?${query}` : `/@dtfs/${encodedPath}`;
 }
 
 interface HtmlPreviewPaneProps {

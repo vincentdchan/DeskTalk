@@ -1,3 +1,12 @@
+.viewportContainer {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
 .htmlViewport {
   display: block;
   width: 100%;
@@ -5,4 +14,31 @@
   flex: 1;
   min-height: 0;
   border: none;
+}
+
+.shimmerOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    110deg,
+    transparent 0%,
+    color-mix(in srgb, var(--dt-accent) 10%, transparent) 40%,
+    color-mix(in srgb, white 14%, transparent) 50%,
+    color-mix(in srgb, var(--dt-accent) 10%, transparent) 60%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  animation: viewportShimmer 1.8s ease-in-out infinite;
+}
+
+@keyframes viewportShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
