@@ -32,7 +32,6 @@
     "@desktalk/miniapp-preview": "workspace:*",
     "@desktalk/miniapp-terminal": "workspace:*",
     "@desktalk/miniapp-text-edit": "workspace:*",
-    "@desktalk/miniapp-todo": "workspace:*",
     "@desktalk/sdk": "workspace:*",
     "@desktalk/ui": "workspace:*",
     "@fastify/cookie": "^11.0.2",

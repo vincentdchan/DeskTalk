@@ -111,7 +111,6 @@ Each package gets one default scope equal to its app id:
 | --------------------------------- | --------------- |
 | `@desktalk/core`                  | `core`          |
 | `@desktalk/miniapp-note`          | `note`          |
-| `@desktalk/miniapp-todo`          | `todo`          |
 | `@desktalk/miniapp-file-explorer` | `file-explorer` |
 | `@desktalk/miniapp-preference`    | `preference`    |
 

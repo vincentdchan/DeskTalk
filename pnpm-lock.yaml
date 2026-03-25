@@ -59,9 +59,6 @@ importers:
       '@desktalk/miniapp-text-edit':
         specifier: workspace:*
         version: link:../miniapp-text-edit
-      '@desktalk/miniapp-todo':
-        specifier: workspace:*
-        version: link:../miniapp-todo
       '@desktalk/sdk':
         specifier: workspace:*
         version: link:../sdk
@@ -357,28 +354,6 @@ importers:
       monaco-editor:
         specifier: ^0.52.0
         version: 0.52.2
-      react:
-        specifier: ^19.0.0
-        version: 19.2.4
-      react-dom:
-        specifier: ^19.0.0
-        version: 19.2.4(react@19.2.4)
-    devDependencies:
-      '@types/react':
-        specifier: ^19.0.0
-        version: 19.2.14
-      '@types/react-dom':
-        specifier: ^19.0.0
-        version: 19.2.3(@types/react@19.2.14)
-      typescript:
-        specifier: ^5.7.0
-        version: 5.9.3
-
-  packages/miniapp-todo:
-    dependencies:
-      '@desktalk/sdk':
-        specifier: workspace:*
-        version: link:../sdk
       react:
         specifier: ^19.0.0
         version: 19.2.4

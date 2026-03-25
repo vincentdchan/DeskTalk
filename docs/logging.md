@@ -268,7 +268,6 @@ MiniApps and `@desktalk/sdk` do **not** add pino as a dependency. They consume t
 14:23:01.442 INFO  [core]: Initializing workspace...
 14:23:01.445 INFO  [core]:   Config: ~/Library/Application Support/DeskTalk
 14:23:01.501 INFO  [registry]: Registered built-in MiniApp: note
-14:23:01.502 INFO  [registry]: Registered built-in MiniApp: todo
 14:23:01.510 INFO  [http]: Server listening on http://localhost:3000
 14:23:02.100 INFO  [note]: MiniApp activated
 14:23:05.300 INFO  [note]: Created note "Shopping List"

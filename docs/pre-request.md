@@ -46,8 +46,8 @@ const Page = () => {
     return (
         <div>
             <ActionsProvider>
-                <Action name="Add a TODO" description="xxx" />
-                <Action name="Delete a TODO" description="xxx" />
+                <Action name="Create Note" description="xxx" />
+                <Action name="Delete Note" description="xxx" />
             </ActionsProvider>
             <div>
                 Content
@@ -73,10 +73,6 @@ Please support Markdown YAML front matter so I can add tags.
 
 Use https://milkdown.dev/ as the editor in the frontend.
 
-
-## Todo
-
-Similar to Notes — implement a Todo list like the one on macOS.
 
 ## File Explorer
 

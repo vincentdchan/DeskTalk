@@ -120,13 +120,11 @@ Using `<data>` as the resolved platform data path (same as current spec):
     admin/                           # Admin's home
       .data/
         note/                        # MiniApp private data (ctx.paths.data)
-        todo/
         file-explorer/
         preference/
         <third-party-id>/
       .storage/
         note.json                    # MiniApp key-value stores (ctx.storage)
-        todo.json
         file-explorer.json
         preference.json
         <third-party-id>.json
@@ -136,7 +134,6 @@ Using `<data>` as the resolved platform data path (same as current spec):
     alice/                           # Normal user "alice"
       .data/
         note/
-        todo/
         file-explorer/
         ...
       .storage/
@@ -154,7 +151,6 @@ Using `<data>` as the resolved platform data path (same as current spec):
   core.log
   admin/
     note.log
-    todo.log
     ...
   alice/
     note.log
