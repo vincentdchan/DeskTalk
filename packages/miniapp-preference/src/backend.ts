@@ -1,6 +1,15 @@
 import type { MiniAppManifest, MiniAppContext, MiniAppBackendActivation } from '@desktalk/sdk';
 import type { Config } from './schema';
-import { PREFERENCE_SCHEMAS, getDefaultConfig, getSchema, maskSensitive } from './schema';
+import {
+  PREFERENCE_SCHEMAS,
+  DEFAULT_AI_PROVIDER_ID,
+  getDefaultConfig,
+  getSchema,
+  hasAiProviderConfig,
+  maskSensitive,
+  parseAiEnabledProviders,
+  serializeAiEnabledProviders,
+} from './schema';
 
 // ─── Manifest ────────────────────────────────────────────────────────────────
 
@@ -58,6 +67,44 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
         config[providerBaseUrlKey] = legacyBaseUrl;
       }
     }
+
+    const enabledProviders = parseAiEnabledProviders(stored?.['ai.enabledProviders']);
+    const derivedProviders = enabledProviders.filter((providerId) =>
+      hasAiProviderConfig(config, providerId),
+    );
+    for (const schema of PREFERENCE_SCHEMAS) {
+      if (!schema.key.startsWith('ai.providers.')) {
+        continue;
+      }
+
+      const match = /^ai\.providers\.([^.]+)\./.exec(schema.key);
+      const providerId = match?.[1];
+      if (
+        providerId &&
+        hasAiProviderConfig(config, providerId) &&
+        !derivedProviders.includes(providerId)
+      ) {
+        derivedProviders.push(providerId);
+      }
+    }
+
+    const defaultProvider =
+      typeof config['ai.defaultProvider'] === 'string' && config['ai.defaultProvider']
+        ? String(config['ai.defaultProvider'])
+        : DEFAULT_AI_PROVIDER_ID;
+
+    if (!derivedProviders.includes(defaultProvider)) {
+      derivedProviders.unshift(defaultProvider);
+    }
+
+    for (const providerId of enabledProviders) {
+      if (!derivedProviders.includes(providerId)) {
+        derivedProviders.push(providerId);
+      }
+    }
+
+    config['ai.enabledProviders'] = serializeAiEnabledProviders(derivedProviders);
+    config['ai.defaultProvider'] = derivedProviders[0] ?? DEFAULT_AI_PROVIDER_ID;
 
     return config;
   }

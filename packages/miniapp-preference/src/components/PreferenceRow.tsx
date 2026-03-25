@@ -2,6 +2,12 @@ import React, { useCallback, useState, useEffect } from 'react';
 import type { PreferenceSchema } from '../schema';
 import styles from '../styles/PreferenceApp.module.css';
 
+interface DtSelectElement extends HTMLElement {
+  options: Array<{ value: string; label: string }>;
+  value: string;
+  disabled: boolean;
+}
+
 interface PreferenceRowProps {
   schema: PreferenceSchema;
   value: string | number | boolean;
@@ -156,20 +162,68 @@ function DropdownControl({
   onChange: (key: string, value: string) => void;
 }) {
   const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      onChange(schema.key, e.target.value);
+    (nextValue: string) => {
+      onChange(schema.key, nextValue);
     },
     [schema.key, onChange],
   );
 
   return (
-    <select className={styles.dropdown} value={value} onChange={handleChange}>
-      {(schema.options ?? []).map((opt) => (
-        <option key={opt} value={opt}>
-          {opt}
-        </option>
-      ))}
-    </select>
+    <DtSelectControl
+      value={value}
+      options={(schema.options ?? []).map((opt) => ({ value: opt, label: opt }))}
+      onChange={handleChange}
+    />
+  );
+}
+
+function DtSelectControl({
+  value,
+  options,
+  disabled = false,
+  onChange,
+}: {
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const [selectElement, setSelectElement] = useState<DtSelectElement | null>(null);
+
+  useEffect(() => {
+    if (!selectElement) {
+      return;
+    }
+
+    selectElement.options = options;
+  }, [options, selectElement]);
+
+  useEffect(() => {
+    if (!selectElement) {
+      return;
+    }
+
+    selectElement.value = value;
+    selectElement.disabled = disabled;
+  }, [disabled, selectElement, value]);
+
+  useEffect(() => {
+    if (!selectElement) {
+      return;
+    }
+
+    const handleSelectChange = (event: Event) => {
+      onChange((event as CustomEvent<{ value: string }>).detail.value);
+    };
+
+    selectElement.addEventListener('dt-change', handleSelectChange);
+    return () => selectElement.removeEventListener('dt-change', handleSelectChange);
+  }, [onChange, selectElement]);
+
+  return (
+    <div className={styles.selectWrap}>
+      <dt-select ref={(element: DtSelectElement | null) => setSelectElement(element)} />
+    </div>
   );
 }
 

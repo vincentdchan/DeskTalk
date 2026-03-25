@@ -21,14 +21,16 @@ export type Config = Record<string, string | number | boolean>;
 export const CATEGORIES = ['General', 'Server', 'AI', 'Voice'] as const;
 export type Category = (typeof CATEGORIES)[number];
 
-interface AiProviderDefinition {
+export interface AiProviderDefinition {
   id: string;
   label: string;
   supportsApiKey: boolean;
   supportsBaseUrl: boolean;
 }
 
-const AI_PROVIDER_DEFINITIONS: AiProviderDefinition[] = [
+export const DEFAULT_AI_PROVIDER_ID = 'openai';
+
+export const AI_PROVIDER_DEFINITIONS: AiProviderDefinition[] = [
   { id: 'anthropic', label: 'Anthropic', supportsApiKey: true, supportsBaseUrl: false },
   {
     id: 'azure-openai-responses',
@@ -36,7 +38,7 @@ const AI_PROVIDER_DEFINITIONS: AiProviderDefinition[] = [
     supportsApiKey: true,
     supportsBaseUrl: true,
   },
-  { id: 'openai', label: 'OpenAI', supportsApiKey: true, supportsBaseUrl: true },
+  { id: DEFAULT_AI_PROVIDER_ID, label: 'OpenAI', supportsApiKey: true, supportsBaseUrl: true },
   { id: 'google', label: 'Google Gemini', supportsApiKey: true, supportsBaseUrl: false },
   {
     id: 'mistral',
@@ -89,14 +91,70 @@ const AI_PROVIDER_DEFINITIONS: AiProviderDefinition[] = [
   { id: 'ollama', label: 'Ollama', supportsApiKey: false, supportsBaseUrl: true },
 ];
 
+const AI_PROVIDER_IDS = new Set(AI_PROVIDER_DEFINITIONS.map((provider) => provider.id));
+
+export function getAiProviderDefinition(providerId: string): AiProviderDefinition | undefined {
+  return AI_PROVIDER_DEFINITIONS.find((provider) => provider.id === providerId);
+}
+
+export function getAiProviderConfigKeys(providerId: string): string[] {
+  const definition = getAiProviderDefinition(providerId);
+  if (!definition) {
+    return [];
+  }
+
+  const keys = [`ai.providers.${providerId}.model`];
+  if (definition.supportsApiKey) {
+    keys.push(`ai.providers.${providerId}.apiKey`);
+  }
+  if (definition.supportsBaseUrl) {
+    keys.push(`ai.providers.${providerId}.baseUrl`);
+  }
+  return keys;
+}
+
+export function parseAiEnabledProviders(value: unknown): string[] {
+  if (typeof value !== 'string') {
+    return [DEFAULT_AI_PROVIDER_ID];
+  }
+
+  const providers = value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(
+      (item, index, items) => item && items.indexOf(item) === index && AI_PROVIDER_IDS.has(item),
+    );
+
+  return providers.length > 0 ? providers : [DEFAULT_AI_PROVIDER_ID];
+}
+
+export function serializeAiEnabledProviders(providerIds: string[]): string {
+  return parseAiEnabledProviders(providerIds.join(',')).join(',');
+}
+
+export function hasAiProviderConfig(config: Config, providerId: string): boolean {
+  return getAiProviderConfigKeys(providerId).some((key) => {
+    const value = config[key];
+    return typeof value === 'string' && value.trim().length > 0;
+  });
+}
+
 function getAiProviderPreferenceSchemas(): PreferenceSchema[] {
   const schemas: PreferenceSchema[] = [
+    {
+      key: 'ai.enabledProviders',
+      label: 'Enabled Providers',
+      description: 'Ordered list of configured AI providers.',
+      type: 'string',
+      default: DEFAULT_AI_PROVIDER_ID,
+      category: 'AI',
+    },
     {
       key: 'ai.defaultProvider',
       label: 'Default Provider',
       description: 'Provider selected by default for chat and tool execution.',
       type: 'string',
-      default: 'openai',
+      default: DEFAULT_AI_PROVIDER_ID,
       options: AI_PROVIDER_DEFINITIONS.map((provider) => provider.id),
       category: 'AI',
     },

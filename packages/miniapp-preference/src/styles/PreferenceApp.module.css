@@ -4,7 +4,7 @@
   overflow: hidden;
   background: var(--dt-window-body);
   color: var(--dt-text);
-  font-family: var(--font-sans);
+  font-family: var(--font-ui, 'Work Sans', system-ui, -apple-system, sans-serif);
 }
 
 .rootCompact {
@@ -27,6 +27,7 @@
   color: var(--dt-text-muted);
   font-size: 11px;
   font-weight: 600;
+  font-family: var(--font-display, 'Sora', system-ui, -apple-system, sans-serif);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -91,6 +92,7 @@
   color: var(--dt-text-muted);
   font-size: 13px;
   font-weight: 600;
+  font-family: var(--font-display, 'Sora', system-ui, -apple-system, sans-serif);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -117,6 +119,7 @@
   margin-bottom: 2px;
   font-size: 14px;
   font-weight: 500;
+  font-family: var(--font-ui, 'Work Sans', system-ui, -apple-system, sans-serif);
 }
 
 .rowDescription {
@@ -145,6 +148,130 @@
   gap: 8px;
 }
 
+.providerGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 0 18px;
+  border-bottom: 1px solid var(--dt-border-subtle);
+}
+
+.providerGroupHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.providerList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.providerCard {
+  margin: 0;
+}
+
+.providerCard :global(dt-card) {
+  display: block;
+  margin: 0;
+}
+
+.providerCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.providerCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.providerCardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.providerCardTitle {
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-display, 'Sora', system-ui, -apple-system, sans-serif);
+  letter-spacing: -0.01em;
+}
+
+.providerDefaultBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--dt-accent-ghost);
+  color: var(--dt-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.providerCardActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.providerActionButtonWrap,
+.providerButtonWrap {
+  display: inline-flex;
+}
+
+.providerActionButtonWrap :global(dt-button),
+.providerButtonWrap :global(dt-button) {
+  display: inline-flex;
+}
+
+.providerFieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.providerField {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.providerFieldLabel {
+  color: var(--dt-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-display, 'Sora', system-ui, -apple-system, sans-serif);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.providerSelectWrap {
+  width: 100%;
+}
+
+.providerSelectWrap :global(dt-select) {
+  display: block;
+  width: 100%;
+}
+
+.selectWrap {
+  min-width: 120px;
+}
+
+.selectWrap :global(dt-select) {
+  display: block;
+  min-width: 120px;
+}
+
 .textInput,
 .numberInput,
 .dropdown {
@@ -153,7 +280,7 @@
   border-radius: 6px;
   background: var(--dt-surface);
   color: var(--dt-text);
-  font-family: inherit;
+  font-family: var(--font-ui, 'Work Sans', system-ui, -apple-system, sans-serif);
   font-size: 13px;
   outline: none;
   transition:
@@ -197,11 +324,6 @@
 .dropdown {
   min-width: 120px;
   cursor: pointer;
-}
-
-.dropdown option {
-  background: var(--dt-surface);
-  color: var(--dt-text);
 }
 
 .colorControl {
@@ -345,10 +467,30 @@
   min-width: 0;
 }
 
+.rootCompact .providerGroupHeader,
+.rootCompact .providerCardHeader {
+  flex-direction: column;
+}
+
+.rootCompact .providerCardActions {
+  justify-content: flex-start;
+}
+
+.rootCompact .providerActionButtonWrap,
+.rootCompact .providerButtonWrap {
+  width: 100%;
+}
+
+.rootCompact .providerFieldGrid {
+  grid-template-columns: 1fr;
+}
+
 .rootCompact .textInput,
 .rootCompact .textInputSensitive,
 .rootCompact .numberInput,
-.rootCompact .dropdown {
+.rootCompact .dropdown,
+.rootCompact .providerActionButtonWrap :global(dt-button),
+.rootCompact .providerButtonWrap :global(dt-button) {
   width: 100%;
   min-width: 0;
 }
