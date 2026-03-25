@@ -4,7 +4,7 @@
 
 DeskTalk is a browser-based, OS-like desktop environment powered by an AI assistant. Users describe what they need in natural language, and the AI generates **LiveApps** — lightweight, interactive applications that run directly in the desktop. LiveApps are the primary way users create and use software in DeskTalk.
 
-The system is distributed as a single npm package and started via a CLI command. Under the hood, DeskTalk also has a **MiniApp** architecture for built-in features (Note, Todo, File Explorer, etc.), but the user-facing experience centers on AI-generated LiveApps.
+The system is distributed as a single npm package and started via a CLI command. Under the hood, DeskTalk also has a **MiniApp** architecture for built-in features (Note, File Explorer, etc.), but the user-facing experience centers on AI-generated LiveApps.
 
 ## Architecture
 
@@ -46,7 +46,6 @@ desktalk/
     core/                  # @desktalk/core — main application shell (CLI, server, window manager, AI panel)
     sdk/                   # @desktalk/sdk — shared types and React hooks for MiniApp development
     miniapp-note/          # @desktalk/miniapp-note
-    miniapp-todo/          # @desktalk/miniapp-todo
     miniapp-file-explorer/ # @desktalk/miniapp-file-explorer
     miniapp-preview/       # @desktalk/miniapp-preview (also serves as LiveApp renderer)
     miniapp-preference/    # @desktalk/miniapp-preference
@@ -254,7 +253,6 @@ For the full MiniApp system architecture (registration, activation, process isol
 | MiniApp       | Summary                                                                                                          |
 | ------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Note          | Markdown note-taking with YAML front matter and Milkdown editor.                                                 |
-| Todo          | Task management similar to macOS Reminders.                                                                      |
 | File Explorer | Simple filesystem browser.                                                                                       |
 | Preview       | Content viewer for images and HTML. **Also the LiveApp renderer** — hosts the sandboxed iframe for all LiveApps. |
 | Preference    | App and window configuration. Privileged — sole MiniApp with write access to global config.                      |
@@ -292,7 +290,6 @@ Using `<config>`, `<data>`, `<logs>`, `<cache>` as shorthand for the platform-re
             index.html
             app.js
         note/                  # MiniApp-private data directories
-        todo/
         preview/
         <third-party-id>/
       .storage/
@@ -301,14 +298,12 @@ Using `<config>`, `<data>`, `<logs>`, `<cache>` as shorthand for the platform-re
             settings.json      # KV store file
             tasks.jsonl        # Collection op-log (source of truth)
         note.json              # MiniApp key-value stores
-        todo.json
         preference.json
       .cache/
         liveapps/              # LiveApp query cache (disposable, see liveapp-storage.md)
           my-app_stream-id/
             tasks.sqlite
         note/
-        todo/
       documents/               # User-visible files exposed through ctx.fs
       pictures/
 
@@ -316,7 +311,6 @@ Using `<config>`, `<data>`, `<logs>`, `<cache>` as shorthand for the platform-re
   core.log
   <username>/
     note.log
-    todo.log
     ...
 
 <cache>/
@@ -395,10 +389,10 @@ Window management is the central feature of DeskTalk.
 Actions are the bridge between the AI and the MiniApp UI.
 
 ```jsx
-<ActionsProvider>
+  <ActionsProvider>
   <Action
-    name="Add a TODO"
-    description="Create a new todo item"
+    name="Create Note"
+    description="Create a new note"
     handler={async (params) => {
       /* ... */
     }}

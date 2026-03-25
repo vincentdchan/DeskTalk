@@ -40,7 +40,7 @@ Like i3, the layout is represented as a **binary split tree**:
 Container (root)
  ├── Container (split=horizontal)
  │    ├── Leaf (Note)
- │    └── Leaf (Todo)
+ │    └── Leaf (Preview)
  └── Leaf (File Explorer)
 ```
 
@@ -497,7 +497,7 @@ Example persisted file:
   "version": 2,
   "windows": [
     { "id": "win-1", "miniAppId": "note", "title": "Note" },
-    { "id": "win-2", "miniAppId": "todo", "title": "Todo" }
+    { "id": "win-2", "miniAppId": "preview", "title": "Preview" }
   ],
   "tree": {
     "type": "container",
@@ -526,10 +526,10 @@ The `getDesktopContext()` method changes its output format. Instead of listing w
 Layout: horizontal split (50/50)
   Left: Note (focused)
   Right: vertical split (60/40)
-    Top: Todo
+    Top: Preview
     Bottom: File Explorer
 
-Available MiniApps: note, todo, file-explorer, preference
+Available MiniApps: note, file-explorer, preview, preference
 ```
 
 This gives the AI a clearer mental model of the spatial arrangement.

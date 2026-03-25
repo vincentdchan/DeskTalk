@@ -94,13 +94,13 @@ describe('backend-ipc types', () => {
     const messages: MainToChildMessage[] = [
       {
         type: 'activate',
-        miniAppId: 'todo',
-        backendPath: '@desktalk/miniapp-todo/backend',
+        miniAppId: 'note',
+        backendPath: '@desktalk/miniapp-note/backend',
         packageRoot: '/path',
         paths: { home: '', data: '', storage: '', log: '', cache: '' },
         locale: 'en',
       },
-      { type: 'command:invoke', requestId: 'r1', command: 'todos.list', data: null },
+      { type: 'command:invoke', requestId: 'r1', command: 'notes.list', data: null },
       { type: 'deactivate' },
     ];
     expect(messages).toHaveLength(3);

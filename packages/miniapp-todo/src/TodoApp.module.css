@@ -1,8 +1,0 @@
-.root {
-  display: flex;
-  height: 100%;
-  overflow: hidden;
-  background: var(--dt-window-body);
-  color: var(--dt-text);
-  font-family: var(--font-sans);
-}
