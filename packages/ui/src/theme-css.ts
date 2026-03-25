@@ -259,6 +259,43 @@ export const FONT_VARIABLES_CSS = `
 }
 `.trim();
 
+export const HTML_FORM_CONTROLS_STYLESHEET = `
+input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="search"], input[type="url"] {
+  font-family: var(--font-mono, 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: var(--dt-text);
+  background: var(--dt-surface);
+  border: 1px solid var(--dt-accent);
+  border-radius: 2px;
+  padding: 6px 10px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: all 0.1s ease;
+  position: relative;
+}
+input[type="text"]:hover, input[type="email"]:hover, input[type="password"]:hover, input[type="number"]:hover, input[type="search"]:hover, input[type="url"]:hover {
+  background: var(--dt-accent);
+  color: var(--dt-text-on-accent);
+}
+input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, input[type="number"]:focus, input[type="search"]:focus, input[type="url"]:focus {
+  background: var(--dt-accent);
+  color: var(--dt-text-on-accent);
+}
+input[type="text"]:disabled, input[type="email"]:disabled, input[type="password"]:disabled, input[type="number"]:disabled, input[type="search"]:disabled, input[type="url"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+input[type="text"]::placeholder, input[type="email"]::placeholder, input[type="password"]::placeholder, input[type="number"]::placeholder, input[type="search"]::placeholder, input[type="url"]::placeholder {
+  color: var(--dt-text-muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+`.trim();
+
 /**
  * Base stylesheet for AI-generated HTML.
  *
@@ -349,38 +386,5 @@ pre code { background: none; padding: 0; }
 .text-muted { color: var(--dt-text-muted); }
 .text-secondary { color: var(--dt-text-secondary); }
 .accent-bg { background: var(--dt-accent-subtle); }
-input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="search"], input[type="url"] {
-  font-family: var(--font-mono, 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  line-height: 1;
-  color: var(--dt-text);
-  background: var(--dt-surface);
-  border: 1px solid var(--dt-accent);
-  border-radius: 2px;
-  padding: 6px 10px;
-  outline: none;
-  width: 100%;
-  box-sizing: border-box;
-  transition: all 0.1s ease;
-  position: relative;
-}
-input[type="text"]:hover, input[type="email"]:hover, input[type="password"]:hover, input[type="number"]:hover, input[type="search"]:hover, input[type="url"]:hover {
-  background: var(--dt-accent);
-  color: var(--dt-text-on-accent);
-}
-input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, input[type="number"]:focus, input[type="search"]:focus, input[type="url"]:focus {
-  background: var(--dt-accent);
-  color: var(--dt-text-on-accent);
-}
-input[type="text"]:disabled, input[type="email"]:disabled, input[type="password"]:disabled, input[type="number"]:disabled, input[type="search"]:disabled, input[type="url"]:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-input[type="text"]::placeholder, input[type="email"]::placeholder, input[type="password"]::placeholder, input[type="number"]::placeholder, input[type="search"]::placeholder, input[type="url"]::placeholder {
-  color: var(--dt-text-muted);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
+${HTML_FORM_CONTROLS_STYLESHEET}
 `.trim();

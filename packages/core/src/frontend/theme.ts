@@ -4,7 +4,11 @@
  * Re-exports the shared types and `generateThemeCSS` for callers that already
  * import from this path, and adds the DOM-specific `applyTheme()` function.
  */
-export { generateThemeCSS, DEFAULT_THEME_PREFERENCES } from '@desktalk/ui/theme-css';
+export {
+  generateThemeCSS,
+  DEFAULT_THEME_PREFERENCES,
+  HTML_FORM_CONTROLS_STYLESHEET,
+} from '@desktalk/ui/theme-css';
 export type { ThemeMode, ThemePreferences } from '@desktalk/ui/theme-css';
 
 import { generateThemeCSS } from '@desktalk/ui/theme-css';
