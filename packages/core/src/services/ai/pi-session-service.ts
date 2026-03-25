@@ -8,6 +8,9 @@ import {
   readTool,
   writeTool,
   bashTool,
+  grepTool,
+  findTool,
+  lsTool,
   SessionManager,
   type AgentSession,
   type AgentSessionEvent,
@@ -402,6 +405,7 @@ export class PiSessionService {
 
     const resourceLoader = new DefaultResourceLoader({
       cwd: process.cwd(),
+      additionalSkillPaths: [join(workspacePaths.data, 'skills')],
       appendSystemPromptOverride: (base) => [...base, DESKTALK_SYSTEM_PROMPT],
     });
     await resourceLoader.reload();
@@ -478,7 +482,7 @@ export class PiSessionService {
       modelRegistry,
       model: initialModel,
       sessionManager,
-      tools: [readTool, writeTool, bashTool],
+      tools: [readTool, writeTool, bashTool, grepTool, findTool, lsTool],
       customTools,
       resourceLoader,
     });
@@ -507,7 +511,7 @@ export class PiSessionService {
       modelRegistry: this.modelRegistry,
       model: this.session.model,
       sessionManager,
-      tools: [readTool],
+      tools: [readTool, writeTool, bashTool, grepTool, findTool, lsTool],
       customTools: this.customTools,
       resourceLoader: this.resourceLoader,
     });
