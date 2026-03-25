@@ -1,0 +1,91 @@
+/**
+ * DeskTalk Font Faces
+ * 
+ * Self-hosted Google Fonts:
+ * - Sora: Display/decorative font for headings and large numbers
+ * - Work Sans: UI font for body text, buttons, and navigation
+ * 
+ * Fonts are licensed under SIL Open Font License (OFL)
+ * Source: https://fonts.google.com
+ */
+
+/* ── Sora (Display Font) ──────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('sora-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('sora-500.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('sora-600.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('sora-700.ttf') format('truetype');
+}
+
+/* ── Work Sans (UI Font) ──────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: 'Work Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('work-sans-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Work Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('work-sans-500.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Work Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('work-sans-600.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Work Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('work-sans-700.ttf') format('truetype');
+}
+
+/* ── Font Variables ───────────────────────────────────────────────────────── */
+
+:root {
+  /* Display font for headings and large numbers */
+  --font-display: 'Sora', system-ui, -apple-system, sans-serif;
+
+  /* UI font for body text, buttons, navigation */
+  --font-ui: 'Work Sans', system-ui, -apple-system, sans-serif;
+
+  /* Monospace font for code */
+  --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+}
