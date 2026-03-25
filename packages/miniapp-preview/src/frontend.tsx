@@ -16,6 +16,12 @@ const ZOOM_STEP = 0.25;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 10;
 
+interface MiniAppThemeUpdateDetail {
+  windowId: string;
+  miniAppId: string;
+  theme: PreviewThemeRuntime;
+}
+
 // ─── Mode detection ──────────────────────────────────────────────────────────
 
 function detectMode(args?: Record<string, unknown>): PreviewMode {
@@ -36,7 +42,8 @@ function PreviewApp({
   streamId,
   streamTitle,
   bridgeToken,
-  theme,
+  theme: initialTheme,
+  windowId,
 }: {
   initialPath?: string;
   mode: PreviewMode;
@@ -45,6 +52,7 @@ function PreviewApp({
   streamTitle?: string;
   bridgeToken?: string;
   theme: PreviewThemeRuntime;
+  windowId: string;
 }) {
   // ─── Image-mode state ───────────────────────────────────────────────────
   const [currentFile, setCurrentFile] = useState<PreviewFile | null>(null);
@@ -72,6 +80,27 @@ function PreviewApp({
       : null,
   });
   const [liveAppActions, setLiveAppActions] = useState<PreviewBridgeActionDefinition[]>([]);
+  const [theme, setTheme] = useState<PreviewThemeRuntime>(initialTheme);
+
+  useEffect(() => {
+    setTheme(initialTheme);
+  }, [initialTheme]);
+
+  useEffect(() => {
+    const handleThemeUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<MiniAppThemeUpdateDetail>).detail;
+      if (!detail || detail.windowId !== windowId || detail.miniAppId !== 'preview') {
+        return;
+      }
+      setTheme({
+        accentColor: detail.theme.accentColor,
+        mode: detail.theme.mode === 'light' ? 'light' : 'dark',
+      });
+    };
+
+    window.addEventListener('desktalk:theme-update', handleThemeUpdate);
+    return () => window.removeEventListener('desktalk:theme-update', handleThemeUpdate);
+  }, [windowId]);
 
   // ─── Backend commands ───────────────────────────────────────────────────
   const openFile = useCommand<{ path: string }, PreviewFile>('preview.open');
@@ -340,6 +369,7 @@ export function activate(ctx: MiniAppFrontendContext): MiniAppFrontendActivation
           streamTitle={streamTitle}
           bridgeToken={bridgeToken}
           theme={theme}
+          windowId={ctx.windowId}
         />
       </MiniAppIdProvider>
     </WindowIdProvider>,

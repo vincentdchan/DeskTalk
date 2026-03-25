@@ -3,6 +3,15 @@ import type { ThemePreferences } from '../theme';
 import { loadMiniAppModule } from '../miniapp-runtime';
 import type { MiniAppFrontendModule } from '../miniapp-runtime';
 
+interface MiniAppThemeUpdateDetail {
+  windowId: string;
+  miniAppId: string;
+  theme: {
+    accentColor: string;
+    mode: 'light' | 'dark';
+  };
+}
+
 function MiniAppLoadError({ miniAppId, message }: { miniAppId: string; message: string }) {
   return (
     <div style={{ padding: 24, color: 'var(--dt-text-muted)' }}>
@@ -27,6 +36,21 @@ export function MiniAppWindow({
   const [error, setError] = useState<string | null>(null);
   const modRef = useRef<MiniAppFrontendModule | null>(null);
   const activationRef = useRef<{ deactivate(): void } | null>(null);
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent<MiniAppThemeUpdateDetail>('desktalk:theme-update', {
+        detail: {
+          windowId,
+          miniAppId,
+          theme: {
+            accentColor: themePreferences.accentColor,
+            mode: themePreferences.theme,
+          },
+        },
+      }),
+    );
+  }, [miniAppId, themePreferences.accentColor, themePreferences.theme, windowId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,7 +89,7 @@ export function MiniAppWindow({
         });
       }
     };
-  }, [args, miniAppId, themePreferences.accentColor, themePreferences.theme, windowId]);
+  }, [args, miniAppId, windowId]);
 
   if (error) {
     return <MiniAppLoadError miniAppId={miniAppId} message={error} />;

@@ -79,19 +79,45 @@ function ColorControl({
     setLocalValue(value);
   }, [value]);
 
-  const commit = useCallback(() => {
-    if (localValue !== value) {
-      onChange(schema.key, localValue.trim());
-    }
-  }, [localValue, onChange, schema.key, value]);
+  const commit = useCallback(
+    (nextValue?: string) => {
+      const resolvedValue = (nextValue ?? localValue).trim();
+      if (resolvedValue !== value) {
+        onChange(schema.key, resolvedValue);
+      }
+    },
+    [localValue, onChange, schema.key, value],
+  );
+
+  const handlePickerInput = useCallback((e: React.FormEvent<HTMLInputElement>) => {
+    setLocalValue(e.currentTarget.value);
+  }, []);
 
   const handlePickerChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setLocalValue(e.target.value);
-      onChange(schema.key, e.target.value);
+      const nextValue = e.target.value;
+      setLocalValue(nextValue);
+      commit(nextValue);
     },
-    [onChange, schema.key],
+    [commit],
   );
+
+  const handleTextChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalValue(e.target.value);
+  }, []);
+
+  const handleTextKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        commit();
+      }
+    },
+    [commit],
+  );
+
+  const handleTextBlur = useCallback(() => {
+    commit();
+  }, [commit]);
 
   const pickerValue = isHexColor(localValue) ? localValue : '#7c6ff7';
 
@@ -101,6 +127,7 @@ function ColorControl({
         type="color"
         className={styles.colorInput}
         value={pickerValue}
+        onInput={handlePickerInput}
         onChange={handlePickerChange}
         aria-label={`${schema.label} picker`}
       />
@@ -108,13 +135,9 @@ function ColorControl({
         type="text"
         className={styles.textInput}
         value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            commit();
-          }
-        }}
+        onChange={handleTextChange}
+        onBlur={handleTextBlur}
+        onKeyDown={handleTextKeyDown}
         placeholder="#7c6ff7"
       />
     </div>
