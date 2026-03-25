@@ -55,6 +55,7 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
 
     addClient(socket);
     let activeAiRequestId: string | null = null;
+    const cancelledAiRequestIds = new Set<string>();
 
     function sendAiEvent(event: Record<string, unknown>): void {
       socket.send(
@@ -271,6 +272,43 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
             sessionId: piSessionService.getSessionId(),
             sessions: await piSessionService.listSessions(),
           });
+        } else if (msg.type === 'ai:cancel') {
+          const requestId = typeof msg.requestId === 'string' ? msg.requestId : '';
+
+          if (!activeAiRequestId) {
+            sendAiEvent({
+              type: 'error',
+              requestId,
+              message: 'No AI request is currently running.',
+            });
+            return;
+          }
+
+          if (!requestId || requestId !== activeAiRequestId) {
+            sendAiEvent({
+              type: 'error',
+              requestId,
+              message: 'Only the active AI request can be cancelled.',
+            });
+            return;
+          }
+
+          if (cancelledAiRequestIds.has(requestId)) {
+            return;
+          }
+
+          cancelledAiRequestIds.add(requestId);
+
+          try {
+            await piSessionService.abort();
+          } catch (err) {
+            cancelledAiRequestIds.delete(requestId);
+            sendAiEvent({
+              type: 'error',
+              requestId,
+              message: (err as Error).message,
+            });
+          }
         } else if (msg.type === 'ai:prompt') {
           const requestId = typeof msg.requestId === 'string' ? msg.requestId : `ai-${Date.now()}`;
           const text = typeof msg.text === 'string' ? msg.text.trim() : '';
@@ -313,6 +351,15 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
               },
             );
 
+            if (cancelledAiRequestIds.has(requestId)) {
+              sendAiEvent({
+                type: 'message_end',
+                requestId,
+                cancelled: true,
+              });
+              return;
+            }
+
             sendAiEvent({
               type: 'history_sync',
               sessionId: piSessionService.getSessionId(),
@@ -324,13 +371,25 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
               sessions: await piSessionService.listSessions(),
             });
           } catch (err) {
+            if (cancelledAiRequestIds.has(requestId)) {
+              sendAiEvent({
+                type: 'message_end',
+                requestId,
+                cancelled: true,
+              });
+              return;
+            }
+
             sendAiEvent({
               type: 'error',
               requestId,
               message: (err as Error).message,
             });
           } finally {
-            activeAiRequestId = null;
+            cancelledAiRequestIds.delete(requestId);
+            if (activeAiRequestId === requestId) {
+              activeAiRequestId = null;
+            }
           }
         }
       } catch {

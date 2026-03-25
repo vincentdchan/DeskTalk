@@ -578,6 +578,10 @@ export class PiSessionService {
     );
   }
 
+  async abort(): Promise<void> {
+    await this.session.abort();
+  }
+
   private maybeAssignSessionTitle(inputText: string): void {
     if (this.session.sessionManager.getSessionName()) {
       return;
