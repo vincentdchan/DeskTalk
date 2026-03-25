@@ -168,6 +168,8 @@ export async function createServer(options: ServerOptions) {
 
     if (req.url.startsWith('/api/ui/') && req.url.endsWith('.js')) return;
 
+    if (req.url.startsWith('/api/ui/fonts/')) return;
+
     if (req.url.startsWith('/api/miniapps/text-edit/monaco/')) return;
 
     // Skip auth for static file requests (non-API, non-WS, non-dtfs)

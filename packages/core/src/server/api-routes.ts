@@ -1,3 +1,4 @@
+import fastifyStatic from '@fastify/static';
 import { createReadStream } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -21,6 +22,7 @@ import { registry } from '../services/miniapp-registry';
 import { getStoredPreference, getStoredPreferenceForUser } from '../services/preferences';
 import {
   DEFAULT_THEME_PREFERENCES,
+  FONT_FACES_CSS,
   generateThemeCSS,
   HTML_BASE_STYLESHEET,
 } from '@desktalk/ui/theme-css';
@@ -35,9 +37,24 @@ export interface ApiRoutesOptions {
 
 export async function apiRoutes(app: FastifyInstance, options: ApiRoutesOptions): Promise<void> {
   const require = createRequire(import.meta.url);
-  const uiDistDir = join(dirname(require.resolve('@desktalk/ui/package.json')), 'dist');
+  const uiPackageDir = dirname(require.resolve('@desktalk/ui/package.json'));
+  const uiDistDir = join(uiPackageDir, 'dist');
+  const uiFontsDir = join(uiPackageDir, 'src', 'fonts');
   const uiBundleCache = new Map<string, { body: Buffer; etag: string }>();
   const themeCssCache = new Map<string, { body: string; etag: string }>();
+  const hostedFontFacesCss = FONT_FACES_CSS.replaceAll(
+    /url\('([^']+)'\)/g,
+    "url('/api/ui/fonts/$1')",
+  );
+
+  await app.register(fastifyStatic, {
+    root: uiFontsDir,
+    prefix: '/api/ui/fonts/',
+    decorateReply: false,
+    cacheControl: true,
+    immutable: true,
+    maxAge: '1d',
+  });
 
   async function getUiBundle(
     fileName: string,
@@ -189,7 +206,7 @@ export async function apiRoutes(app: FastifyInstance, options: ApiRoutesOptions)
       let cached = themeCssCache.get(cacheKey);
       if (!cached) {
         const themeCSS = generateThemeCSS({ accentColor: accent, theme });
-        const body = `${themeCSS}\n${HTML_BASE_STYLESHEET}`;
+        const body = `${hostedFontFacesCss}\n${themeCSS}\n${HTML_BASE_STYLESHEET}`;
         const etag = `"theme-${Buffer.byteLength(body).toString(36)}"`;
         cached = { body, etag };
         themeCssCache.set(cacheKey, cached);

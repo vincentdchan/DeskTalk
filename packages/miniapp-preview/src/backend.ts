@@ -73,7 +73,7 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
     cwd: string | undefined,
     timeoutMs: number,
   ) {
-    if (activeBridgeExecs >= 2) {
+    if (activeBridgeExecs >= 10) {
       throw new Error('Too many bridge commands are already running.');
     }
 
