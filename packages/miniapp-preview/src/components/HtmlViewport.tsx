@@ -1,11 +1,13 @@
-import React, { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
+import React, { useRef, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react';
 import styles from './HtmlViewport.module.css';
 import type {
   PreviewBridgeRequestMessage,
   PreviewBridgeResponseMessage,
   PreviewInvokeActionMessage,
   PreviewInvokeActionResultMessage,
+  PreviewThemeUpdateMessage,
 } from '../types';
+import type { PreviewThemeRuntime } from '../html-injections';
 
 export interface HtmlViewportHandle {
   postInvokeAction: (message: PreviewInvokeActionMessage) => void;
@@ -25,10 +27,14 @@ interface HtmlViewportProps {
   ) => void;
   onInvokeActionResult?: (message: PreviewInvokeActionResultMessage) => void;
   onLoad?: () => void;
+  theme?: PreviewThemeRuntime;
 }
 
+const LIGHT_IFRAME_BACKGROUND = '#f7f7fa';
+const DARK_IFRAME_BACKGROUND = '#101114';
+
 export const HtmlViewport = forwardRef<HtmlViewportHandle, HtmlViewportProps>(function HtmlViewport(
-  { html, src, streaming, onBridgeRequest, onInvokeActionResult, onLoad }: HtmlViewportProps,
+  { html, src, streaming, onBridgeRequest, onInvokeActionResult, onLoad, theme }: HtmlViewportProps,
   ref,
 ) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -38,6 +44,34 @@ export const HtmlViewport = forwardRef<HtmlViewportHandle, HtmlViewportProps>(fu
   const docOpenRef = useRef(false);
   /** Tracks whether the previous render was in streaming mode. */
   const wasStreamingRef = useRef(Boolean(streaming));
+
+  const syncThemeToIframe = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !theme) {
+      return;
+    }
+
+    const backgroundColor =
+      theme.mode === 'dark' ? DARK_IFRAME_BACKGROUND : LIGHT_IFRAME_BACKGROUND;
+    iframe.style.backgroundColor = backgroundColor;
+
+    const doc = iframe.contentDocument;
+    if (doc?.documentElement) {
+      doc.documentElement.dataset.theme = theme.mode;
+      doc.documentElement.style.colorScheme = theme.mode;
+      doc.documentElement.style.backgroundColor = backgroundColor;
+    }
+    if (doc?.body) {
+      doc.body.style.backgroundColor = backgroundColor;
+    }
+
+    const message: PreviewThemeUpdateMessage = {
+      type: 'desktalk:theme-update',
+      accentColor: theme.accentColor,
+      mode: theme.mode,
+    };
+    iframe.contentWindow?.postMessage(message, '*');
+  }, [theme]);
 
   useImperativeHandle(
     ref,
@@ -85,6 +119,10 @@ export const HtmlViewport = forwardRef<HtmlViewportHandle, HtmlViewportProps>(fu
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, [onBridgeRequest, onInvokeActionResult]);
+
+  useEffect(() => {
+    syncThemeToIframe();
+  }, [syncThemeToIframe]);
 
   // ── Append-only streaming write ──────────────────────────────────────────
   //
@@ -161,7 +199,13 @@ export const HtmlViewport = forwardRef<HtmlViewportHandle, HtmlViewportProps>(fu
       sandbox="allow-scripts allow-same-origin"
       title="HTML Preview"
       src={src}
-      onLoad={onLoad}
+      onLoad={() => {
+        syncThemeToIframe();
+        onLoad?.();
+      }}
+      style={{
+        backgroundColor: theme?.mode === 'dark' ? DARK_IFRAME_BACKGROUND : LIGHT_IFRAME_BACKGROUND,
+      }}
     />
   );
 });

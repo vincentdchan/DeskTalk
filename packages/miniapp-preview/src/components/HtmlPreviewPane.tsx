@@ -553,6 +553,7 @@ export function HtmlPreviewPane({
         <HtmlViewport
           ref={viewportRef}
           src={iframeSrc}
+          theme={theme}
           onBridgeRequest={shouldInjectRuntime ? respondToBridgeRequest : undefined}
           onInvokeActionResult={shouldInjectRuntime ? handleInvokeActionResult : undefined}
           onLoad={shouldInjectRuntime ? handleViewportLoad : undefined}

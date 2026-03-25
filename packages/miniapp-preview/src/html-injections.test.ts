@@ -12,6 +12,7 @@ describe('html injections', () => {
     });
 
     expect(injected).toContain('data-dt-theme');
+    expect(injected).toContain('data-dt-theme-sync');
     expect(injected).toContain('accent=%23123456');
     expect(injected).toContain('theme=light');
     expect(injected).toContain('data-dt-ui');
@@ -25,6 +26,9 @@ describe('html injections', () => {
     const html = [
       '<!DOCTYPE html><html><head>',
       '<link rel="stylesheet" href="/api/ui/desktalk-theme.css?accent=%23000000&theme=dark" data-dt-theme>',
+      '<script data-dt-theme-sync>',
+      'window.addEventListener("message", () => {});',
+      '</script>',
       '<script src="/api/ui/desktalk-ui.js" data-dt-ui></script>',
       '<script data-dt-bridge>',
       'const streamId = "old-stream";',
@@ -38,7 +42,8 @@ describe('html injections', () => {
       bridgeToken: 'bridge-next',
     });
 
-    expect((injected.match(/data-dt-theme/g) ?? []).length).toBe(1);
+    expect((injected.match(/data-dt-theme(?=[\s>])/g) ?? []).length).toBe(1);
+    expect((injected.match(/data-dt-theme-sync/g) ?? []).length).toBe(1);
     expect((injected.match(/data-dt-ui/g) ?? []).length).toBe(1);
     expect((injected.match(/data-dt-bridge/g) ?? []).length).toBe(1);
     expect(injected).not.toContain('old-stream');

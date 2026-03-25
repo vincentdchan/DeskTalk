@@ -65,6 +65,9 @@ describe('backend helpers', () => {
     const injectedHtml = [
       '<!DOCTYPE html><html><head>',
       '<link rel="stylesheet" href="/api/ui/desktalk-theme.css?accent=%237c6ff7&theme=dark" data-dt-theme>',
+      '<script data-dt-theme-sync>',
+      'window.addEventListener("message", () => {});',
+      '</script>',
       '<script src="/api/ui/desktalk-ui.js" data-dt-ui></script>',
       '<script data-dt-bridge>',
       'window.DeskTalk = {};',

@@ -228,6 +228,12 @@ export interface PreviewInvokeActionResultMessage {
   error?: string;
 }
 
+export interface PreviewThemeUpdateMessage {
+  type: 'desktalk:theme-update';
+  accentColor: string;
+  mode: 'light' | 'dark';
+}
+
 export interface PreviewBridgeWindowSummary {
   id: string;
   miniAppId: string;

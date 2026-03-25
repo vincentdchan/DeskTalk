@@ -610,6 +610,7 @@ export function StreamPreviewPane({
         ref={viewportRef}
         html={streamHtml}
         streaming={streaming}
+        theme={theme}
         onBridgeRequest={respondToBridgeRequest}
         onInvokeActionResult={handleInvokeActionResult}
         onLoad={handleViewportLoad}
