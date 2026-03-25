@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import type { MiniAppFrontendActivation, MiniAppFrontendContext } from '@desktalk/sdk';
 import { useCommand, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
 import type { PreviewFile, PreviewMode, PreviewActionState, SiblingList } from './types';
+import type { PreviewBridgeActionDefinition } from './types';
 import { PreviewToolbar } from './components/PreviewToolbar';
 import { ImageViewport } from './components/ImageViewport';
 import { HtmlPreviewPane } from './components/HtmlPreviewPane';
@@ -51,6 +52,9 @@ function PreviewApp({
   const [zoom, setZoom] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const liveAppActionInvokerRef = useRef<
+    ((actionName: string, params?: Record<string, unknown>) => Promise<unknown>) | null
+  >(null);
   const [htmlActionState, setHtmlActionState] = useState<PreviewActionState>({
     mode: 'html',
     streaming: false,
@@ -67,6 +71,7 @@ function PreviewApp({
         }
       : null,
   });
+  const [liveAppActions, setLiveAppActions] = useState<PreviewBridgeActionDefinition[]>([]);
 
   // ─── Backend commands ───────────────────────────────────────────────────
   const openFile = useCommand<{ path: string }, PreviewFile>('preview.open');
@@ -162,6 +167,26 @@ function PreviewApp({
     }
   }, [currentFile, previousFile, getSiblings]);
 
+  const handleLiveAppActionInvokerChange = useCallback(
+    (
+      invoker: ((actionName: string, params?: Record<string, unknown>) => Promise<unknown>) | null,
+    ) => {
+      liveAppActionInvokerRef.current = invoker;
+    },
+    [],
+  );
+
+  const handleInvokeLiveAppAction = useCallback(
+    async (actionName: string, params?: Record<string, unknown>) => {
+      const invoker = liveAppActionInvokerRef.current;
+      if (!invoker) {
+        throw new Error(`LiveApp action "${actionName}" is unavailable.`);
+      }
+      return invoker(actionName, params);
+    },
+    [],
+  );
+
   // ─── Keyboard shortcuts (image mode only) ──────────────────────────────
 
   useEffect(() => {
@@ -228,6 +253,8 @@ function PreviewApp({
       onPan={handlePan}
       onPrevious={handlePrevious}
       onNext={handleNext}
+      liveAppActions={liveAppActions}
+      onInvokeLiveAppAction={handleInvokeLiveAppAction}
     >
       <div className={styles.root}>
         {mode === 'image' ? (
@@ -269,6 +296,8 @@ function PreviewApp({
             bridgeToken={bridgeToken}
             theme={theme}
             onActionStateChange={setHtmlActionState}
+            onLiveAppActionsChange={setLiveAppActions}
+            onLiveAppActionInvokerChange={handleLiveAppActionInvokerChange}
           />
         ) : (
           <StreamPreviewPane
@@ -277,6 +306,8 @@ function PreviewApp({
             bridgeToken={bridgeToken}
             theme={theme}
             onActionStateChange={setStreamActionState}
+            onLiveAppActionsChange={setLiveAppActions}
+            onLiveAppActionInvokerChange={handleLiveAppActionInvokerChange}
           />
         )}
       </div>

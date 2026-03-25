@@ -103,7 +103,7 @@ export function createLiveAppTool(options: CreateLiveAppToolOptions): ToolDefini
       'Use `window.DeskTalk.storage` for persistent app data. Prefer KV storage for settings and `storage.collection(name)` for user-editable records such as tasks, rows, or bookmarks.',
       'Use `window.DeskTalk.request(url, options)` for external HTTP APIs instead of relying on plain browser `fetch()` across origins.',
       'The bridge also exposes `exec` / `execute` — both accept either a shell string (`window.DeskTalk.exec("ls -la")`) or explicit arguments (`window.DeskTalk.exec("ls", ["-la"])`).',
-      'Call `read_manual` with pages such as `html/tokens`, `html/components`, `html/layouts`, `html/bridge`, `html/storage`, or `html/examples` when you need the full DeskTalk reference.',
+      'Call `read_manual` with pages such as `html/tokens`, `html/components`, `html/layouts`, `html/bridge`, `html/actions`, `html/storage`, or `html/examples` when you need the full DeskTalk reference.',
     ],
     parameters: createLiveAppSchema,
     async execute(_toolCallId, params) {

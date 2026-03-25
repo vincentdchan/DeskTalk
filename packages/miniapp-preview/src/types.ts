@@ -91,6 +91,23 @@ export interface PreviewBridgeRequestResult {
   url: string;
 }
 
+export interface PreviewBridgeActionParam {
+  type: 'string' | 'number' | 'boolean';
+  description?: string;
+  required?: boolean;
+}
+
+export interface PreviewBridgeActionDefinition {
+  name: string;
+  description: string;
+  params?: Record<string, PreviewBridgeActionParam>;
+}
+
+export type PreviewBridgeActionsRequest =
+  | ({ action: 'register' } & PreviewBridgeActionDefinition)
+  | { action: 'unregister'; name: string }
+  | { action: 'clear' };
+
 export interface PreviewBridgeStorageQueryOptions {
   sort?: string;
   order?: 'asc' | 'desc';
@@ -178,12 +195,31 @@ export interface PreviewBridgeRequestMessage {
   streamId: string;
   token: string;
   requestId: string;
-  kind: 'getState' | 'exec' | 'storage' | 'request';
+  kind: 'getState' | 'exec' | 'storage' | 'request' | 'actions';
   payload: unknown;
 }
 
 export interface PreviewBridgeResponseMessage {
   type: 'desktalk:bridge-response';
+  streamId: string;
+  token: string;
+  requestId: string;
+  ok: boolean;
+  result?: unknown;
+  error?: string;
+}
+
+export interface PreviewInvokeActionMessage {
+  type: 'desktalk:invoke-action';
+  streamId: string;
+  token: string;
+  requestId: string;
+  actionName: string;
+  params: Record<string, unknown> | null;
+}
+
+export interface PreviewInvokeActionResultMessage {
+  type: 'desktalk:invoke-action-result';
   streamId: string;
   token: string;
   requestId: string;

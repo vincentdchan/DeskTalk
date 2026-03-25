@@ -1,6 +1,15 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import styles from './HtmlViewport.module.css';
-import type { PreviewBridgeRequestMessage, PreviewBridgeResponseMessage } from '../types';
+import type {
+  PreviewBridgeRequestMessage,
+  PreviewBridgeResponseMessage,
+  PreviewInvokeActionMessage,
+  PreviewInvokeActionResultMessage,
+} from '../types';
+
+export interface HtmlViewportHandle {
+  postInvokeAction: (message: PreviewInvokeActionMessage) => void;
+}
 
 interface HtmlViewportProps {
   /** The full HTML string to render (static or accumulated streaming content). */
@@ -14,9 +23,14 @@ interface HtmlViewportProps {
     request: PreviewBridgeRequestMessage,
     respond: (response: PreviewBridgeResponseMessage) => void,
   ) => void;
+  onInvokeActionResult?: (message: PreviewInvokeActionResultMessage) => void;
+  onLoad?: () => void;
 }
 
-export function HtmlViewport({ html, src, streaming, onBridgeRequest }: HtmlViewportProps) {
+export const HtmlViewport = forwardRef<HtmlViewportHandle, HtmlViewportProps>(function HtmlViewport(
+  { html, src, streaming, onBridgeRequest, onInvokeActionResult, onLoad }: HtmlViewportProps,
+  ref,
+) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   /** How many characters of `html` have been written to the document so far. */
   const writtenLengthRef = useRef(0);
@@ -25,8 +39,18 @@ export function HtmlViewport({ html, src, streaming, onBridgeRequest }: HtmlView
   /** Tracks whether the previous render was in streaming mode. */
   const wasStreamingRef = useRef(Boolean(streaming));
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      postInvokeAction(message: PreviewInvokeActionMessage) {
+        iframeRef.current?.contentWindow?.postMessage(message, '*');
+      },
+    }),
+    [],
+  );
+
   useEffect(() => {
-    if (!onBridgeRequest) return;
+    if (!onBridgeRequest && !onInvokeActionResult) return;
 
     const handleMessage = (event: MessageEvent) => {
       const iframe = iframeRef.current;
@@ -34,19 +58,33 @@ export function HtmlViewport({ html, src, streaming, onBridgeRequest }: HtmlView
         return;
       }
 
-      const data = event.data as PreviewBridgeRequestMessage | undefined;
-      if (!data || data.type !== 'desktalk:bridge-request') {
+      const data = event.data as
+        | PreviewBridgeRequestMessage
+        | PreviewInvokeActionResultMessage
+        | undefined;
+      if (!data) {
         return;
       }
 
-      onBridgeRequest(data, (response) => {
-        iframe.contentWindow?.postMessage(response, '*');
-      });
+      if (data.type === 'desktalk:bridge-request') {
+        if (!onBridgeRequest) {
+          return;
+        }
+
+        onBridgeRequest(data, (response) => {
+          iframe.contentWindow?.postMessage(response, '*');
+        });
+        return;
+      }
+
+      if (data.type === 'desktalk:invoke-action-result') {
+        onInvokeActionResult?.(data);
+      }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [onBridgeRequest]);
+  }, [onBridgeRequest, onInvokeActionResult]);
 
   // ── Append-only streaming write ──────────────────────────────────────────
   //
@@ -123,6 +161,7 @@ export function HtmlViewport({ html, src, streaming, onBridgeRequest }: HtmlView
       sandbox="allow-scripts allow-same-origin"
       title="HTML Preview"
       src={src}
+      onLoad={onLoad}
     />
   );
-}
+});

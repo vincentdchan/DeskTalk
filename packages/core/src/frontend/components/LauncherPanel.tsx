@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { DockIcon } from './DockIcon';
+import { useClickOutside } from './useClickOutside';
 import type { LauncherApp } from './launcher-types';
 import styles from './LauncherPanel.module.scss';
 
@@ -46,20 +47,10 @@ export function LauncherPanel({ apps, isOpen, onClose, onLaunch, anchorRef }: La
     };
   }, [anchorRef, isOpen]);
 
+  useClickOutside([panelRef, anchorRef], onClose, isOpen);
+
   useEffect(() => {
     if (!isOpen) return;
-
-    function handleClickOutside(e: MouseEvent) {
-      const target = e.target as Node;
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(target) &&
-        anchorRef.current &&
-        !anchorRef.current.contains(target)
-      ) {
-        onClose();
-      }
-    }
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
@@ -67,13 +58,11 @@ export function LauncherPanel({ apps, isOpen, onClose, onLaunch, anchorRef }: La
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose, anchorRef]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

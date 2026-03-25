@@ -6,6 +6,8 @@ For persistent app data, use `window.DeskTalk.storage`. Read `html/storage` for 
 
 For external HTTP APIs, use `window.DeskTalk.request(...)` instead of plain browser `fetch()` when the request may hit another origin.
 
+For AI-invokable LiveApp actions, use `window.DeskTalk.actions`. Read `html/actions` for the full actions reference.
+
 ## Reading State
 
 Use `await window.DeskTalk.getState(selector)`.

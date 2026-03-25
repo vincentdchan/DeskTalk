@@ -14,6 +14,7 @@ const isWatch = process.argv.includes('--watch');
 
 const sharedOptions = {
   bundle: true,
+  minify: !isWatch,
   platform: 'browser',
   sourcemap: true,
   target: 'es2022',

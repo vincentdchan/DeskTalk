@@ -2,11 +2,14 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useCommand, useEvent, useWindowId } from '@desktalk/sdk';
 import type {
   PreviewActionState,
+  PreviewBridgeActionDefinition,
+  PreviewBridgeActionsRequest,
   PreviewBridgeExecPayload,
   PreviewBridgeExecResponse,
   PreviewBridgeGetStatePayload,
   PreviewBridgeRequestPayload,
   PreviewBridgeRequestResult,
+  PreviewInvokeActionResultMessage,
   PreviewBridgeRequestMessage,
   PreviewBridgeResponseMessage,
   PreviewBridgeStoragePayload,
@@ -14,7 +17,7 @@ import type {
   StreamedHtmlSnapshot,
 } from '../types';
 import { injectDtRuntime, type PreviewThemeRuntime } from '../html-injections';
-import { HtmlViewport } from './HtmlViewport';
+import { HtmlViewport, type HtmlViewportHandle } from './HtmlViewport';
 import { PreviewToolbar } from './PreviewToolbar';
 import { BridgeConfirmDialog } from './BridgeConfirmDialog';
 import { getStreamedDirectoryName } from '../liveapp-id';
@@ -57,6 +60,10 @@ interface StreamPreviewPaneProps {
   bridgeToken?: string;
   theme: PreviewThemeRuntime;
   onActionStateChange: (state: PreviewActionState) => void;
+  onLiveAppActionsChange: (actions: PreviewBridgeActionDefinition[]) => void;
+  onLiveAppActionInvokerChange: (
+    invoker: ((actionName: string, params?: Record<string, unknown>) => Promise<unknown>) | null,
+  ) => void;
 }
 
 export function StreamPreviewPane({
@@ -65,8 +72,11 @@ export function StreamPreviewPane({
   bridgeToken,
   theme,
   onActionStateChange,
+  onLiveAppActionsChange,
+  onLiveAppActionInvokerChange,
 }: StreamPreviewPaneProps) {
   const windowId = useWindowId();
+  const viewportRef = useRef<HtmlViewportHandle | null>(null);
   const [streamHtml, setStreamHtml] = useState('');
   const [streaming, setStreaming] = useState(true);
   const [streamSnapshot, setStreamSnapshot] = useState<StreamedHtmlSnapshot | null>(null);
@@ -79,6 +89,17 @@ export function StreamPreviewPane({
     respond: (response: PreviewBridgeResponseMessage) => void;
   } | null>(null);
   const streamHtmlRef = useRef(streamHtml);
+  const liveAppActionsRef = useRef<Map<string, PreviewBridgeActionDefinition>>(new Map());
+  const pendingActionInvocationsRef = useRef<
+    Map<
+      string,
+      {
+        resolve: (value: unknown) => void;
+        reject: (error: Error) => void;
+        timeout: ReturnType<typeof setTimeout>;
+      }
+    >
+  >(new Map());
 
   const loadStreamedHtml = useCommand<
     { streamId: string; title: string },
@@ -106,6 +127,23 @@ export function StreamPreviewPane({
   );
   const liveAppId = getStreamedDirectoryName(streamId, streamTitle);
 
+  const publishLiveAppActions = useCallback(() => {
+    onLiveAppActionsChange(Array.from(liveAppActionsRef.current.values()));
+  }, [onLiveAppActionsChange]);
+
+  const rejectPendingActionInvocations = useCallback((message: string) => {
+    for (const pending of pendingActionInvocationsRef.current.values()) {
+      clearTimeout(pending.timeout);
+      pending.reject(new Error(message));
+    }
+    pendingActionInvocationsRef.current.clear();
+  }, []);
+
+  const clearLiveAppActions = useCallback(() => {
+    liveAppActionsRef.current.clear();
+    publishLiveAppActions();
+  }, [publishLiveAppActions]);
+
   useEffect(() => {
     streamHtmlRef.current = streamHtml;
   }, [streamHtml]);
@@ -127,6 +165,8 @@ export function StreamPreviewPane({
       return;
     }
 
+    clearLiveAppActions();
+    rejectPendingActionInvocations('LiveApp reloaded before the action completed.');
     const nextHtml = bridgeToken
       ? injectDtRuntime(data.content, {
           theme,
@@ -164,6 +204,8 @@ export function StreamPreviewPane({
       return;
     }
 
+    clearLiveAppActions();
+    rejectPendingActionInvocations('LiveApp reloaded before the action completed.');
     setStreaming(false);
     const htmlToSave = typeof data.html === 'string' ? data.html : streamHtmlRef.current;
     void saveStreamedHtml({
@@ -185,6 +227,8 @@ export function StreamPreviewPane({
         if (cancelled || !snapshot) {
           return;
         }
+        clearLiveAppActions();
+        rejectPendingActionInvocations('LiveApp reloaded before the action completed.');
         const nextHtml = bridgeToken
           ? injectDtRuntime(snapshot.content, {
               theme,
@@ -210,13 +254,21 @@ export function StreamPreviewPane({
 
   useEffect(() => {
     if (!bridgeToken) {
+      onLiveAppActionInvokerChange(null);
+      onLiveAppActionsChange([]);
       return;
     }
 
     void registerBridgeSession({ streamId, token: bridgeToken }).catch((error) => {
       console.error('Failed to register preview bridge session:', error);
     });
-  }, [bridgeToken, registerBridgeSession, streamId]);
+  }, [
+    bridgeToken,
+    onLiveAppActionInvokerChange,
+    onLiveAppActionsChange,
+    registerBridgeSession,
+    streamId,
+  ]);
 
   const resolveBridgeState = useCallback(
     (payload: PreviewBridgeGetStatePayload): unknown => {
@@ -240,6 +292,90 @@ export function StreamPreviewPane({
     },
     [streamId, streamTitle, windowId],
   );
+
+  const invokeLiveAppAction = useCallback(
+    (actionName: string, params?: Record<string, unknown>) => {
+      if (!bridgeToken) {
+        return Promise.reject(new Error('DeskTalk LiveApp actions are unavailable.'));
+      }
+
+      if (!viewportRef.current) {
+        return Promise.reject(new Error('LiveApp viewport is not ready.'));
+      }
+
+      const requestId = `liveapp-action-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+      return new Promise<unknown>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          pendingActionInvocationsRef.current.delete(requestId);
+          reject(new Error(`LiveApp action "${actionName}" timed out.`));
+        }, 10000);
+
+        pendingActionInvocationsRef.current.set(requestId, { resolve, reject, timeout });
+        viewportRef.current?.postInvokeAction({
+          type: 'desktalk:invoke-action',
+          streamId,
+          token: bridgeToken,
+          requestId,
+          actionName,
+          params: params ?? null,
+        });
+      });
+    },
+    [bridgeToken, streamId],
+  );
+
+  useEffect(() => {
+    if (!bridgeToken) {
+      return;
+    }
+
+    onLiveAppActionInvokerChange(invokeLiveAppAction);
+    return () => {
+      onLiveAppActionInvokerChange(null);
+    };
+  }, [bridgeToken, invokeLiveAppAction, onLiveAppActionInvokerChange]);
+
+  useEffect(() => {
+    return () => {
+      rejectPendingActionInvocations('LiveApp action invocation was interrupted.');
+      clearLiveAppActions();
+      onLiveAppActionInvokerChange(null);
+    };
+  }, [clearLiveAppActions, onLiveAppActionInvokerChange, rejectPendingActionInvocations]);
+
+  const handleInvokeActionResult = useCallback(
+    (message: PreviewInvokeActionResultMessage) => {
+      if (!bridgeToken || message.streamId !== streamId || message.token !== bridgeToken) {
+        return;
+      }
+
+      const pending = pendingActionInvocationsRef.current.get(message.requestId);
+      if (!pending) {
+        return;
+      }
+
+      clearTimeout(pending.timeout);
+      pendingActionInvocationsRef.current.delete(message.requestId);
+
+      if (message.ok) {
+        pending.resolve(message.result);
+        return;
+      }
+
+      pending.reject(new Error(message.error || 'LiveApp action failed.'));
+    },
+    [bridgeToken, streamId],
+  );
+
+  const handleViewportLoad = useCallback(() => {
+    if (!bridgeToken) {
+      return;
+    }
+
+    clearLiveAppActions();
+    rejectPendingActionInvocations('LiveApp reloaded before the action completed.');
+  }, [bridgeToken, clearLiveAppActions, rejectPendingActionInvocations]);
 
   const respondToBridgeRequest = useCallback(
     (
@@ -314,6 +450,37 @@ export function StreamPreviewPane({
         return;
       }
 
+      if (request.kind === 'actions') {
+        const payload = request.payload as PreviewBridgeActionsRequest;
+
+        if (payload.action === 'register') {
+          liveAppActionsRef.current.set(payload.name, {
+            name: payload.name,
+            description: payload.description,
+            params: payload.params,
+          });
+          publishLiveAppActions();
+          reply({ ok: true, result: { ok: true } });
+          return;
+        }
+
+        if (payload.action === 'unregister') {
+          liveAppActionsRef.current.delete(payload.name);
+          publishLiveAppActions();
+          reply({ ok: true, result: { ok: true } });
+          return;
+        }
+
+        if (payload.action === 'clear') {
+          clearLiveAppActions();
+          reply({ ok: true, result: { ok: true } });
+          return;
+        }
+
+        reply({ ok: false, error: 'Unsupported DeskTalk actions request.' });
+        return;
+      }
+
       if (request.kind !== 'exec') {
         reply({ ok: false, error: `Unsupported DeskTalk bridge request: ${request.kind}` });
         return;
@@ -359,6 +526,8 @@ export function StreamPreviewPane({
       liveAppId,
       pendingBridgeConfirm,
       requestBridgeCommand,
+      publishLiveAppActions,
+      clearLiveAppActions,
       resolveBridgeState,
       storageBridgeCommand,
       streamId,
@@ -438,9 +607,12 @@ export function StreamPreviewPane({
         onRefreshFromFile={!streaming && streamSnapshot ? handleRefreshFromFile : undefined}
       />
       <HtmlViewport
+        ref={viewportRef}
         html={streamHtml}
         streaming={streaming}
         onBridgeRequest={respondToBridgeRequest}
+        onInvokeActionResult={handleInvokeActionResult}
+        onLoad={handleViewportLoad}
       />
       {pendingBridgeConfirm ? (
         <BridgeConfirmDialog
