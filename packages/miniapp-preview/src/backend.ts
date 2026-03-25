@@ -8,12 +8,15 @@ import type {
   PreviewBridgeConfirmPayload,
   PreviewBridgeExecPayload,
   PreviewBridgeExecResponse,
+  PreviewBridgeRequestPayload,
+  PreviewBridgeRequestResult,
   PreviewBridgeStoragePayload,
   PreviewBridgeStorageResult,
   StreamedHtmlSnapshot,
 } from './types';
 import { analyzeProgram, formatCommand } from './bridge-safety';
 import { runBridgeCommand, validateExecInput } from './bridge-command-runner';
+import { runBridgeRequest, validateBridgeRequestInput } from './bridge-request';
 import { LiveAppStorage } from './bridge-storage';
 import {
   fileName,
@@ -51,6 +54,7 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
     { program: string; args: string[]; cwd?: string; timeoutMs: number }
   >();
   let activeBridgeExecs = 0;
+  let activeBridgeRequests = 0;
 
   function generateId(): string {
     return `preview-bridge-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -78,6 +82,19 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
       return await runBridgeCommand({ program, args, cwd, workspaceRoot }, timeoutMs);
     } finally {
       activeBridgeExecs -= 1;
+    }
+  }
+
+  async function executeBridgeRequest(request: PreviewBridgeRequestPayload['request']) {
+    if (activeBridgeRequests >= 4) {
+      throw new Error('Too many bridge requests are already running.');
+    }
+
+    activeBridgeRequests += 1;
+    try {
+      return await runBridgeRequest(validateBridgeRequestInput(request));
+    } finally {
+      activeBridgeRequests -= 1;
     }
   }
 
@@ -245,6 +262,14 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
     async (req) => {
       assertAuthorizedBridgeSession(req.streamId, req.token);
       return liveAppStorage.execute(req.liveAppId, req.request);
+    },
+  );
+
+  ctx.messaging.onCommand<PreviewBridgeRequestPayload, PreviewBridgeRequestResult>(
+    'preview.bridge.request',
+    async (req) => {
+      assertAuthorizedBridgeSession(req.streamId, req.token);
+      return executeBridgeRequest(req.request);
     },
   );
 

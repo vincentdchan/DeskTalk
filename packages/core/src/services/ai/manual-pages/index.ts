@@ -32,7 +32,8 @@ export const MANUAL_PAGES: ManualPageMeta[] = [
   {
     path: 'html/bridge',
     title: 'HTML Bridge',
-    description: 'window.DeskTalk APIs for reading state and running constrained commands.',
+    description:
+      'window.DeskTalk APIs for reading state, making HTTP requests, and running constrained commands.',
     file: 'html-bridge.md',
     related: ['html/components', 'html/storage', 'desktop/windows', 'desktop/actions'],
   },

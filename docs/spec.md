@@ -154,13 +154,14 @@ The raw HTML on disk is always clean — runtime injections are stripped before 
 
 Every LiveApp receives a `window.DeskTalk` bridge object in its iframe context. This provides:
 
-| API                                  | Description                                                                                             |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `exec(command)` / `execute(command)` | Execute a shell command. Accepts a string (`"ls -la"`) or explicit args (`"ls", ["-la"]`).              |
-| `getTheme()`                         | Read current theme preferences (accent color, light/dark mode).                                         |
-| `onThemeChange(callback)`            | Subscribe to theme changes.                                                                             |
-| `storage.get/set/delete/list`        | KV store for simple JSON values. See [liveapp-storage.md](./liveapp-storage.md).                        |
-| `storage.collection(name)`           | Collection API for structured records (JSONL + SQLite). See [liveapp-storage.md](./liveapp-storage.md). |
+| API                                  | Description                                                                                                                              |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `exec(command)` / `execute(command)` | Execute a shell command. Accepts a string (`"ls -la"`) or explicit args (`"ls", ["-la"]`).                                               |
+| `request(url, options)`              | Make an HTTP request through the Preview backend. Blocks private/localhost destinations. See [liveapp-request.md](./liveapp-request.md). |
+| `getTheme()`                         | Read current theme preferences (accent color, light/dark mode).                                                                          |
+| `onThemeChange(callback)`            | Subscribe to theme changes.                                                                                                              |
+| `storage.get/set/delete/list`        | KV store for simple JSON values. See [liveapp-storage.md](./liveapp-storage.md).                                                         |
+| `storage.collection(name)`           | Collection API for structured records (JSONL + SQLite). See [liveapp-storage.md](./liveapp-storage.md).                                  |
 
 The bridge communicates with the core via `postMessage` and a per-session `bridgeToken` for authentication.
 

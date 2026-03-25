@@ -6,6 +6,8 @@ import type {
   PreviewBridgeExecPayload,
   PreviewBridgeExecResponse,
   PreviewBridgeGetStatePayload,
+  PreviewBridgeRequestPayload,
+  PreviewBridgeRequestResult,
   PreviewBridgeRequestMessage,
   PreviewBridgeResponseMessage,
   PreviewBridgeStoragePayload,
@@ -125,6 +127,9 @@ export function HtmlPreviewPane({
   const storageBridgeCommand = useCommand<PreviewBridgeStoragePayload, PreviewBridgeStorageResult>(
     'preview.bridge.storage',
   );
+  const requestBridgeCommand = useCommand<PreviewBridgeRequestPayload, PreviewBridgeRequestResult>(
+    'preview.bridge.request',
+  );
 
   const normalizedPath = normalizePreviewPath(initialPath);
   const fileName = useMemo(() => getFileName(initialPath), [initialPath]);
@@ -243,6 +248,21 @@ export function HtmlPreviewPane({
         return;
       }
 
+      if (request.kind === 'request') {
+        void requestBridgeCommand({
+          streamId: liveAppId,
+          token: bridgeToken,
+          request: request.payload as PreviewBridgeRequestPayload['request'],
+        })
+          .then((result) => {
+            reply({ ok: true, result });
+          })
+          .catch((bridgeError) => {
+            reply({ ok: false, error: (bridgeError as Error).message });
+          });
+        return;
+      }
+
       if (request.kind !== 'exec') {
         reply({ ok: false, error: `Unsupported DeskTalk bridge request: ${request.kind}` });
         return;
@@ -287,6 +307,7 @@ export function HtmlPreviewPane({
       execBridgeCommand,
       liveAppId,
       pendingBridgeConfirm,
+      requestBridgeCommand,
       resolveBridgeState,
       shouldInjectRuntime,
       storageBridgeCommand,

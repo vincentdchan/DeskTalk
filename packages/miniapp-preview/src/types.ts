@@ -62,6 +62,35 @@ export interface PreviewBridgeExecPayload {
   options?: PreviewBridgeExecOptions;
 }
 
+export interface PreviewBridgeNetworkRequestOptions {
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+  json?: unknown;
+  timeoutMs?: number;
+}
+
+export interface PreviewBridgeNetworkRequest {
+  url: string;
+  options?: PreviewBridgeNetworkRequestOptions;
+}
+
+export interface PreviewBridgeRequestPayload {
+  streamId: string;
+  token: string;
+  request: PreviewBridgeNetworkRequest;
+}
+
+export interface PreviewBridgeRequestResult {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  headers: Record<string, string>;
+  body: string;
+  truncated: boolean;
+  url: string;
+}
+
 export interface PreviewBridgeStorageQueryOptions {
   sort?: string;
   order?: 'asc' | 'desc';
@@ -149,7 +178,7 @@ export interface PreviewBridgeRequestMessage {
   streamId: string;
   token: string;
   requestId: string;
-  kind: 'getState' | 'exec' | 'storage';
+  kind: 'getState' | 'exec' | 'storage' | 'request';
   payload: unknown;
 }
 

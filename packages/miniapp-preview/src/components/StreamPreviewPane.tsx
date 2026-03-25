@@ -5,6 +5,8 @@ import type {
   PreviewBridgeExecPayload,
   PreviewBridgeExecResponse,
   PreviewBridgeGetStatePayload,
+  PreviewBridgeRequestPayload,
+  PreviewBridgeRequestResult,
   PreviewBridgeRequestMessage,
   PreviewBridgeResponseMessage,
   PreviewBridgeStoragePayload,
@@ -98,6 +100,9 @@ export function StreamPreviewPane({
   >('preview.bridge.exec.confirm');
   const storageBridgeCommand = useCommand<PreviewBridgeStoragePayload, PreviewBridgeStorageResult>(
     'preview.bridge.storage',
+  );
+  const requestBridgeCommand = useCommand<PreviewBridgeRequestPayload, PreviewBridgeRequestResult>(
+    'preview.bridge.request',
   );
   const liveAppId = getStreamedDirectoryName(streamId, streamTitle);
 
@@ -294,6 +299,21 @@ export function StreamPreviewPane({
         return;
       }
 
+      if (request.kind === 'request') {
+        void requestBridgeCommand({
+          streamId,
+          token: bridgeToken,
+          request: request.payload as PreviewBridgeRequestPayload['request'],
+        })
+          .then((result) => {
+            reply({ ok: true, result });
+          })
+          .catch((error) => {
+            reply({ ok: false, error: (error as Error).message });
+          });
+        return;
+      }
+
       if (request.kind !== 'exec') {
         reply({ ok: false, error: `Unsupported DeskTalk bridge request: ${request.kind}` });
         return;
@@ -338,6 +358,7 @@ export function StreamPreviewPane({
       execBridgeCommand,
       liveAppId,
       pendingBridgeConfirm,
+      requestBridgeCommand,
       resolveBridgeState,
       storageBridgeCommand,
       streamId,

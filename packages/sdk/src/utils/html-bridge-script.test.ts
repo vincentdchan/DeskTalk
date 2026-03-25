@@ -16,6 +16,7 @@ interface BridgeStorageCollection {
 
 interface BridgeApi {
   getState: (selector: string) => Promise<unknown>;
+  request: (url: string, options?: unknown) => Promise<unknown>;
   exec: (...args: unknown[]) => Promise<unknown>;
   execute: (...args: unknown[]) => Promise<unknown>;
   storage: {
@@ -114,10 +115,50 @@ describe('createHtmlBridgeScript', () => {
     expect(DeskTalk).toBeDefined();
     expect(Object.isFrozen(DeskTalk)).toBe(true);
     expect(typeof DeskTalk.getState).toBe('function');
+    expect(typeof DeskTalk.request).toBe('function');
     expect(typeof DeskTalk.exec).toBe('function');
     expect(typeof DeskTalk.execute).toBe('function');
     expect(Object.isFrozen(DeskTalk.storage)).toBe(true);
     expect(typeof DeskTalk.storage.collection).toBe('function');
+  });
+
+  it('sends network request bridge payloads and resolves responses', async () => {
+    const { DeskTalk, postMessage, dispatchMessage, streamId, token } = installBridge();
+
+    const pending = DeskTalk.request('https://api.example.com/tasks', {
+      method: 'POST',
+      json: { title: 'Buy milk' },
+    });
+
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        type: 'desktalk:bridge-request',
+        streamId,
+        token,
+        kind: 'request',
+        payload: {
+          url: 'https://api.example.com/tasks',
+          options: {
+            method: 'POST',
+            json: { title: 'Buy milk' },
+          },
+        },
+      }),
+      '*',
+    );
+
+    const [[request]] = postMessage.mock.calls;
+    dispatchMessage({
+      type: 'desktalk:bridge-response',
+      streamId,
+      token,
+      requestId: request.requestId,
+      ok: true,
+      result: { ok: true, status: 200, body: '[]' },
+    });
+
+    await expect(pending).resolves.toEqual({ ok: true, status: 200, body: '[]' });
   });
 
   it('sends getState requests and resolves matching responses', async () => {

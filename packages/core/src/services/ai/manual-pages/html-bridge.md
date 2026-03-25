@@ -4,6 +4,8 @@ Generated previews automatically receive `window.DeskTalk`.
 
 For persistent app data, use `window.DeskTalk.storage`. Read `html/storage` for the full storage reference.
 
+For external HTTP APIs, use `window.DeskTalk.request(...)` instead of plain browser `fetch()` when the request may hit another origin.
+
 ## Reading State
 
 Use `await window.DeskTalk.getState(selector)`.
@@ -91,6 +93,64 @@ Typical usage:
   }
 </script>
 ```
+
+## Network Requests
+
+Use `await window.DeskTalk.request(url, options)` for HTTP requests that need backend proxying.
+
+- Prefer `DeskTalk.request(...)` over browser `fetch()` for cross-origin API calls.
+- Response bodies come back as text. Parse JSON yourself with `JSON.parse(result.body)`.
+- You can pass either `body` or `json` in options, not both.
+- `GET` and `HEAD` requests cannot include a body.
+- Private and localhost destinations are blocked by policy.
+
+TypeScript shape:
+
+```ts
+type DeskTalkRequestResult = {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  headers: Record<string, string>;
+  body: string;
+  truncated: boolean;
+  url: string;
+};
+```
+
+Examples:
+
+```html
+<script>
+  async function loadTasks() {
+    const result = await window.DeskTalk.request('https://api.example.com/tasks', {
+      headers: {
+        accept: 'application/json',
+      },
+    });
+
+    if (!result.ok) {
+      throw new Error(`Request failed: ${result.status} ${result.statusText}`);
+    }
+
+    return JSON.parse(result.body);
+  }
+
+  async function createTask(title) {
+    const result = await window.DeskTalk.request('https://api.example.com/tasks', {
+      method: 'POST',
+      json: { title, status: 'todo' },
+      headers: {
+        authorization: 'Bearer <token>',
+      },
+    });
+
+    return JSON.parse(result.body);
+  }
+</script>
+```
+
+Use `DeskTalk.request(...)` for API/data fetching and `DeskTalk.exec(...)` only for constrained shell workflows the user actually asked for.
 
 ## Persistent Storage
 

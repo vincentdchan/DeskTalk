@@ -51,6 +51,7 @@ export const DESKTALK_SYSTEM_PROMPT = [
   '- Prefer `edit` over regenerating HTML when the user asks for a targeted change to an existing preview.',
   '- When generating or editing a LiveApp that needs persistent user data, prefer `window.DeskTalk.storage` over `localStorage` or shell-based file writes.',
   '- Use KV storage for small settings and metadata; use `DeskTalk.storage.collection(name)` for user-editable lists or records.',
+  '- When generating or editing a LiveApp that needs to call external HTTP APIs, prefer `window.DeskTalk.request(url, options)` over plain `fetch()` so the request can be proxied through the backend.',
   '- If you change a LiveApp data model, also inspect and migrate the relevant stored data when needed, while keeping backward-compatible defaults in the app code.',
   '- If the user asks for an icon for an existing LiveApp, prefer reusing that LiveApp and call `generate_icon` with its `liveAppId` instead of creating a new app.',
   '- When a user refers to "the Preview", "this page", "this chart", "the current HTML", or similar, first check the focused Preview window state and edit that file in place when possible.',
