@@ -27,8 +27,22 @@ const AI_PROVIDERS = [
 
 /** STT providers shown during onboarding. */
 const STT_PROVIDERS = [
-  { id: 'openai-whisper', label: 'OpenAI Whisper' },
-  { id: 'azure-openai-whisper', label: 'Azure OpenAI Whisper' },
+  {
+    id: 'openai-whisper',
+    label: 'OpenAI Whisper',
+    supportsModel: true,
+    supportsBaseUrl: true,
+    supportsAzureDeployment: false,
+    supportsAzureApiVersion: false,
+  },
+  {
+    id: 'azure-openai-whisper',
+    label: 'Azure OpenAI Whisper',
+    supportsModel: false,
+    supportsBaseUrl: true,
+    supportsAzureDeployment: true,
+    supportsAzureApiVersion: true,
+  },
 ] as const;
 
 export function OnboardPage({ onComplete }: OnboardPageProps) {
@@ -353,33 +367,198 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
             Set up a speech-to-text provider for voice input. You can change these settings later in
             Preferences.
           </p>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="onboard-stt-provider">
-              STT Provider
-            </label>
-            <OnboardSelect
-              id="onboard-stt-provider"
-              value={store.sttProvider}
-              options={STT_PROVIDERS.map((provider) => ({
-                value: provider.id,
-                label: provider.label,
-              }))}
-              onChange={(nextValue) => store.setSttProvider(nextValue)}
-            />
+          <div className={styles.providerList}>
+            {store.voiceProviders.map((item, index) => {
+              const selectedProvider = STT_PROVIDERS.find(
+                (provider) => provider.id === item.provider,
+              );
+              const availableProviders = STT_PROVIDERS.filter(
+                (provider) =>
+                  provider.id === item.provider ||
+                  !store.voiceProviders.some(
+                    (configuredProvider) => configuredProvider.provider === provider.id,
+                  ),
+              );
+
+              return (
+                <div key={item.provider} className={styles.providerCard}>
+                  <dt-card variant="outlined">
+                    <div className={styles.providerCardBody}>
+                      <div className={styles.providerCardHeader}>
+                        <div className={styles.providerCardTitleRow}>
+                          <div className={styles.providerCardTitle}>
+                            {selectedProvider?.label ?? item.provider}
+                          </div>
+                          {index === 0 && (
+                            <span className={styles.providerDefaultBadge}>Default</span>
+                          )}
+                        </div>
+                        <div className={styles.providerCardActions}>
+                          <div className={styles.providerButtonWrap}>
+                            <OnboardButton
+                              onPress={() => store.setDefaultVoiceProvider(item.provider)}
+                              disabled={index === 0}
+                              variant="secondary"
+                              size="sm"
+                            >
+                              Set as default
+                            </OnboardButton>
+                          </div>
+                          <div className={styles.providerButtonWrap}>
+                            <OnboardButton
+                              onPress={() => store.removeVoiceProvider(item.provider)}
+                              disabled={store.voiceProviders.length === 1}
+                              variant="danger"
+                              size="sm"
+                            >
+                              Delete
+                            </OnboardButton>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={styles.providerFieldGrid}>
+                        <div className={styles.field}>
+                          <label className={styles.label}>STT Provider</label>
+                          <OnboardSelect
+                            value={item.provider}
+                            options={availableProviders.map((provider) => ({
+                              value: provider.id,
+                              label: provider.label,
+                            }))}
+                            onChange={(nextValue) =>
+                              store.updateVoiceProvider(item.provider, 'provider', nextValue)
+                            }
+                          />
+                        </div>
+                        <div className={styles.field}>
+                          <label
+                            className={styles.label}
+                            htmlFor={`onboard-stt-apikey-${item.provider}`}
+                          >
+                            API Key
+                          </label>
+                          <input
+                            id={`onboard-stt-apikey-${item.provider}`}
+                            className={styles.input}
+                            type="password"
+                            placeholder="Enter your STT API key"
+                            autoComplete="off"
+                            value={item.apiKey}
+                            onChange={(e) =>
+                              store.updateVoiceProvider(item.provider, 'apiKey', e.target.value)
+                            }
+                          />
+                        </div>
+                        {selectedProvider?.supportsModel && (
+                          <div className={styles.field}>
+                            <label
+                              className={styles.label}
+                              htmlFor={`onboard-stt-model-${item.provider}`}
+                            >
+                              Model
+                            </label>
+                            <input
+                              id={`onboard-stt-model-${item.provider}`}
+                              className={styles.input}
+                              type="text"
+                              value={item.model}
+                              onChange={(e) =>
+                                store.updateVoiceProvider(item.provider, 'model', e.target.value)
+                              }
+                            />
+                          </div>
+                        )}
+                        {selectedProvider?.supportsBaseUrl && (
+                          <div className={styles.field}>
+                            <label
+                              className={styles.label}
+                              htmlFor={`onboard-stt-baseurl-${item.provider}`}
+                            >
+                              Base URL
+                            </label>
+                            <input
+                              id={`onboard-stt-baseurl-${item.provider}`}
+                              className={styles.input}
+                              type="text"
+                              value={item.baseUrl}
+                              onChange={(e) =>
+                                store.updateVoiceProvider(item.provider, 'baseUrl', e.target.value)
+                              }
+                            />
+                          </div>
+                        )}
+                        {selectedProvider?.supportsAzureDeployment && (
+                          <div className={styles.field}>
+                            <label
+                              className={styles.label}
+                              htmlFor={`onboard-stt-deployment-${item.provider}`}
+                            >
+                              Azure Deployment
+                            </label>
+                            <input
+                              id={`onboard-stt-deployment-${item.provider}`}
+                              className={styles.input}
+                              type="text"
+                              value={item.azureDeployment}
+                              onChange={(e) =>
+                                store.updateVoiceProvider(
+                                  item.provider,
+                                  'azureDeployment',
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          </div>
+                        )}
+                        {selectedProvider?.supportsAzureApiVersion && (
+                          <div className={styles.field}>
+                            <label
+                              className={styles.label}
+                              htmlFor={`onboard-stt-api-version-${item.provider}`}
+                            >
+                              Azure API Version
+                            </label>
+                            <input
+                              id={`onboard-stt-api-version-${item.provider}`}
+                              className={styles.input}
+                              type="text"
+                              value={item.azureApiVersion}
+                              onChange={(e) =>
+                                store.updateVoiceProvider(
+                                  item.provider,
+                                  'azureApiVersion',
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </dt-card>
+                </div>
+              );
+            })}
           </div>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="onboard-stt-apikey">
-              API Key
-            </label>
-            <input
-              id="onboard-stt-apikey"
-              className={styles.input}
-              type="password"
-              placeholder="Enter your STT API key"
-              autoComplete="off"
-              value={store.sttApiKey}
-              onChange={(e) => store.setSttApiKey(e.target.value)}
-            />
+          <div className={styles.providerActionButtonWrap}>
+            <OnboardButton
+              onPress={() => {
+                const nextProvider = STT_PROVIDERS.find(
+                  (provider) =>
+                    !store.voiceProviders.some(
+                      (configuredProvider) => configuredProvider.provider === provider.id,
+                    ),
+                );
+                if (nextProvider) {
+                  store.addVoiceProvider(nextProvider.id);
+                }
+              }}
+              disabled={store.voiceProviders.length >= STT_PROVIDERS.length}
+              variant="secondary"
+            >
+              Add provider
+            </OnboardButton>
           </div>
         </div>
         <div className={styles.footer}>

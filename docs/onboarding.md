@@ -59,17 +59,18 @@ The onboarding form collects three required fields to create the admin account, 
 
 ### Optional — Voice / STT Configuration (skippable)
 
-| Field            | Description                                       | Constraints              |
-| ---------------- | ------------------------------------------------- | ------------------------ |
-| **STT Provider** | Speech-to-text provider (e.g., Deepgram, OpenAI). | Dropdown selection       |
-| **API Key**      | API key for the selected STT provider.            | Required if not skipping |
+| Field            | Description                          | Constraints                    |
+| ---------------- | ------------------------------------ | ------------------------------ |
+| **Providers**    | Add one or more STT provider items.  | Ordered list, first is default |
+| **STT Provider** | Speech-to-text provider for an item. | One provider per item          |
+| **API Key**      | API key for that STT provider item.  | Optional                       |
 
 ### Onboarding Steps
 
 1. **Welcome** — Brief introduction to DeskTalk.
 2. **Create Admin Account** — The admin fills in username, display name, and password.
 3. **AI Configuration** _(skippable)_ — Configure one or more AI provider items. Each item lets the admin pick a provider, enter an API key, and optionally set a model and base URL. The first item is the default provider; choosing **Set as default** on another item moves it to the top, and items can also be deleted. This matches the Provider configuration in the [Preference MiniApp](./miniapps/preference.md#configurable-settings) and writes `ai.enabledProviders`, `ai.defaultProvider`, and `ai.providers.*` settings.
-4. **Voice Configuration** _(skippable)_ — Configure an STT (speech-to-text) provider for voice input. The admin can select a provider (e.g., Deepgram, OpenAI) and enter the required API key. This is equivalent to configuring STT provider settings via the [Preference MiniApp](./miniapps/preference.md) but is presented during onboarding for convenience.
+4. **Voice Configuration** _(skippable)_ — Configure one or more STT (speech-to-text) provider items for voice input. Each item can select a provider, enter an API key, and fill any provider-specific fields such as model, base URL, Azure deployment, or API version. The first item is the default provider; choosing **Set as default** on another item moves it to the top, and items can also be deleted. This mirrors the Voice provider setup in the [Preference MiniApp](./miniapps/preference.md).
 5. **Done** — The system creates `users.db`, inserts the admin record, persists any provider configuration to `config.toml`, starts a session, and redirects to the Desktop.
 
 > **Skippable steps.** Steps 3 and 4 can be skipped without providing any input. If skipped, the corresponding settings remain at their defaults (unconfigured). The admin can configure them later at any time through the Preference MiniApp.
@@ -84,7 +85,7 @@ When the admin completes (or skips through) the onboarding flow, the backend:
    - `role = 'admin'`
    - `onboarded = 1`
 3. If the admin configured AI providers (step 3), writes the ordered provider settings to `config.toml` (e.g., `ai.enabledProviders`, `ai.defaultProvider`, `ai.providers.<name>.apiKey`, `ai.providers.<name>.model`, `ai.providers.<name>.baseUrl`).
-4. If the admin configured an STT provider (step 4), writes the STT provider settings to `config.toml`.
+4. If the admin configured STT providers (step 4), writes the ordered STT provider settings to `config.toml` (e.g., `voice.enabledProviders`, `voice.defaultProvider`, `voice.providers.<name>.*`).
 5. Creates a session and sets the session cookie.
 6. Redirects to the Desktop.
 

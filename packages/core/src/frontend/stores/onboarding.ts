@@ -31,6 +31,15 @@ export interface AiOnboardingProvider {
   baseUrl: string;
 }
 
+export interface VoiceOnboardingProvider {
+  provider: string;
+  apiKey: string;
+  model: string;
+  baseUrl: string;
+  azureDeployment: string;
+  azureApiVersion: string;
+}
+
 const DEFAULT_AI_PROVIDER: AiOnboardingProvider = {
   provider: 'openai',
   apiKey: '',
@@ -44,6 +53,37 @@ function createAiProvider(provider = DEFAULT_AI_PROVIDER.provider): AiOnboarding
     apiKey: '',
     model: '',
     baseUrl: '',
+  };
+}
+
+const DEFAULT_VOICE_PROVIDER: VoiceOnboardingProvider = {
+  provider: 'openai-whisper',
+  apiKey: '',
+  model: 'whisper-1',
+  baseUrl: 'https://api.openai.com/v1',
+  azureDeployment: '',
+  azureApiVersion: '2024-06-01',
+};
+
+function createVoiceProvider(provider = DEFAULT_VOICE_PROVIDER.provider): VoiceOnboardingProvider {
+  if (provider === 'azure-openai-whisper') {
+    return {
+      provider,
+      apiKey: '',
+      model: '',
+      baseUrl: '',
+      azureDeployment: '',
+      azureApiVersion: '2024-06-01',
+    };
+  }
+
+  return {
+    provider,
+    apiKey: '',
+    model: 'whisper-1',
+    baseUrl: 'https://api.openai.com/v1',
+    azureDeployment: '',
+    azureApiVersion: '2024-06-01',
   };
 }
 
@@ -62,8 +102,7 @@ export interface OnboardingState {
   aiProviders: AiOnboardingProvider[];
 
   // Voice/STT config
-  sttProvider: string;
-  sttApiKey: string;
+  voiceProviders: VoiceOnboardingProvider[];
 
   // UI
   error: string;
@@ -82,8 +121,14 @@ export interface OnboardingState {
   removeAiProvider: (provider: string) => void;
   setDefaultAiProvider: (provider: string) => void;
   updateAiProvider: (provider: string, field: keyof AiOnboardingProvider, value: string) => void;
-  setSttProvider: (value: string) => void;
-  setSttApiKey: (value: string) => void;
+  addVoiceProvider: (provider?: string) => void;
+  removeVoiceProvider: (provider: string) => void;
+  setDefaultVoiceProvider: (provider: string) => void;
+  updateVoiceProvider: (
+    provider: string,
+    field: keyof VoiceOnboardingProvider,
+    value: string,
+  ) => void;
 
   // Actions — validation & submission
   validateAccount: () => boolean;
@@ -107,8 +152,7 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
   aiProviders: [createAiProvider()],
 
   // Voice/STT config
-  sttProvider: 'openai-whisper',
-  sttApiKey: '',
+  voiceProviders: [createVoiceProvider()],
 
   // UI
   error: '',
@@ -167,8 +211,35 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
         item.provider === provider ? { ...item, [field]: value } : item,
       ),
     })),
-  setSttProvider: (value) => set({ sttProvider: value }),
-  setSttApiKey: (value) => set({ sttApiKey: value }),
+  addVoiceProvider: (provider = DEFAULT_VOICE_PROVIDER.provider) =>
+    set((state) => {
+      if (state.voiceProviders.some((item) => item.provider === provider)) {
+        return state;
+      }
+      return { voiceProviders: [...state.voiceProviders, createVoiceProvider(provider)] };
+    }),
+  removeVoiceProvider: (provider) =>
+    set((state) => {
+      if (state.voiceProviders.length === 1) {
+        return state;
+      }
+      return { voiceProviders: state.voiceProviders.filter((item) => item.provider !== provider) };
+    }),
+  setDefaultVoiceProvider: (provider) =>
+    set((state) => {
+      const nextProviders = state.voiceProviders.filter((item) => item.provider !== provider);
+      const selectedProvider = state.voiceProviders.find((item) => item.provider === provider);
+      if (!selectedProvider) {
+        return state;
+      }
+      return { voiceProviders: [selectedProvider, ...nextProviders] };
+    }),
+  updateVoiceProvider: (provider, field, value) =>
+    set((state) => ({
+      voiceProviders: state.voiceProviders.map((item) =>
+        item.provider === provider ? { ...item, [field]: value } : item,
+      ),
+    })),
 
   // ─── Validation ──────────────────────────────────────────────────────
 
@@ -201,7 +272,7 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
   // ─── Submission ──────────────────────────────────────────────────────
 
   async submit(onComplete) {
-    const { username, displayName, password, aiProviders, sttProvider, sttApiKey } = get();
+    const { username, displayName, password, aiProviders, voiceProviders } = get();
 
     set({ error: '', loading: true });
 
@@ -235,11 +306,35 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
         };
       }
 
-      // Include Voice/STT config only if the user provided an API key
-      if (sttApiKey.trim()) {
+      const trimmedVoiceProviders = voiceProviders.map((provider) => ({
+        provider: provider.provider,
+        apiKey: provider.apiKey.trim(),
+        model: provider.model.trim(),
+        baseUrl: provider.baseUrl.trim(),
+        azureDeployment: provider.azureDeployment.trim(),
+        azureApiVersion: provider.azureApiVersion.trim(),
+      }));
+      const hasVoiceConfig = trimmedVoiceProviders.some(
+        (provider) =>
+          provider.apiKey ||
+          provider.model ||
+          provider.baseUrl ||
+          provider.azureDeployment ||
+          provider.azureApiVersion !== '2024-06-01' ||
+          provider.provider !== 'openai-whisper',
+      );
+
+      if (hasVoiceConfig) {
         payload.voiceConfig = {
-          provider: sttProvider,
-          apiKey: sttApiKey.trim(),
+          defaultProvider: trimmedVoiceProviders[0]?.provider ?? 'openai-whisper',
+          providers: trimmedVoiceProviders.map((provider) => ({
+            provider: provider.provider,
+            apiKey: provider.apiKey || undefined,
+            model: provider.model || undefined,
+            baseUrl: provider.baseUrl || undefined,
+            azureDeployment: provider.azureDeployment || undefined,
+            azureApiVersion: provider.azureApiVersion || undefined,
+          })),
         };
       }
 

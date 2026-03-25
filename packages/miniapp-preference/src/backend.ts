@@ -3,12 +3,16 @@ import type { Config } from './schema';
 import {
   PREFERENCE_SCHEMAS,
   DEFAULT_AI_PROVIDER_ID,
+  DEFAULT_VOICE_PROVIDER_ID,
   getDefaultConfig,
   getSchema,
   hasAiProviderConfig,
+  hasVoiceProviderConfig,
   maskSensitive,
   parseAiEnabledProviders,
+  parseVoiceEnabledProviders,
   serializeAiEnabledProviders,
+  serializeVoiceEnabledProviders,
 } from './schema';
 
 // ─── Manifest ────────────────────────────────────────────────────────────────
@@ -105,6 +109,89 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
 
     config['ai.enabledProviders'] = serializeAiEnabledProviders(derivedProviders);
     config['ai.defaultProvider'] = derivedProviders[0] ?? DEFAULT_AI_PROVIDER_ID;
+
+    const legacyVoiceProvider =
+      typeof stored?.['voice.provider'] === 'string' ? stored['voice.provider'] : undefined;
+    if (legacyVoiceProvider && typeof stored?.['voice.defaultProvider'] !== 'string') {
+      config['voice.defaultProvider'] = legacyVoiceProvider;
+    }
+
+    if (legacyVoiceProvider) {
+      const legacyVoiceApiKey =
+        typeof stored?.['voice.apiKey'] === 'string' ? stored['voice.apiKey'] : undefined;
+      const legacyVoiceModel =
+        typeof stored?.['voice.model'] === 'string' ? stored['voice.model'] : undefined;
+      const legacyVoiceBaseUrl =
+        typeof stored?.['voice.baseUrl'] === 'string' ? stored['voice.baseUrl'] : undefined;
+      const legacyVoiceDeployment =
+        typeof stored?.['voice.azureDeployment'] === 'string'
+          ? stored['voice.azureDeployment']
+          : undefined;
+      const legacyVoiceApiVersion =
+        typeof stored?.['voice.azureApiVersion'] === 'string'
+          ? stored['voice.azureApiVersion']
+          : undefined;
+
+      if (legacyVoiceApiKey && !config[`voice.providers.${legacyVoiceProvider}.apiKey`]) {
+        config[`voice.providers.${legacyVoiceProvider}.apiKey`] = legacyVoiceApiKey;
+      }
+      if (legacyVoiceModel && !config[`voice.providers.${legacyVoiceProvider}.model`]) {
+        config[`voice.providers.${legacyVoiceProvider}.model`] = legacyVoiceModel;
+      }
+      if (legacyVoiceBaseUrl && !config[`voice.providers.${legacyVoiceProvider}.baseUrl`]) {
+        config[`voice.providers.${legacyVoiceProvider}.baseUrl`] = legacyVoiceBaseUrl;
+      }
+      if (
+        legacyVoiceDeployment &&
+        !config[`voice.providers.${legacyVoiceProvider}.azureDeployment`]
+      ) {
+        config[`voice.providers.${legacyVoiceProvider}.azureDeployment`] = legacyVoiceDeployment;
+      }
+      if (
+        legacyVoiceApiVersion &&
+        !config[`voice.providers.${legacyVoiceProvider}.azureApiVersion`]
+      ) {
+        config[`voice.providers.${legacyVoiceProvider}.azureApiVersion`] = legacyVoiceApiVersion;
+      }
+    }
+
+    const enabledVoiceProviders = parseVoiceEnabledProviders(stored?.['voice.enabledProviders']);
+    const derivedVoiceProviders = enabledVoiceProviders.filter((providerId) =>
+      hasVoiceProviderConfig(config, providerId),
+    );
+    for (const schema of PREFERENCE_SCHEMAS) {
+      if (!schema.key.startsWith('voice.providers.')) {
+        continue;
+      }
+
+      const match = /^voice\.providers\.([^.]+)\./.exec(schema.key);
+      const providerId = match?.[1];
+      if (
+        providerId &&
+        hasVoiceProviderConfig(config, providerId) &&
+        !derivedVoiceProviders.includes(providerId)
+      ) {
+        derivedVoiceProviders.push(providerId);
+      }
+    }
+
+    const defaultVoiceProvider =
+      typeof config['voice.defaultProvider'] === 'string' && config['voice.defaultProvider']
+        ? String(config['voice.defaultProvider'])
+        : DEFAULT_VOICE_PROVIDER_ID;
+
+    if (!derivedVoiceProviders.includes(defaultVoiceProvider)) {
+      derivedVoiceProviders.unshift(defaultVoiceProvider);
+    }
+
+    for (const providerId of enabledVoiceProviders) {
+      if (!derivedVoiceProviders.includes(providerId)) {
+        derivedVoiceProviders.push(providerId);
+      }
+    }
+
+    config['voice.enabledProviders'] = serializeVoiceEnabledProviders(derivedVoiceProviders);
+    config['voice.defaultProvider'] = derivedVoiceProviders[0] ?? DEFAULT_VOICE_PROVIDER_ID;
 
     return config;
   }

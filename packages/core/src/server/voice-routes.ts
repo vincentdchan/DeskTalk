@@ -15,23 +15,40 @@ async function getPreference(key: string): Promise<string | number | boolean | u
 }
 
 async function createSttAdapter(): Promise<SttAdapter | null> {
-  const apiKey = (await getPreference('voice.apiKey')) as string | undefined;
+  const provider =
+    ((await getPreference('voice.defaultProvider')) as string | undefined) ??
+    ((await getPreference('voice.provider')) as string | undefined) ??
+    'openai-whisper';
+
+  const providerPrefix = `voice.providers.${provider}`;
+  const apiKey =
+    ((await getPreference(`${providerPrefix}.apiKey`)) as string | undefined) ??
+    ((await getPreference('voice.apiKey')) as string | undefined);
   if (!apiKey) return null;
 
-  const provider = ((await getPreference('voice.provider')) as string) ?? 'openai-whisper';
-
   if (provider === 'openai-whisper') {
-    const model = ((await getPreference('voice.model')) as string) ?? 'whisper-1';
+    const model =
+      ((await getPreference(`${providerPrefix}.model`)) as string | undefined) ??
+      ((await getPreference('voice.model')) as string | undefined) ??
+      'whisper-1';
     const baseUrl =
-      ((await getPreference('voice.baseUrl')) as string) ?? 'https://api.openai.com/v1';
+      ((await getPreference(`${providerPrefix}.baseUrl`)) as string | undefined) ??
+      ((await getPreference('voice.baseUrl')) as string | undefined) ??
+      'https://api.openai.com/v1';
     return new OpenAIWhisperAdapter({ apiKey, model, baseUrl });
   }
 
   if (provider === 'azure-openai-whisper') {
-    const endpoint = (await getPreference('voice.baseUrl')) as string | undefined;
-    const deployment = (await getPreference('voice.azureDeployment')) as string | undefined;
+    const endpoint =
+      ((await getPreference(`${providerPrefix}.baseUrl`)) as string | undefined) ??
+      ((await getPreference('voice.baseUrl')) as string | undefined);
+    const deployment =
+      ((await getPreference(`${providerPrefix}.azureDeployment`)) as string | undefined) ??
+      ((await getPreference('voice.azureDeployment')) as string | undefined);
     const apiVersion =
-      ((await getPreference('voice.azureApiVersion')) as string | undefined) ?? '2024-06-01';
+      ((await getPreference(`${providerPrefix}.azureApiVersion`)) as string | undefined) ??
+      ((await getPreference('voice.azureApiVersion')) as string | undefined) ??
+      '2024-06-01';
 
     if (!endpoint || !deployment) {
       return null;

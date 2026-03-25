@@ -162,8 +162,15 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         }>;
       };
       voiceConfig?: {
-        provider: string;
-        apiKey: string;
+        defaultProvider: string;
+        providers: Array<{
+          provider: string;
+          apiKey?: string;
+          model?: string;
+          baseUrl?: string;
+          azureDeployment?: string;
+          azureApiVersion?: string;
+        }>;
       };
     };
   }>('/api/setup', async (req, reply) => {

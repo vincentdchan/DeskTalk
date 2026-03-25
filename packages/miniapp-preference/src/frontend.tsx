@@ -6,6 +6,7 @@ import { CATEGORIES, getSchemasByCategory, getDefaultConfig } from './schema';
 import type { Config } from './schema';
 import { PreferenceCategoryList } from './components/PreferenceCategoryList';
 import { AiProviderList } from './components/AiProviderList';
+import { VoiceProviderList } from './components/VoiceProviderList';
 import { PreferenceSection } from './components/PreferenceSection';
 import { PreferenceRow } from './components/PreferenceRow';
 import { PreferenceActions } from './components/PreferenceActions';
@@ -109,15 +110,23 @@ function PreferenceApp() {
 
   const getVisibleSchemas = useCallback((category: string) => {
     const schemas = getSchemasByCategory(category);
-    if (category !== 'AI') {
+    if (category !== 'AI' && category !== 'Voice') {
       return schemas;
     }
 
     return schemas.filter((schema) => {
+      if (category === 'AI') {
+        return (
+          !schema.key.startsWith('ai.providers.') &&
+          schema.key !== 'ai.defaultProvider' &&
+          schema.key !== 'ai.enabledProviders'
+        );
+      }
+
       return (
-        !schema.key.startsWith('ai.providers.') &&
-        schema.key !== 'ai.defaultProvider' &&
-        schema.key !== 'ai.enabledProviders'
+        !schema.key.startsWith('voice.providers.') &&
+        schema.key !== 'voice.defaultProvider' &&
+        schema.key !== 'voice.enabledProviders'
       );
     });
   }, []);
@@ -139,6 +148,9 @@ function PreferenceApp() {
             return (
               <PreferenceSection key={category} title={category}>
                 {category === 'AI' && <AiProviderList config={config} onChange={handleChange} />}
+                {category === 'Voice' && (
+                  <VoiceProviderList config={config} onChange={handleChange} />
+                )}
                 {schemas.map((schema) => (
                   <PreferenceRow
                     key={schema.key}

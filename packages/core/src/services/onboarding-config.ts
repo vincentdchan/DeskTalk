@@ -29,8 +29,15 @@ export interface AiOnboardingConfig {
 }
 
 export interface VoiceOnboardingConfig {
-  provider: string;
-  apiKey: string;
+  defaultProvider: string;
+  providers: Array<{
+    provider: string;
+    apiKey?: string;
+    model?: string;
+    baseUrl?: string;
+    azureDeployment?: string;
+    azureApiVersion?: string;
+  }>;
 }
 
 /**
@@ -79,8 +86,28 @@ export function saveOnboardingConfig(
   }
 
   if (voiceConfig) {
-    config['voice.provider'] = voiceConfig.provider;
-    config['voice.apiKey'] = voiceConfig.apiKey;
+    config['voice.enabledProviders'] = voiceConfig.providers
+      .map((provider) => provider.provider)
+      .join(',');
+    config['voice.defaultProvider'] = voiceConfig.defaultProvider;
+
+    for (const provider of voiceConfig.providers) {
+      if (provider.apiKey) {
+        config[`voice.providers.${provider.provider}.apiKey`] = provider.apiKey;
+      }
+      if (provider.model) {
+        config[`voice.providers.${provider.provider}.model`] = provider.model;
+      }
+      if (provider.baseUrl) {
+        config[`voice.providers.${provider.provider}.baseUrl`] = provider.baseUrl;
+      }
+      if (provider.azureDeployment) {
+        config[`voice.providers.${provider.provider}.azureDeployment`] = provider.azureDeployment;
+      }
+      if (provider.azureApiVersion) {
+        config[`voice.providers.${provider.provider}.azureApiVersion`] = provider.azureApiVersion;
+      }
+    }
   }
 
   store.config = config;
