@@ -86,7 +86,7 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
   }
 
   async function executeBridgeRequest(request: PreviewBridgeRequestPayload['request']) {
-    if (activeBridgeRequests >= 4) {
+    if (activeBridgeRequests >= 30) {
       throw new Error('Too many bridge requests are already running.');
     }
 

@@ -21,7 +21,7 @@ export function loadChartJs(): Promise<DtChartRuntime> {
 
   loadPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = '/api/ui/chart.js';
+    script.src = '/api/ui/chart.umd.js';
     script.async = true;
     script.dataset.dtChart = 'true';
     script.onload = () => {
