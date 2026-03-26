@@ -8,6 +8,8 @@ import { NoteEditor, type NoteEditorHandle } from './components/NoteEditor';
 import { NoteActions } from './components/NoteActions';
 import styles from './styles/NoteApp.module.css';
 
+const COMPACT_WIDTH = 720;
+
 function NoteApp() {
   // ─── State ───────────────────────────────────────────────────────────────
   const [notes, setNotes] = useState<NoteMeta[]>([]);
@@ -15,7 +17,9 @@ function NoteApp() {
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingNote, setLoadingNote] = useState(false);
+  const [compact, setCompact] = useState(false);
   const editorRef = useRef<NoteEditorHandle>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   // ─── Backend commands ────────────────────────────────────────────────────
   const listNotes = useCommand<{ tag?: string }, NoteMeta[]>('notes.list');
@@ -52,6 +56,27 @@ function NoteApp() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // ─── Responsive layout ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!rootRef.current) return;
+
+    const updateLayout = (width: number) => {
+      setCompact(width <= COMPACT_WIDTH);
+    };
+
+    updateLayout(rootRef.current.clientWidth);
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      updateLayout(entry.contentRect.width);
+    });
+
+    observer.observe(rootRef.current);
+
+    return () => observer.disconnect();
+  }, []);
 
   // ─── Note selection ──────────────────────────────────────────────────────
 
@@ -165,7 +190,7 @@ function NoteApp() {
       onSelectNote={selectNote}
       onRefresh={refresh}
     >
-      <div className={styles.root}>
+      <div ref={rootRef} className={`${styles.root}${compact ? ` ${styles.rootCompact}` : ''}`}>
         <NoteList
           notes={notes}
           selectedId={selectedId}

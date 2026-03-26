@@ -19,9 +19,7 @@
   },
   "dependencies": {
     "@desktalk/sdk": "workspace:*",
-    "@milkdown/crepe": "^7.6.2",
-    "@milkdown/kit": "^7.6.2",
-    "@milkdown/react": "^7.6.2",
+    "@desktalk/ui": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

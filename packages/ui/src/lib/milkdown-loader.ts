@@ -23,7 +23,7 @@ export function loadMilkdown(): Promise<DtMilkdownRuntime> {
 
   loadPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = '/api/ui/milkdown.js';
+    script.src = '/api/ui/milkdown.umd.js';
     script.async = true;
     script.dataset.dtMilkdown = 'true';
     script.onload = () => {
