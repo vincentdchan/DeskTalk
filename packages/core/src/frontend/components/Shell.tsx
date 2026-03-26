@@ -9,6 +9,7 @@ import { ConnectionOverlay } from './ConnectionOverlay';
 import { SplitResizer } from './SplitResizer';
 import { DropZoneOverlay } from './DropZoneOverlay';
 import { InfoPanel } from './InfoPanel';
+import { CompactInfoPanel } from './CompactInfoPanel';
 import { WindowChrome } from './WindowChrome';
 import { useWebSocket } from './useWebSocket';
 import { TilingTreeView } from './TilingTreeView';
@@ -323,6 +324,8 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
         </div>
 
         {fullscreenWindow && <div className={styles.maximizedMask} />}
+
+        {fullscreenWindow && <CompactInfoPanel socket={socket} wsReady={wsReady} />}
       </div>
     </div>
   );
