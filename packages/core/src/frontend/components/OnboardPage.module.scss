@@ -7,15 +7,6 @@
   background: var(--dt-wallpaper) center / cover no-repeat;
 }
 
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  padding: 40px 36px 36px;
-  width: 420px;
-  max-width: 90vw;
-}
-
 .header {
   text-align: center;
 }
@@ -213,11 +204,6 @@
 }
 
 @media (max-width: 640px) {
-  .card {
-    width: min(92vw, 520px);
-    padding: 28px 20px 20px;
-  }
-
   .providerCardHeader,
   .providerCardActions,
   .footer,

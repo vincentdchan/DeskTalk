@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import styles from './OnboardPage.module.scss';
 import { useOnboarding, ONBOARD_STEPS, type OnboardStep } from '../stores/onboarding';
+import { Modal } from './Modal';
 
 export interface OnboardPageProps {
   onComplete: () => void;
@@ -599,10 +600,10 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
 
   return (
     <div className={styles.page}>
-      <dt-card class={styles.card}>
+      <Modal size="medium">
         {renderStepDots()}
         {stepRenderers[store.step]()}
-      </dt-card>
+      </Modal>
     </div>
   );
 }

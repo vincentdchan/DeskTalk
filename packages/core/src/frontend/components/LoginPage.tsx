@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import styles from './LoginPage.module.scss';
+import { Modal } from './Modal';
 import { getErrorMessage, httpClient } from '../http-client';
 
 export interface LoginPageProps {
@@ -30,7 +31,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
   return (
     <div className={styles.page}>
-      <dt-card class={styles.card}>
+      <Modal size="small">
         <h1 className={styles.logo}>DeskTalk</h1>
         <form className={styles.form} onSubmit={handleSubmit}>
           <div className={styles.field}>
@@ -74,7 +75,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
             {loading ? 'Signing in...' : 'Sign In'}
           </dt-button>
         </form>
-      </dt-card>
+      </Modal>
     </div>
   );
 }
