@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import styles from './LoginPage.module.scss';
 import { getErrorMessage, httpClient } from '../http-client';
 
@@ -65,58 +65,16 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
             />
           </div>
           <div className={styles.error}>{error}</div>
-          <DtButton
+          <dt-button
             variant="primary"
             disabled={loading || !username || !password}
-            onPress={() => {}}
+            type="submit"
+            fullwidth
           >
             {loading ? 'Signing in...' : 'Sign In'}
-          </DtButton>
+          </dt-button>
         </form>
       </dt-card>
     </div>
-  );
-}
-
-interface DtButtonProps {
-  children: React.ReactNode;
-  disabled?: boolean;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
-  size?: 'sm' | 'md' | 'lg';
-  onPress: () => Promise<void> | void;
-}
-
-function DtButton({
-  children,
-  disabled = false,
-  variant = 'primary',
-  size = 'md',
-  onPress,
-}: DtButtonProps) {
-  const [buttonElement, setButtonElement] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!buttonElement) {
-      return;
-    }
-
-    const handleClick = () => {
-      void onPress();
-    };
-
-    buttonElement.addEventListener('click', handleClick);
-    return () => buttonElement.removeEventListener('click', handleClick);
-  }, [buttonElement, onPress]);
-
-  return (
-    <dt-button
-      ref={(element: HTMLElement | null) => setButtonElement(element)}
-      disabled={disabled}
-      variant={variant}
-      size={size}
-      fullwidth
-    >
-      {children}
-    </dt-button>
   );
 }

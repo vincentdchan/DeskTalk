@@ -1,15 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import styles from './OnboardPage.module.scss';
 import { useOnboarding, ONBOARD_STEPS, type OnboardStep } from '../stores/onboarding';
 
 export interface OnboardPageProps {
   onComplete: () => void;
-}
-
-interface DtSelectElement extends HTMLElement {
-  options: Array<{ value: string; label: string }>;
-  value: string;
-  disabled: boolean;
 }
 
 /** AI providers shown during onboarding. */
@@ -77,9 +71,9 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
         </div>
         <div className={styles.footer}>
           <span />
-          <DtButton variant="primary" onPress={store.goNext}>
+          <dt-button variant="primary" onClick={store.goNext}>
             Get Started
-          </DtButton>
+          </dt-button>
         </div>
       </>
     );
@@ -152,12 +146,12 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
           <div className={styles.error}>{store.error}</div>
         </div>
         <div className={styles.footer}>
-          <DtButton variant="secondary" onPress={store.goBack}>
+          <dt-button variant="secondary" onClick={store.goBack}>
             Back
-          </DtButton>
-          <DtButton
+          </dt-button>
+          <dt-button
             variant="primary"
-            onPress={() => {
+            onClick={() => {
               if (store.validateAccount()) store.goNext();
             }}
             disabled={
@@ -165,7 +159,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
             }
           >
             Next
-          </DtButton>
+          </dt-button>
         </div>
       </>
     );
@@ -208,22 +202,22 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                           {index === 0 && <dt-badge variant="default">Default</dt-badge>}
                         </div>
                         <div className={styles.providerCardActions}>
-                          <DtButton
-                            onPress={() => store.setDefaultAiProvider(item.provider)}
+                          <dt-button
+                            onClick={() => store.setDefaultAiProvider(item.provider)}
                             disabled={index === 0}
                             variant="secondary"
                             size="sm"
                           >
                             Set as default
-                          </DtButton>
-                          <DtButton
-                            onPress={() => store.removeAiProvider(item.provider)}
+                          </dt-button>
+                          <dt-button
+                            onClick={() => store.removeAiProvider(item.provider)}
                             disabled={store.aiProviders.length === 1}
                             variant="danger"
                             size="sm"
                           >
                             Delete
-                          </DtButton>
+                          </dt-button>
                         </div>
                       </div>
 
@@ -312,8 +306,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
             })}
           </div>
           <div className={styles.providerActionButtonWrap}>
-            <DtButton
-              onPress={() => {
+            <dt-button
+              onClick={() => {
                 const nextProvider = AI_PROVIDERS.find(
                   (provider) =>
                     !store.aiProviders.some(
@@ -328,20 +322,20 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
               variant="secondary"
             >
               Add provider
-            </DtButton>
+            </dt-button>
           </div>
         </div>
         <div className={styles.footer}>
-          <DtButton variant="secondary" onPress={store.goBack}>
+          <dt-button variant="secondary" onClick={store.goBack}>
             Back
-          </DtButton>
+          </dt-button>
           <div className={styles.footerActions}>
-            <DtButton variant="ghost" onPress={store.goNext}>
+            <dt-button variant="ghost" onClick={store.goNext}>
               Skip
-            </DtButton>
-            <DtButton variant="primary" onPress={store.goNext}>
+            </dt-button>
+            <dt-button variant="primary" onClick={store.goNext}>
               Next
-            </DtButton>
+            </dt-button>
           </div>
         </div>
       </>
@@ -385,22 +379,22 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                           {index === 0 && <dt-badge variant="default">Default</dt-badge>}
                         </div>
                         <div className={styles.providerCardActions}>
-                          <DtButton
-                            onPress={() => store.setDefaultVoiceProvider(item.provider)}
+                          <dt-button
+                            onClick={() => store.setDefaultVoiceProvider(item.provider)}
                             disabled={index === 0}
                             variant="secondary"
                             size="sm"
                           >
                             Set as default
-                          </DtButton>
-                          <DtButton
-                            onPress={() => store.removeVoiceProvider(item.provider)}
+                          </dt-button>
+                          <dt-button
+                            onClick={() => store.removeVoiceProvider(item.provider)}
                             disabled={store.voiceProviders.length === 1}
                             variant="danger"
                             size="sm"
                           >
                             Delete
-                          </DtButton>
+                          </dt-button>
                         </div>
                       </div>
 
@@ -529,8 +523,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
             })}
           </div>
           <div className={styles.providerActionButtonWrap}>
-            <DtButton
-              onPress={() => {
+            <dt-button
+              onClick={() => {
                 const nextProvider = STT_PROVIDERS.find(
                   (provider) =>
                     !store.voiceProviders.some(
@@ -545,20 +539,20 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
               variant="secondary"
             >
               Add provider
-            </DtButton>
+            </dt-button>
           </div>
         </div>
         <div className={styles.footer}>
-          <DtButton variant="secondary" onPress={store.goBack}>
+          <dt-button variant="secondary" onClick={store.goBack}>
             Back
-          </DtButton>
+          </dt-button>
           <div className={styles.footerActions}>
-            <DtButton variant="ghost" onPress={store.goNext}>
+            <dt-button variant="ghost" onClick={store.goNext}>
               Skip
-            </DtButton>
-            <DtButton variant="primary" onPress={store.goNext}>
+            </dt-button>
+            <dt-button variant="primary" onClick={store.goNext}>
               Next
-            </DtButton>
+            </dt-button>
           </div>
         </div>
       </>
@@ -580,16 +574,16 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
           <div className={styles.error}>{store.error}</div>
         </div>
         <div className={styles.footer}>
-          <DtButton variant="secondary" onPress={store.goBack}>
+          <dt-button variant="secondary" onClick={store.goBack}>
             Back
-          </DtButton>
-          <DtButton
+          </dt-button>
+          <dt-button
             variant="primary"
-            onPress={() => store.submit(onComplete)}
+            onClick={() => store.submit(onComplete)}
             disabled={store.loading}
           >
             {store.loading ? 'Setting up...' : 'Enter Desktop'}
-          </DtButton>
+          </dt-button>
         </div>
       </>
     );
@@ -613,48 +607,6 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
   );
 }
 
-interface DtButtonProps {
-  children: ReactNode;
-  disabled?: boolean;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
-  size?: 'sm' | 'md' | 'lg';
-  onPress: () => Promise<void> | void;
-}
-
-function DtButton({
-  children,
-  disabled = false,
-  variant = 'primary',
-  size = 'md',
-  onPress,
-}: DtButtonProps) {
-  const [buttonElement, setButtonElement] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!buttonElement) {
-      return;
-    }
-
-    const handleClick = () => {
-      void onPress();
-    };
-
-    buttonElement.addEventListener('click', handleClick);
-    return () => buttonElement.removeEventListener('click', handleClick);
-  }, [buttonElement, onPress]);
-
-  return (
-    <dt-button
-      ref={(element: HTMLElement | null) => setButtonElement(element)}
-      disabled={disabled}
-      variant={variant}
-      size={size}
-    >
-      {children}
-    </dt-button>
-  );
-}
-
 interface OnboardSelectProps {
   id?: string;
   value: string;
@@ -664,60 +616,17 @@ interface OnboardSelectProps {
 }
 
 function OnboardSelect({ id, value, options, disabled = false, onChange }: OnboardSelectProps) {
-  const [selectElement, setSelectElement] = useState<DtSelectElement | null>(null);
-
-  useEffect(() => {
-    if (!selectElement) {
-      return;
-    }
-
-    if (id) {
-      selectElement.setAttribute('id', id);
-    } else {
-      selectElement.removeAttribute('id');
-    }
-  }, [id, selectElement]);
-
-  useEffect(() => {
-    if (!selectElement) {
-      return;
-    }
-
-    selectElement.options = options;
-  }, [options, selectElement]);
-
-  useEffect(() => {
-    if (!selectElement) {
-      return;
-    }
-
-    selectElement.value = value;
-  }, [selectElement, value]);
-
-  useEffect(() => {
-    if (!selectElement) {
-      return;
-    }
-
-    selectElement.disabled = disabled;
-  }, [disabled, selectElement]);
-
-  useEffect(() => {
-    if (!selectElement) {
-      return;
-    }
-
-    const handleChange = (event: Event) => {
-      void onChange((event as CustomEvent<{ value: string }>).detail.value);
-    };
-
-    selectElement.addEventListener('dt-change', handleChange);
-    return () => selectElement.removeEventListener('dt-change', handleChange);
-  }, [onChange, selectElement]);
-
   return (
     <div className={styles.providerSelectWrap}>
-      <dt-select ref={(element: DtSelectElement | null) => setSelectElement(element)} />
+      <dt-select
+        id={id}
+        value={value}
+        options={options}
+        disabled={disabled}
+        ondt-change={(event) => {
+          void onChange(event.detail.value);
+        }}
+      />
     </div>
   );
 }

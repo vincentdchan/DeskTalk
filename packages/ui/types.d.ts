@@ -1,3 +1,5 @@
+import type * as React from 'react';
+
 export {};
 
 type DtTooltipAttributes = Partial<{
@@ -28,10 +30,13 @@ type DtCardJSXProps = DtCardAttributes & {
 };
 
 type DtSelectAttributes = Partial<{
+  id: string;
   value: string;
+  options: Array<{ value: string; label: string }>;
   placeholder: string;
   disabled: boolean;
   align: 'left' | 'right';
+  'ondt-change': (event: CustomEvent<{ value: string }>) => void;
   class: string;
   style: string | Record<string, string>;
 }>;
@@ -114,6 +119,7 @@ type DtButtonAttributes = Partial<{
 
 type DtButtonJSXProps = DtButtonAttributes & {
   children?: unknown;
+  onClick?: React.MouseEventHandler<HTMLElement>;
   ref?: unknown;
   key?: string | number | null;
 };
