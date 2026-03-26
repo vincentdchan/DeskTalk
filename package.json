@@ -1,7 +1,14 @@
 {
   "name": "desktalk",
   "private": true,
+  "version": "0.1.0-alpha.1",
+  "description": "DeskTalk monorepo for the browser-based desktop environment and MiniApps.",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vincentdchan/DeskTalk.git"
+  },
   "scripts": {
     "build": "pnpm -r run build",
     "start": "pnpm --filter @desktalk/core start",
@@ -11,7 +18,9 @@
     "format": "prettier --write \"packages/**/*.{ts,tsx,css,json}\"",
     "format:check": "prettier --check \"packages/**/*.{ts,tsx,css,json}\"",
     "unit:test": "pnpm -r --if-present run unit:test",
-    "clean": "pnpm -r run clean"
+    "clean": "pnpm -r run clean",
+    "version:set": "node scripts/version.mjs",
+    "version:check": "node scripts/version-check.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

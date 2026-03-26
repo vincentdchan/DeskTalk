@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createRequire } from 'node:module';
 import { Command } from 'commander';
 import { initWorkspace, migrateToMultiUser } from '../services/workspace';
 import { registerBuiltinMiniApps } from '../services/miniapp-registry';
@@ -9,12 +10,15 @@ import { createRootLogger, getLoggerConfig } from '../services/logger';
 import { initUserDb, closeUserDb } from '../services/user-db';
 import { initGlobalProxyDispatcher } from '../services/proxy-dispatcher';
 
+const require = createRequire(import.meta.url);
+const { version } = require('../../package.json') as { version: string };
+
 const program = new Command();
 
 program
   .name('desktalk')
   .description('DeskTalk — Browser-based OS-like desktop environment with AI assistant')
-  .version('0.1.0');
+  .version(version);
 
 program
   .command('start')

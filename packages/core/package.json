@@ -1,10 +1,23 @@
 {
   "name": "@desktalk/core",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
+  "description": "DeskTalk application shell, CLI, and backend server.",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vincentdchan/DeskTalk.git",
+    "directory": "packages/core"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "desktalk": "./dist/cli/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -22,7 +35,8 @@
     "dev:backend": "node dist/cli/index.js start --dev",
     "dev:frontend": "vite",
     "clean": "rm -rf dist",
-    "unit:test": "vitest run"
+    "unit:test": "vitest run",
+    "prepack": "pnpm build"
   },
   "dependencies": {
     "@desktalk/miniapp-file-explorer": "workspace:*",
