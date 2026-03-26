@@ -34,11 +34,11 @@
   },
   "dependencies": {
     "@desktalk/sdk": "workspace:*",
-    "monaco-editor": "^0.52.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "monaco-editor": "^0.52.0"
   },
   "devDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "typescript": "^5.7.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0"

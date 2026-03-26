@@ -23,7 +23,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { basename, join, normalize } from 'node:path';
+import { basename, dirname, join, normalize } from 'node:path';
 
 const cwd = process.cwd();
 
@@ -68,6 +68,36 @@ function createCssInjectionBanner(css: string, packageName: string): string {
   style.textContent = ${JSON.stringify(css)};
   document.head.appendChild(style);
 })();`;
+}
+
+function appendCssInjectionToBundle(js: string, css: string, packageName: string): string {
+  const injection = createCssInjectionBanner(css, packageName);
+  const sourceMapCommentMatch = js.match(/\n\/\/# sourceMappingURL=.*\s*$/);
+
+  if (!sourceMapCommentMatch || sourceMapCommentMatch.index === undefined) {
+    return `${js}\n${injection}\n`;
+  }
+
+  const sourceMapComment = sourceMapCommentMatch[0].trimStart();
+  const withoutSourceMapComment = js.slice(0, sourceMapCommentMatch.index).replace(/\s*$/, '');
+  return `${withoutSourceMapComment}\n${injection}\n${sourceMapComment}\n`;
+}
+
+async function minifyJavaScriptBundle(js: string): Promise<string> {
+  const sourceMapCommentMatch = js.match(/\n\/\/# sourceMappingURL=.*\s*$/);
+  const jsWithoutSourceMapComment = sourceMapCommentMatch
+    ? js.slice(0, sourceMapCommentMatch.index).replace(/\s*$/, '')
+    : js;
+
+  const result = await esbuild.transform(jsWithoutSourceMapComment, {
+    loader: 'js',
+    format: 'esm',
+    target: 'es2022',
+    minify: true,
+    sourcemap: false,
+  });
+
+  return result.code.trimEnd();
 }
 
 interface GlobalModuleConfig {
@@ -559,6 +589,15 @@ function emitMiniAppMetadata(packageRoot: string, metadata: MiniAppBuildMetadata
   writeFileSync(join(outDir, 'meta.json'), JSON.stringify(metadata, null, 2));
 }
 
+function writeEsbuildOutputFiles(
+  outputFiles: Array<Pick<esbuild.OutputFile, 'path' | 'contents'>>,
+): void {
+  for (const outputFile of outputFiles) {
+    mkdirSync(dirname(outputFile.path), { recursive: true });
+    writeFileSync(outputFile.path, outputFile.contents);
+  }
+}
+
 const packageJsonPath = join(cwd, 'package.json');
 const packageJson = existsSync(packageJsonPath)
   ? (JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { name?: string; icon?: string })
@@ -593,11 +632,6 @@ if (existsSync(distDir)) {
   rmSync(distDir, { recursive: true, force: true });
 }
 
-const tempDir = join(cwd, '.desktalk-build');
-if (existsSync(tempDir)) {
-  rmSync(tempDir, { recursive: true, force: true });
-}
-
 const i18nAssets = validateAndCollectI18n({
   packageRoot: cwd,
   packageName,
@@ -621,74 +655,61 @@ await esbuild.build({
 });
 
 console.log('[desktalk-build] Building frontend...');
-try {
-  await esbuild.build({
-    entryPoints: [frontendEntry],
-    outfile: join(tempDir, 'frontend.js'),
-    bundle: true,
-    format: 'esm',
-    platform: 'browser',
-    target: 'es2022',
-    sourcemap: true,
-    jsx: 'automatic',
-    loader: {
-      '.css': 'css',
-      '.module.css': 'local-css',
-      '.woff2': 'empty',
-      '.woff': 'empty',
-      '.ttf': 'empty',
-      '.eot': 'empty',
-    },
-    external: ['@desktalk/sdk'],
-    plugins: [
-      createWindowGlobalsPlugin(),
-      createLocalizeTransformPlugin(packageScope, join(cwd, 'src')),
-      createMarkdownCopyPlugin(join(cwd, 'src'), join(cwd, 'dist')),
-    ],
-  });
+const frontendBuildResult = await esbuild.build({
+  entryPoints: [frontendEntry],
+  outdir: distDir,
+  bundle: true,
+  format: 'esm',
+  platform: 'browser',
+  target: 'es2022',
+  sourcemap: true,
+  jsx: 'automatic',
+  write: false,
+  loader: {
+    '.css': 'css',
+    '.module.css': 'local-css',
+    '.woff2': 'empty',
+    '.woff': 'empty',
+    '.ttf': 'empty',
+    '.eot': 'empty',
+  },
+  external: ['@desktalk/sdk'],
+  plugins: [
+    createWindowGlobalsPlugin(),
+    createLocalizeTransformPlugin(packageScope, join(cwd, 'src')),
+    createMarkdownCopyPlugin(join(cwd, 'src'), join(cwd, 'dist')),
+  ],
+});
 
-  const tempCssPath = join(tempDir, 'frontend.css');
-  const injectedCssBanner = existsSync(tempCssPath)
-    ? createCssInjectionBanner(readFileSync(tempCssPath, 'utf8'), packageName)
-    : undefined;
+const frontendJsPath = join(distDir, 'frontend.js');
+const frontendCssPath = join(distDir, 'frontend.css');
+const frontendCssMapPath = join(distDir, 'frontend.css.map');
+const frontendCssFile = frontendBuildResult.outputFiles.find(
+  (outputFile) => outputFile.path === frontendCssPath,
+);
 
-  await esbuild.build({
-    entryPoints: [frontendEntry],
-    outfile: 'dist/frontend.js',
-    bundle: true,
-    format: 'esm',
-    platform: 'browser',
-    target: 'es2022',
-    sourcemap: true,
-    jsx: 'automatic',
-    loader: {
-      '.css': 'css',
-      '.module.css': 'local-css',
-      '.woff2': 'empty',
-      '.woff': 'empty',
-      '.ttf': 'empty',
-      '.eot': 'empty',
-    },
-    banner: injectedCssBanner ? { js: injectedCssBanner } : undefined,
-    external: ['@desktalk/sdk'],
-    plugins: [
-      createWindowGlobalsPlugin(),
-      createLocalizeTransformPlugin(packageScope, join(cwd, 'src')),
-      createMarkdownCopyPlugin(join(cwd, 'src'), join(cwd, 'dist')),
-    ],
-  });
-
-  for (const extraFile of ['frontend.css', 'frontend.css.map']) {
-    const extraPath = join(distDir, extraFile);
-    if (existsSync(extraPath)) {
-      rmSync(extraPath, { force: true });
+const frontendOutputFiles = frontendBuildResult.outputFiles
+  .filter(
+    (outputFile) => outputFile.path !== frontendCssPath && outputFile.path !== frontendCssMapPath,
+  )
+  .map(async (outputFile) => {
+    if (outputFile.path !== frontendJsPath) {
+      return outputFile;
     }
-  }
-} finally {
-  if (existsSync(tempDir)) {
-    rmSync(tempDir, { recursive: true, force: true });
-  }
-}
+
+    const minifiedJs = await minifyJavaScriptBundle(outputFile.text);
+
+    return {
+      ...outputFile,
+      contents: Buffer.from(
+        frontendCssFile
+          ? appendCssInjectionToBundle(minifiedJs, frontendCssFile.text, packageName)
+          : minifiedJs,
+      ),
+    };
+  });
+
+writeEsbuildOutputFiles(await Promise.all(frontendOutputFiles));
 
 emitI18nAssets({
   packageRoot: cwd,

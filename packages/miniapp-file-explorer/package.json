@@ -33,15 +33,15 @@
     "prepack": "pnpm build"
   },
   "dependencies": {
-    "@desktalk/sdk": "workspace:*",
-    "ahooks": "^3.9.5",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "zustand": "^5.0.8"
+    "@desktalk/sdk": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
     "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0"
+    "@types/react-dom": "^19.0.0",
+    "ahooks": "^3.9.5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.8"
   }
 }
