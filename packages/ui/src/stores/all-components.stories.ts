@@ -316,10 +316,15 @@ This is a **markdown** example with:
 
       <h3>Chart</h3>
       <div class="section">
-        <dt-chart type="bar" labels="Jan,Feb,Mar,Apr,May" style="height: 300px;">
-          <dt-dataset label="Sales" values="12,19,3,5,2" color="#7c6ff7"></dt-dataset>
-          <dt-dataset label="Revenue" values="8,15,7,11,4" color="#22b573"></dt-dataset>
-        </dt-chart>
+        <dt-chart id="all-comp-chart" type="bar" labels="Jan,Feb,Mar,Apr,May" style="height: 300px;"></dt-chart>
+        <script>
+          document.getElementById('all-comp-chart').data = {
+            datasets: [
+              { label: 'Sales', data: [12, 19, 3, 5, 2], color: '#7c6ff7' },
+              { label: 'Revenue', data: [8, 15, 7, 11, 4], color: '#22b573' },
+            ],
+          };
+        </script>
       </div>
 
       <!-- H2: Interactive Components -->

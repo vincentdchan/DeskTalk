@@ -32,35 +32,31 @@ The current esbuild config uses `outfile` (single-file output) for the IIFE buil
 
 ## Component API
 
-### Primary: Declarative HTML (streaming-friendly)
+### Data via `.data` JS Property
+
+All chart data is provided via the `.data` JS property. This is the single, unified API for all chart types.
 
 ```html
-<dt-chart type="bar" legend="top" labels="Jan,Feb,Mar" style="height: 300px">
-  <dt-dataset label="Revenue" values="12,19,3"></dt-dataset>
-  <dt-dataset label="Costs" values="7,11,5"></dt-dataset>
-</dt-chart>
-```
-
-### Fallback: JS Property (for complex data shapes)
-
-```html
-<dt-chart id="scatter" type="scatter" style="height: 300px"></dt-chart>
+<dt-chart
+  id="revenue"
+  type="bar"
+  legend="top"
+  labels="Jan,Feb,Mar"
+  style="height: 300px"
+></dt-chart>
 <script>
-  document.getElementById('scatter').data = {
+  document.getElementById('revenue').data = {
     datasets: [
-      {
-        label: 'Points',
-        data: [
-          { x: 1, y: 2 },
-          { x: 3, y: 4 },
-        ],
-      },
+      { label: 'Revenue', data: [12, 19, 3] },
+      { label: 'Costs', data: [7, 11, 5] },
     ],
   };
 </script>
 ```
 
-The AI manual instructs: **use `<dt-dataset>` child elements by default.** Only use `.data` for scatter, bubble, or dynamically computed data.
+### Why `.data` Only (No Declarative Child Elements)
+
+An earlier design used `<dt-dataset>` child elements for streaming-friendly declarative HTML. This was removed because the two-mode API (declarative children vs. `.data` property) confused the AI: it would mix the two approaches or use the wrong one for a given chart type. A single `.data` property is simpler to document, simpler for the AI to use correctly, and works uniformly for all chart types including scatter and bubble.
 
 ### Attributes on `<dt-chart>`
 
@@ -71,29 +67,22 @@ The AI manual instructs: **use `<dt-dataset>` child elements by default.** Only 
 | `stacked` | boolean (presence)                                                     | absent  | Stacks bar/line datasets.                                 |
 | `labels`  | comma-separated string                                                 | `''`    | X-axis / category labels (e.g. `labels="Jan,Feb,Mar"`).   |
 
-### Attributes on `<dt-dataset>` (child element)
-
-| Attribute | Type                    | Default | Description                                                    |
-| --------- | ----------------------- | ------- | -------------------------------------------------------------- |
-| `label`   | string                  | `''`    | Legend label for this dataset.                                 |
-| `values`  | comma-separated numbers | `''`    | Data values (e.g. `values="12,19,3,5"`).                       |
-| `color`   | CSS color string        | auto    | Optional override. Omit to auto-assign from the theme palette. |
-
-`<dt-dataset>` is a hidden helper element (same pattern as `<dt-column>` in `<dt-table-view>`).
-
 ### JS Properties
 
 | Property   | Type                                         | Description                                                                          |
 | ---------- | -------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `.data`    | `{ labels?: string[], datasets: Dataset[] }` | JS escape hatch for complex data (scatter, bubble). Overrides child elements.        |
+| `.data`    | `{ labels?: string[], datasets: Dataset[] }` | Required. Provides chart data. See Dataset Shape below.                              |
 | `.options` | `object`                                     | Escape hatch: raw Chart.js options merged under auto-themed defaults. Rarely needed. |
 
 ### Dataset Shape (for `.data` JS property)
 
 ```ts
 interface DtChartDataset {
-  label: string; // legend label
-  data: number[]; // values
+  label?: string; // legend label
+  data:
+    | number[] // values for bar, line, area, pie, doughnut, radar
+    | { x: number; y: number }[] // for scatter
+    | { x: number; y: number; r: number }[]; // for bubble
   color?: string; // optional override; auto-assigned from theme palette if omitted
 }
 
@@ -113,117 +102,6 @@ interface DtChartData {
 
 The component **requires an explicit height** via inline style or CSS rule (same pattern as `dt-list-view`). The internal `<canvas>` fills the shadow DOM container. Chart.js `responsive: true` handles resize.
 
-## Streaming Support
-
-### Why Declarative HTML Enables Streaming
-
-LiveApp HTML is streamed into the iframe by `html-stream-coordinator.ts`. The browser creates DOM nodes **incrementally** as chunks arrive. Declarative `<dt-dataset>` child elements leverage this — the chart updates live as each dataset streams in. A `<script>` block, by contrast, only executes after the browser receives the closing `</script>` tag.
-
-### Mechanism: MutationObserver + connectedCallback
-
-Three browser primitives make this work:
-
-1. **Incremental HTML parsing** — the browser creates elements as they stream in, doesn't wait for the full document.
-2. **Custom Element lifecycle** — `connectedCallback` fires the instant an element is attached to the DOM, even mid-stream.
-3. **MutationObserver** — fires after each DOM mutation, so the parent knows immediately when a new child arrives.
-
-This is the same proven pattern used by `<dt-table-view>` with `<dt-column>` children.
-
-### Implementation Sketch
-
-**`<dt-dataset>` (child element):**
-
-```ts
-class DtDataset extends HTMLElement {
-  static get observedAttributes() {
-    return ['label', 'values', 'color'];
-  }
-
-  connectedCallback() {
-    this.hidden = true; // invisible, same pattern as <dt-column>
-  }
-
-  attributeChangedCallback() {
-    // Notify parent that data changed
-    this.dispatchEvent(new Event('dt-dataset-change', { bubbles: true }));
-  }
-}
-```
-
-**`<dt-chart>` (parent element, relevant parts):**
-
-```ts
-connectedCallback() {
-  // 1. Start loading Chart.js (async, singleton)
-  this.#chartReady = loadChartJs().then(Ctor => this.#createChart(Ctor));
-
-  // 2. Watch for child <dt-dataset> additions/removals
-  this.#observer = new MutationObserver(() => this.#syncFromChildren());
-  this.#observer.observe(this, { childList: true, subtree: true });
-
-  // 3. Listen for attribute changes on existing children
-  this.addEventListener('dt-dataset-change', () => this.#syncFromChildren());
-}
-
-#syncFromChildren() {
-  const datasets = [...this.querySelectorAll('dt-dataset')];
-  const labels = this.getAttribute('labels')?.split(',') ?? [];
-
-  const data = {
-    labels,
-    datasets: datasets.map(ds => ({
-      label: ds.getAttribute('label') ?? '',
-      data: ds.getAttribute('values')?.split(',').map(Number) ?? [],
-      color: ds.getAttribute('color') ?? undefined,
-    })),
-  };
-
-  if (this.#chart) {
-    this.#chart.data = this.#toChartJsData(data);
-    this.#chart.update();
-  } else {
-    this.#pendingData = data;
-  }
-}
-```
-
-### Streaming Timeline (what the user sees)
-
-```
-t=0ms    AI starts streaming HTML
-
-t=50ms   <dt-chart type="bar" labels="Jan,Feb,Mar"> arrives
-           → connectedCallback fires
-           → starts loading Chart.js (async)
-           → empty canvas / placeholder
-
-t=80ms   Chart.js bundle loaded (cached from prior use)
-           → canvas created, no data yet → empty chart frame
-
-t=120ms  <dt-dataset label="Revenue" values="12,19,3"> arrives
-           → MutationObserver fires → #syncFromChildren()
-           → chart.update() → first bars animate in ✓
-
-t=200ms  <dt-dataset label="Costs" values="7,11,5"> arrives
-           → MutationObserver fires → #syncFromChildren()
-           → chart.update() → second bars animate in ✓
-
-t=250ms  </dt-chart> closing tag arrives → done
-```
-
-### Edge Case: Chart.js Not Yet Loaded
-
-If `<dt-dataset>` elements arrive before Chart.js finishes loading (e.g., first-ever use, ~100ms cold load):
-
-```
-t=50ms   <dt-chart> connects → starts loading Chart.js
-t=70ms   <dt-dataset> arrives → #syncFromChildren() → #chart is null → stores in #pendingData
-t=90ms   <dt-dataset> arrives → same, updates #pendingData
-t=150ms  Chart.js loaded → #createChart() reads #pendingData → chart renders all datasets at once
-```
-
-On subsequent uses in the same iframe, Chart.js is cached in `window.__DtChart` and loads instantly, so the incremental animation works from the first dataset.
-
 ## Auto-Theming
 
 The component reads CSS custom properties from the host context:
@@ -240,21 +118,21 @@ No gridlines by default (clean sci-fi look). Grid can be enabled via `.options` 
 
 ## File Plan
 
-| File                                   | Action | Purpose                                                       |
-| -------------------------------------- | ------ | ------------------------------------------------------------- |
-| `packages/ui/src/dt-chart.ts`          | new    | `<dt-chart>` and `<dt-dataset>` component classes (same file) |
-| `packages/ui/src/styles/chart.css`     | new    | Shadow DOM styles                                             |
-| `packages/ui/src/lib/chart-loader.ts`  | new    | Singleton lazy loader for Chart.js                            |
-| `packages/ui/src/chart-entry.ts`       | new    | Separate entry: imports Chart.js, sets `window.__DtChart`     |
-| `packages/ui/build.mjs`                | modify | Add IIFE build for `chart-entry.ts` → `dist/chart.umd.js`     |
-| `packages/ui/src/index.ts`             | modify | Register `dt-chart` and `dt-dataset` elements                 |
-| `packages/ui/src/ui-elements.ts`       | modify | Add JSX types for both elements                               |
-| `packages/ui/types.d.ts`               | modify | Add type declarations for both elements                       |
-| `packages/ui/package.json`             | modify | Add `chart.js` dependency                                     |
-| `packages/core/src/server/index.ts`    | modify | Add `GET /api/ui/chart.js` route                              |
-| `packages/core/.../html-components.md` | modify | Document `<dt-chart>` + `<dt-dataset>` for AI                 |
-| `packages/core/.../html-examples.md`   | modify | Add chart example LiveApp (using declarative datasets)        |
-| `packages/ui/src/dt-chart.stories.ts`  | new    | Storybook stories                                             |
+| File                                   | Action | Purpose                                                   |
+| -------------------------------------- | ------ | --------------------------------------------------------- |
+| `packages/ui/src/dt-chart.ts`          | new    | `<dt-chart>` component class                              |
+| `packages/ui/src/styles/chart.css`     | new    | Shadow DOM styles                                         |
+| `packages/ui/src/lib/chart-loader.ts`  | new    | Singleton lazy loader for Chart.js                        |
+| `packages/ui/src/chart-entry.ts`       | new    | Separate entry: imports Chart.js, sets `window.__DtChart` |
+| `packages/ui/build.mjs`                | modify | Add IIFE build for `chart-entry.ts` → `dist/chart.umd.js` |
+| `packages/ui/src/index.ts`             | modify | Register `dt-chart` element                               |
+| `packages/ui/src/ui-elements.ts`       | modify | Add JSX types for the element                             |
+| `packages/ui/types.d.ts`               | modify | Add type declarations for the element                     |
+| `packages/ui/package.json`             | modify | Add `chart.js` dependency                                 |
+| `packages/core/src/server/index.ts`    | modify | Add `GET /api/ui/chart.js` route                          |
+| `packages/core/.../html-components.md` | modify | Document `<dt-chart>` for AI                              |
+| `packages/core/.../html-examples.md`   | modify | Add chart example LiveApp                                 |
+| `packages/ui/src/dt-chart.stories.ts`  | new    | Storybook stories                                         |
 
 ## Build Changes
 
@@ -338,7 +216,7 @@ Add under Display Components:
 ```markdown
 ### `<dt-chart>`
 
-Renders interactive charts. Define data declaratively with `<dt-dataset>` children.
+Renders interactive charts. Provide data via the `.data` JS property.
 The chart auto-themes to match the DeskTalk palette — do not set colors
 unless the user specifically requests custom colors.
 
@@ -348,41 +226,45 @@ unless the user specifically requests custom colors.
 - `labels` — comma-separated category labels (e.g. `labels="Jan,Feb,Mar"`)
 - `legend` — `top`, `bottom`, `left`, `right`, `none` (default)
 - `stacked` — when present, stacks datasets
-- `.data` JS property — escape hatch for complex data (scatter, bubble); overrides child elements
+- `.data` JS property — provides chart data (required)
 - `.options` JS property — advanced: raw Chart.js options merged with defaults (rarely needed)
 - `dt-chart-click` event — `{ label, datasetIndex, index, value }`
 
 **When to use:** Any time the user asks for a chart, graph, or visualization.
 Prefer `<dt-stat>` for single numeric KPIs.
 
-### `<dt-dataset>`
-
-Defines one data series inside a `<dt-chart>`. Use one per dataset.
-
-- `label` — legend label
-- `values` — comma-separated numbers (e.g. `values="12,19,3,5"`)
-- `color` — optional: override the auto-assigned theme color
-
 Example — bar chart with two datasets:
 
 \`\`\`html
-<dt-chart type="bar" legend="top" labels="Jan,Feb,Mar,Apr"
-          style="height: 300px">
-<dt-dataset label="Revenue" values="12,19,3,5"></dt-dataset>
-<dt-dataset label="Costs" values="7,11,5,8"></dt-dataset>
-</dt-chart>
+<dt-chart id="revenue" type="bar" legend="top" labels="Jan,Feb,Mar,Apr"
+          style="height: 300px"></dt-chart>
+
+<script>
+  document.getElementById('revenue').data = {
+    datasets: [
+      { label: 'Revenue', data: [12, 19, 3, 5] },
+      { label: 'Costs', data: [7, 11, 5, 8] },
+    ],
+  };
+</script>
+
 \`\`\`
 
 Example — doughnut chart:
 
 \`\`\`html
-<dt-chart type="doughnut" legend="right" labels="Electronics,Clothing,Food"
-          style="height: 250px">
-<dt-dataset label="Sales" values="35,25,22"></dt-dataset>
-</dt-chart>
+<dt-chart id="categories" type="doughnut" legend="right" labels="Electronics,Clothing,Food"
+          style="height: 250px"></dt-chart>
+
+<script>
+  document.getElementById('categories').data = {
+    datasets: [{ label: 'Sales', data: [35, 25, 22] }],
+  };
+</script>
+
 \`\`\`
 
-Example — scatter chart (requires `.data` JS property):
+Example — scatter chart:
 
 \`\`\`html
 <dt-chart id="scatter" type="scatter" style="height: 300px"></dt-chart>
@@ -424,44 +306,67 @@ Add a "Sales Dashboard" example:
     <dt-grid columns="2" gap="md">
       <dt-card heading="Revenue by Month">
         <dt-chart
+          id="revenue-chart"
           type="bar"
           legend="top"
           stacked
           labels="Jan,Feb,Mar,Apr,May,Jun"
           class="chart-box"
-        >
-          <dt-dataset label="Online" values="12,19,3,5,2,3"></dt-dataset>
-          <dt-dataset label="Retail" values="7,11,5,8,3,7"></dt-dataset>
-        </dt-chart>
+        ></dt-chart>
       </dt-card>
       <dt-card heading="User Growth">
-        <dt-chart type="area" legend="none" labels="Jan,Feb,Mar,Apr,May,Jun" class="chart-box">
-          <dt-dataset label="Users" values="150,230,224,318,435,547"></dt-dataset>
-        </dt-chart>
+        <dt-chart
+          id="growth-chart"
+          type="area"
+          legend="none"
+          labels="Jan,Feb,Mar,Apr,May,Jun"
+          class="chart-box"
+        ></dt-chart>
       </dt-card>
     </dt-grid>
 
     <dt-card heading="Category Breakdown" style="margin-top: var(--dt-space-md)">
       <dt-grid columns="2" gap="md">
         <dt-chart
+          id="category-chart"
           type="doughnut"
           legend="right"
           labels="Electronics,Clothing,Food,Books"
           style="height: 250px"
-        >
-          <dt-dataset label="Sales" values="35,25,22,18"></dt-dataset>
-        </dt-chart>
+        ></dt-chart>
         <dt-chart
+          id="comparison-chart"
           type="radar"
           legend="bottom"
           labels="Speed,Reliability,Comfort,Safety,Efficiency"
           style="height: 250px"
-        >
-          <dt-dataset label="Model A" values="65,59,90,81,56"></dt-dataset>
-          <dt-dataset label="Model B" values="28,48,40,19,96"></dt-dataset>
-        </dt-chart>
+        ></dt-chart>
       </dt-grid>
     </dt-card>
+
+    <script>
+      document.getElementById('revenue-chart').data = {
+        datasets: [
+          { label: 'Online', data: [12, 19, 3, 5, 2, 3] },
+          { label: 'Retail', data: [7, 11, 5, 8, 3, 7] },
+        ],
+      };
+
+      document.getElementById('growth-chart').data = {
+        datasets: [{ label: 'Users', data: [150, 230, 224, 318, 435, 547] }],
+      };
+
+      document.getElementById('category-chart').data = {
+        datasets: [{ label: 'Sales', data: [35, 25, 22, 18] }],
+      };
+
+      document.getElementById('comparison-chart').data = {
+        datasets: [
+          { label: 'Model A', data: [65, 59, 90, 81, 56] },
+          { label: 'Model B', data: [28, 48, 40, 19, 96] },
+        ],
+      };
+    </script>
   </body>
 </html>
 ```
@@ -469,7 +374,7 @@ Add a "Sales Dashboard" example:
 ## Design Decisions
 
 1. **Separate bundle, not code splitting** — IIFE format can't split. A second entry point is simpler than overhauling the build.
-2. **Declarative HTML as primary API** — `<dt-dataset>` child elements are the default. Enables streaming: the chart updates live as each dataset streams into the iframe. The `.data` JS property is kept as an escape hatch for scatter/bubble/dynamic data only. See "Streaming Support" section for full rationale and implementation.
+2. **`.data` JS property as sole data API** — An earlier version supported both `<dt-dataset>` child elements (for streaming) and `.data` (for complex types). The dual API confused AI models, which would mix the two approaches. A single `.data` property is simpler, works uniformly for all chart types, and eliminates ambiguity.
 3. **`area` type sugar** — `type="area"` maps to `line` + `fill: true`. More intuitive for AI generation than requiring `.options` override.
 4. **No `title` attribute** — The AI should wrap charts in `<dt-card heading="...">` for titles, following existing patterns.
 5. **Auto-theming palette** — 8 colors generated from accent hue rotation. AI never needs to pick colors.
