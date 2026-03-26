@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import styles from './LoginPage.module.scss';
 import { getErrorMessage, httpClient } from '../http-client';
 
@@ -30,8 +30,8 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
   return (
     <div className={styles.page}>
-      <div className={styles.card}>
-        <div className={styles.logo}>DeskTalk</div>
+      <dt-card class={styles.card}>
+        <h1 className={styles.logo}>DeskTalk</h1>
         <form className={styles.form} onSubmit={handleSubmit}>
           <div className={styles.field}>
             <label className={styles.label} htmlFor="login-username">
@@ -65,15 +65,58 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
             />
           </div>
           <div className={styles.error}>{error}</div>
-          <button
-            className={styles.button}
-            type="submit"
+          <DtButton
+            variant="primary"
             disabled={loading || !username || !password}
+            onPress={() => {}}
           >
             {loading ? 'Signing in...' : 'Sign In'}
-          </button>
+          </DtButton>
         </form>
-      </div>
+      </dt-card>
     </div>
+  );
+}
+
+interface DtButtonProps {
+  children: React.ReactNode;
+  disabled?: boolean;
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  size?: 'sm' | 'md' | 'lg';
+  onPress: () => Promise<void> | void;
+}
+
+function DtButton({
+  children,
+  disabled = false,
+  variant = 'primary',
+  size = 'md',
+  onPress,
+}: DtButtonProps) {
+  const [buttonElement, setButtonElement] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!buttonElement) {
+      return;
+    }
+
+    const handleClick = () => {
+      void onPress();
+    };
+
+    buttonElement.addEventListener('click', handleClick);
+    return () => buttonElement.removeEventListener('click', handleClick);
+  }, [buttonElement, onPress]);
+
+  return (
+    <dt-button
+      ref={(element: HTMLElement | null) => setButtonElement(element)}
+      disabled={disabled}
+      variant={variant}
+      size={size}
+      fullwidth
+    >
+      {children}
+    </dt-button>
   );
 }

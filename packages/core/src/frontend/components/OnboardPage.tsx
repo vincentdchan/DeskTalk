@@ -65,8 +65,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
     return (
       <>
         <div className={styles.header}>
-          <div className={styles.title}>Welcome to DeskTalk</div>
-          <div className={styles.subtitle}>Let&apos;s create your admin account</div>
+          <h1 className={styles.title}>Welcome to DeskTalk</h1>
+          <p className={styles.subtitle}>Let&apos;s create your admin account</p>
         </div>
         <div className={styles.body}>
           <p className={styles.welcomeText}>
@@ -77,9 +77,9 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
         </div>
         <div className={styles.footer}>
           <span />
-          <button className={styles.buttonPrimary} type="button" onClick={store.goNext}>
+          <DtButton variant="primary" onPress={store.goNext}>
             Get Started
-          </button>
+          </DtButton>
         </div>
       </>
     );
@@ -89,8 +89,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
     return (
       <>
         <div className={styles.header}>
-          <div className={styles.title}>Create Admin Account</div>
-          <div className={styles.subtitle}>Choose your credentials</div>
+          <h1 className={styles.title}>Create Admin Account</h1>
+          <p className={styles.subtitle}>Choose your credentials</p>
         </div>
         <div className={styles.body}>
           <div className={styles.field}>
@@ -152,13 +152,12 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
           <div className={styles.error}>{store.error}</div>
         </div>
         <div className={styles.footer}>
-          <button className={styles.buttonSecondary} type="button" onClick={store.goBack}>
+          <DtButton variant="secondary" onPress={store.goBack}>
             Back
-          </button>
-          <button
-            className={styles.buttonPrimary}
-            type="button"
-            onClick={() => {
+          </DtButton>
+          <DtButton
+            variant="primary"
+            onPress={() => {
               if (store.validateAccount()) store.goNext();
             }}
             disabled={
@@ -166,7 +165,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
             }
           >
             Next
-          </button>
+          </DtButton>
         </div>
       </>
     );
@@ -176,8 +175,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
     return (
       <>
         <div className={styles.header}>
-          <div className={styles.title}>AI Configuration</div>
-          <div className={styles.subtitle}>Configure your AI provider (optional)</div>
+          <h1 className={styles.title}>AI Configuration</h1>
+          <p className={styles.subtitle}>Configure your AI provider (optional)</p>
         </div>
         <div className={styles.body}>
           <p className={styles.hintText}>
@@ -206,31 +205,25 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                           <div className={styles.providerCardTitle}>
                             {selectedProvider?.label ?? item.provider}
                           </div>
-                          {index === 0 && (
-                            <span className={styles.providerDefaultBadge}>Default</span>
-                          )}
+                          {index === 0 && <dt-badge variant="default">Default</dt-badge>}
                         </div>
                         <div className={styles.providerCardActions}>
-                          <div className={styles.providerButtonWrap}>
-                            <OnboardButton
-                              onPress={() => store.setDefaultAiProvider(item.provider)}
-                              disabled={index === 0}
-                              variant="secondary"
-                              size="sm"
-                            >
-                              Set as default
-                            </OnboardButton>
-                          </div>
-                          <div className={styles.providerButtonWrap}>
-                            <OnboardButton
-                              onPress={() => store.removeAiProvider(item.provider)}
-                              disabled={store.aiProviders.length === 1}
-                              variant="danger"
-                              size="sm"
-                            >
-                              Delete
-                            </OnboardButton>
-                          </div>
+                          <DtButton
+                            onPress={() => store.setDefaultAiProvider(item.provider)}
+                            disabled={index === 0}
+                            variant="secondary"
+                            size="sm"
+                          >
+                            Set as default
+                          </DtButton>
+                          <DtButton
+                            onPress={() => store.removeAiProvider(item.provider)}
+                            disabled={store.aiProviders.length === 1}
+                            variant="danger"
+                            size="sm"
+                          >
+                            Delete
+                          </DtButton>
                         </div>
                       </div>
 
@@ -319,7 +312,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
             })}
           </div>
           <div className={styles.providerActionButtonWrap}>
-            <OnboardButton
+            <DtButton
               onPress={() => {
                 const nextProvider = AI_PROVIDERS.find(
                   (provider) =>
@@ -335,20 +328,20 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
               variant="secondary"
             >
               Add provider
-            </OnboardButton>
+            </DtButton>
           </div>
         </div>
         <div className={styles.footer}>
-          <button className={styles.buttonSecondary} type="button" onClick={store.goBack}>
+          <DtButton variant="secondary" onPress={store.goBack}>
             Back
-          </button>
+          </DtButton>
           <div className={styles.footerActions}>
-            <button className={styles.buttonSecondary} type="button" onClick={store.goNext}>
+            <DtButton variant="ghost" onPress={store.goNext}>
               Skip
-            </button>
-            <button className={styles.buttonPrimary} type="button" onClick={store.goNext}>
+            </DtButton>
+            <DtButton variant="primary" onPress={store.goNext}>
               Next
-            </button>
+            </DtButton>
           </div>
         </div>
       </>
@@ -359,8 +352,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
     return (
       <>
         <div className={styles.header}>
-          <div className={styles.title}>Voice Configuration</div>
-          <div className={styles.subtitle}>Configure speech-to-text (optional)</div>
+          <h1 className={styles.title}>Voice Configuration</h1>
+          <p className={styles.subtitle}>Configure speech-to-text (optional)</p>
         </div>
         <div className={styles.body}>
           <p className={styles.hintText}>
@@ -389,31 +382,25 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                           <div className={styles.providerCardTitle}>
                             {selectedProvider?.label ?? item.provider}
                           </div>
-                          {index === 0 && (
-                            <span className={styles.providerDefaultBadge}>Default</span>
-                          )}
+                          {index === 0 && <dt-badge variant="default">Default</dt-badge>}
                         </div>
                         <div className={styles.providerCardActions}>
-                          <div className={styles.providerButtonWrap}>
-                            <OnboardButton
-                              onPress={() => store.setDefaultVoiceProvider(item.provider)}
-                              disabled={index === 0}
-                              variant="secondary"
-                              size="sm"
-                            >
-                              Set as default
-                            </OnboardButton>
-                          </div>
-                          <div className={styles.providerButtonWrap}>
-                            <OnboardButton
-                              onPress={() => store.removeVoiceProvider(item.provider)}
-                              disabled={store.voiceProviders.length === 1}
-                              variant="danger"
-                              size="sm"
-                            >
-                              Delete
-                            </OnboardButton>
-                          </div>
+                          <DtButton
+                            onPress={() => store.setDefaultVoiceProvider(item.provider)}
+                            disabled={index === 0}
+                            variant="secondary"
+                            size="sm"
+                          >
+                            Set as default
+                          </DtButton>
+                          <DtButton
+                            onPress={() => store.removeVoiceProvider(item.provider)}
+                            disabled={store.voiceProviders.length === 1}
+                            variant="danger"
+                            size="sm"
+                          >
+                            Delete
+                          </DtButton>
                         </div>
                       </div>
 
@@ -542,7 +529,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
             })}
           </div>
           <div className={styles.providerActionButtonWrap}>
-            <OnboardButton
+            <DtButton
               onPress={() => {
                 const nextProvider = STT_PROVIDERS.find(
                   (provider) =>
@@ -558,20 +545,20 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
               variant="secondary"
             >
               Add provider
-            </OnboardButton>
+            </DtButton>
           </div>
         </div>
         <div className={styles.footer}>
-          <button className={styles.buttonSecondary} type="button" onClick={store.goBack}>
+          <DtButton variant="secondary" onPress={store.goBack}>
             Back
-          </button>
+          </DtButton>
           <div className={styles.footerActions}>
-            <button className={styles.buttonSecondary} type="button" onClick={store.goNext}>
+            <DtButton variant="ghost" onPress={store.goNext}>
               Skip
-            </button>
-            <button className={styles.buttonPrimary} type="button" onClick={store.goNext}>
+            </DtButton>
+            <DtButton variant="primary" onPress={store.goNext}>
               Next
-            </button>
+            </DtButton>
           </div>
         </div>
       </>
@@ -582,8 +569,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
     return (
       <>
         <div className={styles.header}>
-          <div className={styles.title}>All Set!</div>
-          <div className={styles.subtitle}>Your admin account is ready</div>
+          <h1 className={styles.title}>All Set!</h1>
+          <p className={styles.subtitle}>Your admin account is ready</p>
         </div>
         <div className={styles.body}>
           <p className={styles.doneText}>
@@ -593,17 +580,16 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
           <div className={styles.error}>{store.error}</div>
         </div>
         <div className={styles.footer}>
-          <button className={styles.buttonSecondary} type="button" onClick={store.goBack}>
+          <DtButton variant="secondary" onPress={store.goBack}>
             Back
-          </button>
-          <button
-            className={styles.buttonPrimary}
-            type="button"
-            onClick={() => store.submit(onComplete)}
+          </DtButton>
+          <DtButton
+            variant="primary"
+            onPress={() => store.submit(onComplete)}
             disabled={store.loading}
           >
             {store.loading ? 'Setting up...' : 'Enter Desktop'}
-          </button>
+          </DtButton>
         </div>
       </>
     );
@@ -619,15 +605,15 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
 
   return (
     <div className={styles.page}>
-      <div className={styles.card}>
+      <dt-card class={styles.card}>
         {renderStepDots()}
         {stepRenderers[store.step]()}
-      </div>
+      </dt-card>
     </div>
   );
 }
 
-interface OnboardButtonProps {
+interface DtButtonProps {
   children: ReactNode;
   disabled?: boolean;
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -635,13 +621,13 @@ interface OnboardButtonProps {
   onPress: () => Promise<void> | void;
 }
 
-function OnboardButton({
+function DtButton({
   children,
   disabled = false,
   variant = 'primary',
   size = 'md',
   onPress,
-}: OnboardButtonProps) {
+}: DtButtonProps) {
   const [buttonElement, setButtonElement] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
