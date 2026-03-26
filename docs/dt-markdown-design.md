@@ -18,7 +18,7 @@ Each component has a thin shell in the main UMD bundle and a heavy engine in a s
 | Bundle                 | Route                 | Contents                           | Size (est.) |
 | ---------------------- | --------------------- | ---------------------------------- | ----------- |
 | `dist/marked.umd.js`   | `/api/ui/marked.js`   | `marked` + custom renderer         | ~15 KB      |
-| `dist/milkdown.umd.js` | `/api/ui/milkdown.js` | Milkdown Crepe + ProseMirror + CSS | ~400 KB     |
+| `dist/milkdown.umd.js` | `/api/ui/milkdown.umd.js` | Milkdown Crepe + ProseMirror + CSS | ~400 KB     |
 
 ### Loading Flow
 
@@ -33,7 +33,7 @@ Each component has a thin shell in the main UMD bundle and a heavy engine in a s
 <dt-markdown-editor> connectedCallback
   → loadMilkdown()
     → check window.__DtMilkdown
-    → if missing: inject <script src="/api/ui/milkdown.js">, await onload
+    → if missing: inject <script src="/api/ui/milkdown.umd.js">, await onload
     → resolve with { Crepe, replaceAll } object
   → new Crepe({ root: shadowRoot container, ... })
   → await crepe.create()
@@ -243,7 +243,7 @@ await crepe.create();
 | **Build & serve**                               |        |                                                                         |
 | `packages/ui/build.mjs`                         | modify | Add 2 IIFE builds (marked, milkdown)                                    |
 | `packages/ui/package.json`                      | modify | Add `marked`, `@milkdown/crepe`, `@milkdown/kit` as dependencies        |
-| `packages/core/src/server/index.ts`             | modify | Add `/api/ui/marked.js` and `/api/ui/milkdown.js` routes                |
+| `packages/core/src/server/index.ts`             | modify | Add `/api/ui/marked.js` and `/api/ui/milkdown.umd.js` routes                |
 | **Registration & types**                        |        |                                                                         |
 | `packages/ui/src/index.ts`                      | modify | Register both elements                                                  |
 | `packages/ui/src/ui-elements.ts`                | modify | JSX types                                                               |
@@ -292,7 +292,7 @@ app.get('/api/ui/marked.js', async (_req, reply) => {
 });
 
 // Serve milkdown bundle (lazy-loaded by <dt-markdown-editor>)
-app.get('/api/ui/milkdown.js', async (_req, reply) => {
+app.get('/api/ui/milkdown.umd.js', async (_req, reply) => {
   /* same pattern */
 });
 ```
@@ -343,7 +343,7 @@ export function loadMilkdown(): Promise<MilkdownExports> {
   }
   promise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = '/api/ui/milkdown.js';
+    script.src = '/api/ui/milkdown.umd.js';
     script.onload = () => resolve((window as any).__DtMilkdown);
     script.onerror = () => reject(new Error('Failed to load Milkdown bundle'));
     document.head.appendChild(script);

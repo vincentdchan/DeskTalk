@@ -45,12 +45,6 @@ function parseCsv(value: string | null): string[] {
     .filter(Boolean);
 }
 
-function parseNumberCsv(value: string | null): number[] {
-  return parseCsv(value)
-    .map((part) => Number(part))
-    .filter((part) => Number.isFinite(part));
-}
-
 function parseColorToHsl(value: string): HslColor | null {
   const hex = value.trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
   if (hex) {
@@ -185,50 +179,21 @@ function formatLabels(value: string[]): string[] {
   return value.map((item) => item.trim()).filter(Boolean);
 }
 
-export class DtDataset extends HTMLElement {
-  static get observedAttributes(): string[] {
-    return ['label', 'values', 'color'];
-  }
-
-  get label(): string {
-    return this.getAttribute('label') ?? '';
-  }
-
-  get values(): number[] {
-    return parseNumberCsv(this.getAttribute('values'));
-  }
-
-  get color(): string | undefined {
-    return this.getAttribute('color') ?? undefined;
-  }
-
-  connectedCallback(): void {
-    this.hidden = true;
-  }
-
-  attributeChangedCallback(): void {
-    this.dispatchEvent(new CustomEvent('dt-dataset-change', { bubbles: true, composed: true }));
-  }
-}
-
 /**
- * `<dt-chart>` — lazy-loaded Chart.js wrapper with declarative dataset children.
+ * `<dt-chart>` — lazy-loaded Chart.js wrapper.
  *
- * The primary API uses child `<dt-dataset>` elements so streamed LiveApp HTML can
- * animate in as datasets arrive. The JS-only `data` property remains available
- * for scatter, bubble, or dynamically computed series.
+ * Set the `.data` JS property to provide chart data. This is the only supported
+ * method for filling data into the chart.
  */
 export class DtChart extends HTMLElement {
   private readonly _canvas: HTMLCanvasElement;
   private readonly _status: HTMLDivElement;
-  private readonly _observer: MutationObserver;
   private _runtime: DtChartRuntime | null = null;
   private _loadPromise: Promise<DtChartRuntime> | null = null;
   private _chart: import('chart.js').Chart | null = null;
   private _renderedType: DtChartCoreType | null = null;
-  private _dataOverride: DtChartDataInput | null = null;
+  private _dataInput: DtChartDataInput | null = null;
   private _optionsOverride: Record<string, unknown> | null = null;
-  private _pendingData: DtChartDataInput | null = null;
   private _syncFrame = 0;
 
   static get observedAttributes(): string[] {
@@ -268,11 +233,11 @@ export class DtChart extends HTMLElement {
   }
 
   get data(): DtChartDataInput | null {
-    return this._dataOverride;
+    return this._dataInput;
   }
 
   set data(value: DtChartDataInput | null) {
-    this._dataOverride = value ? structuredClone(value) : null;
+    this._dataInput = value ? structuredClone(value) : null;
     this._scheduleSync();
   }
 
@@ -305,25 +270,15 @@ export class DtChart extends HTMLElement {
 
     root.append(this._canvas, this._status);
     shadow.appendChild(root);
-
-    this._observer = new MutationObserver(() => {
-      if (this._dataOverride === null) {
-        this._scheduleSync();
-      }
-    });
   }
 
   connectedCallback(): void {
-    this.addEventListener('dt-dataset-change', this._onDatasetChange as EventListener);
-    this._observer.observe(this, { childList: true, subtree: true });
     this._canvas.addEventListener('click', this._handleCanvasClick);
     void this._ensureRuntime().then(() => this._renderChart());
     this._scheduleSync();
   }
 
   disconnectedCallback(): void {
-    this.removeEventListener('dt-dataset-change', this._onDatasetChange as EventListener);
-    this._observer.disconnect();
     this._canvas.removeEventListener('click', this._handleCanvasClick);
     if (this._syncFrame !== 0) {
       cancelAnimationFrame(this._syncFrame);
@@ -337,12 +292,6 @@ export class DtChart extends HTMLElement {
   attributeChangedCallback(): void {
     this._scheduleSync();
   }
-
-  private _onDatasetChange = (): void => {
-    if (this._dataOverride === null) {
-      this._scheduleSync();
-    }
-  };
 
   private _handleCanvasClick = (event: Event): void => {
     if (!this._chart) {
@@ -392,24 +341,7 @@ export class DtChart extends HTMLElement {
   }
 
   private _syncFromCurrentSource(): void {
-    const nextData = this._dataOverride
-      ? structuredClone(this._dataOverride)
-      : this._readChildrenData();
-    this._pendingData = nextData;
     void this._renderChart();
-  }
-
-  private _readChildrenData(): DtChartDataInput {
-    const datasets = [...this.querySelectorAll('dt-dataset')].map((dataset) => ({
-      label: dataset.getAttribute('label') ?? '',
-      data: parseNumberCsv(dataset.getAttribute('values')),
-      color: dataset.getAttribute('color') ?? undefined,
-    }));
-
-    return {
-      labels: this.labels,
-      datasets,
-    };
   }
 
   private async _ensureRuntime(): Promise<DtChartRuntime> {
@@ -428,9 +360,9 @@ export class DtChart extends HTMLElement {
   }
 
   private async _renderChart(): Promise<void> {
-    const data = this._pendingData;
+    const data = this._dataInput;
     if (!data) {
-      this._setStatus('Loading chart');
+      this._setStatus('Waiting for data');
       return;
     }
 

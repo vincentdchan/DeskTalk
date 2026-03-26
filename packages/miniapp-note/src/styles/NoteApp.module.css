@@ -7,6 +7,70 @@
   font-family: var(--font-sans);
 }
 
+.rootCompact {
+  flex-direction: column;
+}
+
+.rootCompact .listPanel {
+  width: 100%;
+  min-width: 0;
+  max-height: 180px;
+  flex-direction: row;
+  border-right: none;
+  border-bottom: 1px solid var(--dt-border);
+}
+
+.rootCompact .listHeader {
+  width: 140px;
+  min-width: 140px;
+  flex-direction: column;
+  padding: 10px;
+  gap: 8px;
+  border-bottom: none;
+  border-right: 1px solid var(--dt-border-subtle);
+}
+
+.rootCompact .searchInput {
+  width: 100%;
+}
+
+.rootCompact .newNoteBtn {
+  width: 100%;
+}
+
+.rootCompact .noteList {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: flex;
+  padding: 8px;
+  gap: 8px;
+}
+
+.rootCompact .noteItem,
+.rootCompact .noteItemActive {
+  min-width: 160px;
+  max-width: 200px;
+  flex-shrink: 0;
+  border-bottom: none;
+  border-radius: 6px;
+  background: var(--dt-surface);
+}
+
+.rootCompact .noteItemActive {
+  border-left: none;
+  padding-left: 10px;
+  border: 1px solid var(--dt-accent);
+  background: color-mix(in oklab, var(--dt-accent) 8%, var(--dt-surface));
+}
+
+.rootCompact .emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
 .listPanel {
   display: flex;
   width: 260px;
@@ -269,6 +333,12 @@
 .editorBody :global(.milkdown .editor img) {
   max-width: 100%;
   border-radius: 6px;
+}
+
+/* dt-markdown-editor custom element styles */
+.editorBody dt-markdown-editor {
+  display: block;
+  height: 100%;
 }
 
 .saveStatus {

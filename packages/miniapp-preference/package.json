@@ -1,8 +1,22 @@
 {
   "name": "@desktalk/miniapp-preference",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
+  "description": "Preferences MiniApp for DeskTalk.",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vincentdchan/DeskTalk.git",
+    "directory": "packages/miniapp-preference"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "icon": "./icons/miniapp-preference-icon.png",
+  "files": [
+    "dist",
+    "icons"
+  ],
   "exports": {
     "./backend": {
       "types": "./dist/backend.d.ts",
@@ -15,7 +29,8 @@
   },
   "scripts": {
     "build": "desktalk-build",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepack": "pnpm build"
   },
   "dependencies": {
     "@desktalk/sdk": "workspace:*",

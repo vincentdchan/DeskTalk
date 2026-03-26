@@ -12,7 +12,6 @@
   overflow: hidden;
   border: 1px solid var(--dt-border);
   border-radius: 2px;
-  background: var(--dt-surface);
 }
 
 .dt-markdown-editor::before,

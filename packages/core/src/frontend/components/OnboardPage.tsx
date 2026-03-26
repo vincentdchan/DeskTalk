@@ -1,15 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import styles from './OnboardPage.module.scss';
 import { useOnboarding, ONBOARD_STEPS, type OnboardStep } from '../stores/onboarding';
+import { Modal } from './Modal';
 
 export interface OnboardPageProps {
   onComplete: () => void;
-}
-
-interface DtSelectElement extends HTMLElement {
-  options: Array<{ value: string; label: string }>;
-  value: string;
-  disabled: boolean;
 }
 
 /** AI providers shown during onboarding. */
@@ -65,8 +60,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
     return (
       <>
         <div className={styles.header}>
-          <div className={styles.title}>Welcome to DeskTalk</div>
-          <div className={styles.subtitle}>Let&apos;s create your admin account</div>
+          <h1 className={styles.title}>Welcome to DeskTalk</h1>
+          <p className={styles.subtitle}>Let&apos;s create your admin account</p>
         </div>
         <div className={styles.body}>
           <p className={styles.welcomeText}>
@@ -77,9 +72,9 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
         </div>
         <div className={styles.footer}>
           <span />
-          <button className={styles.buttonPrimary} type="button" onClick={store.goNext}>
+          <dt-button variant="primary" onClick={store.goNext}>
             Get Started
-          </button>
+          </dt-button>
         </div>
       </>
     );
@@ -89,8 +84,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
     return (
       <>
         <div className={styles.header}>
-          <div className={styles.title}>Create Admin Account</div>
-          <div className={styles.subtitle}>Choose your credentials</div>
+          <h1 className={styles.title}>Create Admin Account</h1>
+          <p className={styles.subtitle}>Choose your credentials</p>
         </div>
         <div className={styles.body}>
           <div className={styles.field}>
@@ -152,12 +147,11 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
           <div className={styles.error}>{store.error}</div>
         </div>
         <div className={styles.footer}>
-          <button className={styles.buttonSecondary} type="button" onClick={store.goBack}>
+          <dt-button variant="secondary" onClick={store.goBack}>
             Back
-          </button>
-          <button
-            className={styles.buttonPrimary}
-            type="button"
+          </dt-button>
+          <dt-button
+            variant="primary"
             onClick={() => {
               if (store.validateAccount()) store.goNext();
             }}
@@ -166,7 +160,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
             }
           >
             Next
-          </button>
+          </dt-button>
         </div>
       </>
     );
@@ -176,8 +170,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
     return (
       <>
         <div className={styles.header}>
-          <div className={styles.title}>AI Configuration</div>
-          <div className={styles.subtitle}>Configure your AI provider (optional)</div>
+          <h1 className={styles.title}>AI Configuration</h1>
+          <p className={styles.subtitle}>Configure your AI provider (optional)</p>
         </div>
         <div className={styles.body}>
           <p className={styles.hintText}>
@@ -206,31 +200,25 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                           <div className={styles.providerCardTitle}>
                             {selectedProvider?.label ?? item.provider}
                           </div>
-                          {index === 0 && (
-                            <span className={styles.providerDefaultBadge}>Default</span>
-                          )}
+                          {index === 0 && <dt-badge variant="default">Default</dt-badge>}
                         </div>
                         <div className={styles.providerCardActions}>
-                          <div className={styles.providerButtonWrap}>
-                            <OnboardButton
-                              onPress={() => store.setDefaultAiProvider(item.provider)}
-                              disabled={index === 0}
-                              variant="secondary"
-                              size="sm"
-                            >
-                              Set as default
-                            </OnboardButton>
-                          </div>
-                          <div className={styles.providerButtonWrap}>
-                            <OnboardButton
-                              onPress={() => store.removeAiProvider(item.provider)}
-                              disabled={store.aiProviders.length === 1}
-                              variant="danger"
-                              size="sm"
-                            >
-                              Delete
-                            </OnboardButton>
-                          </div>
+                          <dt-button
+                            onClick={() => store.setDefaultAiProvider(item.provider)}
+                            disabled={index === 0}
+                            variant="secondary"
+                            size="sm"
+                          >
+                            Set as default
+                          </dt-button>
+                          <dt-button
+                            onClick={() => store.removeAiProvider(item.provider)}
+                            disabled={store.aiProviders.length === 1}
+                            variant="danger"
+                            size="sm"
+                          >
+                            Delete
+                          </dt-button>
                         </div>
                       </div>
 
@@ -319,8 +307,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
             })}
           </div>
           <div className={styles.providerActionButtonWrap}>
-            <OnboardButton
-              onPress={() => {
+            <dt-button
+              onClick={() => {
                 const nextProvider = AI_PROVIDERS.find(
                   (provider) =>
                     !store.aiProviders.some(
@@ -335,20 +323,20 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
               variant="secondary"
             >
               Add provider
-            </OnboardButton>
+            </dt-button>
           </div>
         </div>
         <div className={styles.footer}>
-          <button className={styles.buttonSecondary} type="button" onClick={store.goBack}>
+          <dt-button variant="secondary" onClick={store.goBack}>
             Back
-          </button>
+          </dt-button>
           <div className={styles.footerActions}>
-            <button className={styles.buttonSecondary} type="button" onClick={store.goNext}>
+            <dt-button variant="ghost" onClick={store.goNext}>
               Skip
-            </button>
-            <button className={styles.buttonPrimary} type="button" onClick={store.goNext}>
+            </dt-button>
+            <dt-button variant="primary" onClick={store.goNext}>
               Next
-            </button>
+            </dt-button>
           </div>
         </div>
       </>
@@ -359,8 +347,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
     return (
       <>
         <div className={styles.header}>
-          <div className={styles.title}>Voice Configuration</div>
-          <div className={styles.subtitle}>Configure speech-to-text (optional)</div>
+          <h1 className={styles.title}>Voice Configuration</h1>
+          <p className={styles.subtitle}>Configure speech-to-text (optional)</p>
         </div>
         <div className={styles.body}>
           <p className={styles.hintText}>
@@ -389,31 +377,25 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                           <div className={styles.providerCardTitle}>
                             {selectedProvider?.label ?? item.provider}
                           </div>
-                          {index === 0 && (
-                            <span className={styles.providerDefaultBadge}>Default</span>
-                          )}
+                          {index === 0 && <dt-badge variant="default">Default</dt-badge>}
                         </div>
                         <div className={styles.providerCardActions}>
-                          <div className={styles.providerButtonWrap}>
-                            <OnboardButton
-                              onPress={() => store.setDefaultVoiceProvider(item.provider)}
-                              disabled={index === 0}
-                              variant="secondary"
-                              size="sm"
-                            >
-                              Set as default
-                            </OnboardButton>
-                          </div>
-                          <div className={styles.providerButtonWrap}>
-                            <OnboardButton
-                              onPress={() => store.removeVoiceProvider(item.provider)}
-                              disabled={store.voiceProviders.length === 1}
-                              variant="danger"
-                              size="sm"
-                            >
-                              Delete
-                            </OnboardButton>
-                          </div>
+                          <dt-button
+                            onClick={() => store.setDefaultVoiceProvider(item.provider)}
+                            disabled={index === 0}
+                            variant="secondary"
+                            size="sm"
+                          >
+                            Set as default
+                          </dt-button>
+                          <dt-button
+                            onClick={() => store.removeVoiceProvider(item.provider)}
+                            disabled={store.voiceProviders.length === 1}
+                            variant="danger"
+                            size="sm"
+                          >
+                            Delete
+                          </dt-button>
                         </div>
                       </div>
 
@@ -542,8 +524,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
             })}
           </div>
           <div className={styles.providerActionButtonWrap}>
-            <OnboardButton
-              onPress={() => {
+            <dt-button
+              onClick={() => {
                 const nextProvider = STT_PROVIDERS.find(
                   (provider) =>
                     !store.voiceProviders.some(
@@ -558,20 +540,20 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
               variant="secondary"
             >
               Add provider
-            </OnboardButton>
+            </dt-button>
           </div>
         </div>
         <div className={styles.footer}>
-          <button className={styles.buttonSecondary} type="button" onClick={store.goBack}>
+          <dt-button variant="secondary" onClick={store.goBack}>
             Back
-          </button>
+          </dt-button>
           <div className={styles.footerActions}>
-            <button className={styles.buttonSecondary} type="button" onClick={store.goNext}>
+            <dt-button variant="ghost" onClick={store.goNext}>
               Skip
-            </button>
-            <button className={styles.buttonPrimary} type="button" onClick={store.goNext}>
+            </dt-button>
+            <dt-button variant="primary" onClick={store.goNext}>
               Next
-            </button>
+            </dt-button>
           </div>
         </div>
       </>
@@ -582,8 +564,8 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
     return (
       <>
         <div className={styles.header}>
-          <div className={styles.title}>All Set!</div>
-          <div className={styles.subtitle}>Your admin account is ready</div>
+          <h1 className={styles.title}>All Set!</h1>
+          <p className={styles.subtitle}>Your admin account is ready</p>
         </div>
         <div className={styles.body}>
           <p className={styles.doneText}>
@@ -593,17 +575,16 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
           <div className={styles.error}>{store.error}</div>
         </div>
         <div className={styles.footer}>
-          <button className={styles.buttonSecondary} type="button" onClick={store.goBack}>
+          <dt-button variant="secondary" onClick={store.goBack}>
             Back
-          </button>
-          <button
-            className={styles.buttonPrimary}
-            type="button"
+          </dt-button>
+          <dt-button
+            variant="primary"
             onClick={() => store.submit(onComplete)}
             disabled={store.loading}
           >
             {store.loading ? 'Setting up...' : 'Enter Desktop'}
-          </button>
+          </dt-button>
         </div>
       </>
     );
@@ -619,53 +600,11 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
 
   return (
     <div className={styles.page}>
-      <div className={styles.card}>
+      <Modal size="medium">
         {renderStepDots()}
         {stepRenderers[store.step]()}
-      </div>
+      </Modal>
     </div>
-  );
-}
-
-interface OnboardButtonProps {
-  children: ReactNode;
-  disabled?: boolean;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
-  size?: 'sm' | 'md' | 'lg';
-  onPress: () => Promise<void> | void;
-}
-
-function OnboardButton({
-  children,
-  disabled = false,
-  variant = 'primary',
-  size = 'md',
-  onPress,
-}: OnboardButtonProps) {
-  const [buttonElement, setButtonElement] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!buttonElement) {
-      return;
-    }
-
-    const handleClick = () => {
-      void onPress();
-    };
-
-    buttonElement.addEventListener('click', handleClick);
-    return () => buttonElement.removeEventListener('click', handleClick);
-  }, [buttonElement, onPress]);
-
-  return (
-    <dt-button
-      ref={(element: HTMLElement | null) => setButtonElement(element)}
-      disabled={disabled}
-      variant={variant}
-      size={size}
-    >
-      {children}
-    </dt-button>
   );
 }
 
@@ -678,60 +617,17 @@ interface OnboardSelectProps {
 }
 
 function OnboardSelect({ id, value, options, disabled = false, onChange }: OnboardSelectProps) {
-  const [selectElement, setSelectElement] = useState<DtSelectElement | null>(null);
-
-  useEffect(() => {
-    if (!selectElement) {
-      return;
-    }
-
-    if (id) {
-      selectElement.setAttribute('id', id);
-    } else {
-      selectElement.removeAttribute('id');
-    }
-  }, [id, selectElement]);
-
-  useEffect(() => {
-    if (!selectElement) {
-      return;
-    }
-
-    selectElement.options = options;
-  }, [options, selectElement]);
-
-  useEffect(() => {
-    if (!selectElement) {
-      return;
-    }
-
-    selectElement.value = value;
-  }, [selectElement, value]);
-
-  useEffect(() => {
-    if (!selectElement) {
-      return;
-    }
-
-    selectElement.disabled = disabled;
-  }, [disabled, selectElement]);
-
-  useEffect(() => {
-    if (!selectElement) {
-      return;
-    }
-
-    const handleChange = (event: Event) => {
-      void onChange((event as CustomEvent<{ value: string }>).detail.value);
-    };
-
-    selectElement.addEventListener('dt-change', handleChange);
-    return () => selectElement.removeEventListener('dt-change', handleChange);
-  }, [onChange, selectElement]);
-
   return (
     <div className={styles.providerSelectWrap}>
-      <dt-select ref={(element: DtSelectElement | null) => setSelectElement(element)} />
+      <dt-select
+        id={id}
+        value={value}
+        options={options}
+        disabled={disabled}
+        ondt-change={(event) => {
+          void onChange(event.detail.value);
+        }}
+      />
     </div>
   );
 }

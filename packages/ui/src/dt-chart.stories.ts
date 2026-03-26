@@ -14,7 +14,7 @@ function createChart(args: ChartStoryArgs): HTMLElement {
   container.style.padding = '20px';
   container.style.height = '440px';
 
-  const chart = document.createElement('dt-chart');
+  const chart = document.createElement('dt-chart') as HTMLElement & { data: unknown };
   chart.style.height = '100%';
   chart.setAttribute('type', args.type);
   chart.setAttribute('legend', args.legend);
@@ -23,15 +23,13 @@ function createChart(args: ChartStoryArgs): HTMLElement {
     chart.setAttribute('stacked', '');
   }
 
-  const online = document.createElement('dt-dataset');
-  online.setAttribute('label', 'Online');
-  online.setAttribute('values', '12,19,3,5,2,3');
+  chart.data = {
+    datasets: [
+      { label: 'Online', data: [12, 19, 3, 5, 2, 3] },
+      { label: 'Retail', data: [7, 11, 5, 8, 3, 7] },
+    ],
+  };
 
-  const retail = document.createElement('dt-dataset');
-  retail.setAttribute('label', 'Retail');
-  retail.setAttribute('values', '7,11,5,8,3,7');
-
-  chart.append(online, retail);
   container.appendChild(chart);
   return container;
 }

@@ -1,3 +1,5 @@
+import type * as React from 'react';
+
 export {};
 
 type DtTooltipAttributes = Partial<{
@@ -28,10 +30,13 @@ type DtCardJSXProps = DtCardAttributes & {
 };
 
 type DtSelectAttributes = Partial<{
+  id: string;
   value: string;
+  options: Array<{ value: string; label: string }>;
   placeholder: string;
   disabled: boolean;
   align: 'left' | 'right';
+  'ondt-change': (event: CustomEvent<{ value: string }>) => void;
   class: string;
   style: string | Record<string, string>;
 }>;
@@ -114,6 +119,7 @@ type DtButtonAttributes = Partial<{
 
 type DtButtonJSXProps = DtButtonAttributes & {
   children?: unknown;
+  onClick?: React.MouseEventHandler<HTMLElement>;
   ref?: unknown;
   key?: string | number | null;
 };
@@ -194,20 +200,6 @@ type DtChartJSXProps = DtChartAttributes & {
   key?: string | number | null;
 };
 
-type DtDatasetAttributes = Partial<{
-  label: string;
-  values: string;
-  color: string;
-  class: string;
-  style: string | Record<string, string>;
-}>;
-
-type DtDatasetJSXProps = DtDatasetAttributes & {
-  children?: unknown;
-  ref?: unknown;
-  key?: string | number | null;
-};
-
 type DtMarkdownAttributes = Partial<{
   streaming: boolean;
   'unsafe-html': boolean;
@@ -250,7 +242,6 @@ declare module 'react' {
       'dt-table-view': DtTableViewJSXProps;
       'dt-column': DtColumnJSXProps;
       'dt-chart': DtChartJSXProps;
-      'dt-dataset': DtDatasetJSXProps;
       'dt-markdown': DtMarkdownJSXProps;
       'dt-markdown-editor': DtMarkdownEditorJSXProps;
     }

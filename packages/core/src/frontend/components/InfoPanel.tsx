@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useMemoizedFn } from 'ahooks';
 import 'streamdown/styles.css';
 import { useVoiceSession } from '../stores/voice-session';
@@ -7,13 +7,6 @@ import { tryExecuteSlashCommand } from '../utils/slash-commands';
 import { ChatMessageItem } from './ChatMessageItem';
 import { CommandInput } from './CommandInput';
 import styles from './InfoPanel.module.scss';
-
-/** Minimal interface for the `<dt-select>` web component's JS API. */
-interface DtSelectElement extends HTMLElement {
-  options: Array<{ value: string; label: string }>;
-  value: string;
-  disabled: boolean;
-}
 
 interface QueuedPrompt {
   id: string;
@@ -24,7 +17,6 @@ interface QueuedPrompt {
 export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsReady: boolean }) {
   const [queuedPrompts, setQueuedPrompts] = useState<QueuedPrompt[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const selectRef = useRef<DtSelectElement | null>(null);
   const sentVoiceUtteranceIdsRef = useRef<Set<string>>(new Set());
   const pendingVoicePromptsRef = useRef<Array<{ utteranceId: string; text: string }>>([]);
 
@@ -135,41 +127,6 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     sentVoiceUtteranceIdsRef.current.clear();
   }, [currentSessionId]);
 
-  // Sync options / value / disabled state to the <dt-select> web component
-  useEffect(() => {
-    const el = selectRef.current;
-    if (!el) return;
-    el.options = sessions.map((s) => ({ value: s.id, label: s.label }));
-  }, [sessions]);
-
-  useEffect(() => {
-    const el = selectRef.current;
-    if (!el) return;
-    el.value = currentSessionId ?? '';
-  }, [currentSessionId]);
-
-  useEffect(() => {
-    const el = selectRef.current;
-    if (!el) return;
-    el.disabled = isSessionInteractionDisabled;
-  }, [isSessionInteractionDisabled]);
-
-  // Listen for dt-change events from <dt-select>
-  useEffect(() => {
-    const el = selectRef.current;
-    if (!el || !socket) return;
-
-    const handleChange = (e: Event) => {
-      const value = (e as CustomEvent<{ value: string }>).detail.value;
-      switchSession(value, socket);
-    };
-
-    el.addEventListener('dt-change', handleChange);
-    return () => {
-      el.removeEventListener('dt-change', handleChange);
-    };
-  }, [socket, switchSession]);
-
   useEffect(() => {
     if (
       isAiRunning ||
@@ -261,9 +218,18 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
         <div className={styles.headerPrimary}>
           <div className={styles.sessionControls}>
             <dt-select
-              ref={selectRef as React.Ref<never>}
+              value={currentSessionId ?? ''}
+              options={sessions.map((session) => ({ value: session.id, label: session.label }))}
               placeholder="New session"
               align="right"
+              disabled={isSessionInteractionDisabled}
+              ondt-change={(event) => {
+                if (!socket) {
+                  return;
+                }
+
+                void switchSession(event.detail.value, socket);
+              }}
             />
             <button
               type="button"

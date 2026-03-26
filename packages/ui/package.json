@@ -1,7 +1,17 @@
 {
   "name": "@desktalk/ui",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
+  "description": "Shared UI components, fonts, and theme assets for DeskTalk.",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vincentdchan/DeskTalk.git",
+    "directory": "packages/ui"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./types.d.ts",
@@ -33,7 +43,8 @@
     "dev": "node ./build.mjs --watch",
     "clean": "rm -rf dist storybook-static",
     "storybook": "storybook dev -p 6006 -c .storybook",
-    "storybook:build": "storybook build -c .storybook"
+    "storybook:build": "storybook build -c .storybook",
+    "prepack": "pnpm build"
   },
   "devDependencies": {
     "@storybook/addon-a11y": "^10.3.1",

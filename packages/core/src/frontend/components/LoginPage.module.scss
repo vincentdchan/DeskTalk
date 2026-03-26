@@ -7,21 +7,6 @@
   background: var(--dt-wallpaper) center / cover no-repeat;
 }
 
-.card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
-  padding: 40px 36px 36px;
-  background: var(--dt-glass);
-  backdrop-filter: blur(24px);
-  border: 1px solid var(--dt-glass-border);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px var(--dt-shadow-color);
-  width: 360px;
-  max-width: 90vw;
-}
-
 .logo {
   font-size: 28px;
   font-weight: 700;
@@ -53,11 +38,11 @@
 .input {
   padding: 10px 12px;
   font-size: 14px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   color: var(--dt-text);
   background: var(--dt-surface);
   border: 1px solid var(--dt-border);
-  border-radius: var(--border-radius);
+  border-radius: 2px;
   outline: none;
   transition: border-color 0.15s ease;
 
@@ -67,32 +52,6 @@
 
   &::placeholder {
     color: var(--dt-text-muted);
-  }
-}
-
-.button {
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  font-family: var(--font-sans);
-  color: var(--dt-text-on-accent);
-  background: var(--dt-accent);
-  border: none;
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  transition: background 0.15s ease;
-
-  &:hover:not(:disabled) {
-    background: var(--dt-accent-hover);
-  }
-
-  &:active:not(:disabled) {
-    background: var(--dt-accent-active);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
   }
 }
 

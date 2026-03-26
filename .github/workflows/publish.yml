@@ -1,0 +1,64 @@
+name: Publish Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Run ESLint
+        run: pnpm lint
+
+      - name: Run unit tests
+        run: pnpm unit:test
+
+      - name: Determine dist-tag
+        id: release-meta
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          DIST_TAG="latest"
+
+          case "$VERSION" in
+            *-alpha.*)
+              DIST_TAG="alpha"
+              ;;
+            *-beta.*)
+              DIST_TAG="beta"
+              ;;
+            *-rc.*)
+              DIST_TAG="next"
+              ;;
+          esac
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "dist_tag=$DIST_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Publish packages to npm
+        run: pnpm -r --filter "./packages/*" publish --tag "${{ steps.release-meta.outputs.dist_tag }}" --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

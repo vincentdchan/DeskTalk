@@ -1,8 +1,22 @@
 {
   "name": "@desktalk/miniapp-text-edit",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
+  "description": "Text editor MiniApp for DeskTalk.",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vincentdchan/DeskTalk.git",
+    "directory": "packages/miniapp-text-edit"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "icon": "./icons/miniapp-text-edit-icon.png",
+  "files": [
+    "dist",
+    "icons"
+  ],
   "exports": {
     "./backend": {
       "types": "./dist/backend.d.ts",
@@ -15,7 +29,8 @@
   },
   "scripts": {
     "build": "desktalk-build",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepack": "pnpm build"
   },
   "dependencies": {
     "@desktalk/sdk": "workspace:*",

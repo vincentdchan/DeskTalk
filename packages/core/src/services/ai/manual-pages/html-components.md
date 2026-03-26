@@ -56,7 +56,7 @@ Each component has its own manual page with full attributes and examples.
 
 - `html/components/dt-list-view` — Virtualized list for long collections
 - `html/components/dt-table-view` — Virtualized table for structured data
-- `html/components/dt-chart` — Interactive charts (with `<dt-dataset>`)
+- `html/components/dt-chart` — Interactive charts (via `.data` JS property)
 
 ### Content
 

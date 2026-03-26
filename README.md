@@ -58,6 +58,10 @@ LiveApps can:
 - Be edited in-place by the AI when you ask for changes
 - Use DeskTalk's full web component library for consistent, themed UI
 
+## Development
+
+For development setup, build commands, testing, and release instructions, see [docs/development.md](./docs/development.md).
+
 ## Contributing
 
 Contributions and suggestions are very much appreciated! Whether it's a bug report, a feature idea, or a pull request — all of it helps shape this project. Feel free to open an issue or submit a PR. We'd love to hear from you.

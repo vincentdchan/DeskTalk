@@ -16,7 +16,7 @@ import { DtButton } from './dt-button';
 import { DtDivider } from './dt-divider';
 import { DtColumn, DtTableView } from './dt-table-view';
 import { DtListView } from './dt-list-view';
-import { DtChart, DtDataset } from './dt-chart';
+import { DtChart } from './dt-chart';
 import { DtMarkdown } from './dt-markdown';
 import { DtMarkdownEditor } from './dt-markdown-editor';
 import './ui-elements';
@@ -35,7 +35,6 @@ export {
   DtTableView,
   DtColumn,
   DtChart,
-  DtDataset,
   DtMarkdown,
   DtMarkdownEditor,
 };
@@ -92,10 +91,6 @@ if (!customElements.get('dt-column')) {
 
 if (!customElements.get('dt-chart')) {
   customElements.define('dt-chart', DtChart);
-}
-
-if (!customElements.get('dt-dataset')) {
-  customElements.define('dt-dataset', DtDataset);
 }
 
 if (!customElements.get('dt-markdown')) {

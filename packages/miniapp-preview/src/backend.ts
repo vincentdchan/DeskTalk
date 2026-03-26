@@ -14,6 +14,7 @@ import type {
   PreviewBridgeStorageResult,
   StreamedHtmlSnapshot,
 } from './types';
+import { AsyncRequestQueue } from './async-request-queue';
 import { analyzeProgram, formatCommand } from './bridge-safety';
 import { runBridgeCommand, validateExecInput } from './bridge-command-runner';
 import { runBridgeRequest, validateBridgeRequestInput } from './bridge-request';
@@ -53,8 +54,14 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
     string,
     { program: string; args: string[]; cwd?: string; timeoutMs: number }
   >();
-  let activeBridgeExecs = 0;
-  let activeBridgeRequests = 0;
+  const bridgeExecQueue = new AsyncRequestQueue({
+    concurrency: 10,
+    waitTimeoutMs: 30_000,
+  });
+  const bridgeRequestQueue = new AsyncRequestQueue({
+    concurrency: 20,
+    waitTimeoutMs: 30_000,
+  });
 
   function generateId(): string {
     return `preview-bridge-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -73,29 +80,13 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
     cwd: string | undefined,
     timeoutMs: number,
   ) {
-    if (activeBridgeExecs >= 10) {
-      throw new Error('Too many bridge commands are already running.');
-    }
-
-    activeBridgeExecs += 1;
-    try {
-      return await runBridgeCommand({ program, args, cwd, workspaceRoot }, timeoutMs);
-    } finally {
-      activeBridgeExecs -= 1;
-    }
+    return bridgeExecQueue.run(() =>
+      runBridgeCommand({ program, args, cwd, workspaceRoot }, timeoutMs),
+    );
   }
 
   async function executeBridgeRequest(request: PreviewBridgeRequestPayload['request']) {
-    if (activeBridgeRequests >= 30) {
-      throw new Error('Too many bridge requests are already running.');
-    }
-
-    activeBridgeRequests += 1;
-    try {
-      return await runBridgeRequest(validateBridgeRequestInput(request));
-    } finally {
-      activeBridgeRequests -= 1;
-    }
+    return bridgeRequestQueue.run(() => runBridgeRequest(validateBridgeRequestInput(request)));
   }
 
   /**

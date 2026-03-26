@@ -1,8 +1,22 @@
 {
   "name": "@desktalk/miniapp-note",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
+  "description": "Note-taking MiniApp for DeskTalk.",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vincentdchan/DeskTalk.git",
+    "directory": "packages/miniapp-note"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "icon": "./icons/miniapp-note-icon.png",
+  "files": [
+    "dist",
+    "icons"
+  ],
   "exports": {
     "./backend": {
       "types": "./dist/backend.d.ts",
@@ -15,13 +29,12 @@
   },
   "scripts": {
     "build": "desktalk-build",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepack": "pnpm build"
   },
   "dependencies": {
     "@desktalk/sdk": "workspace:*",
-    "@milkdown/crepe": "^7.6.2",
-    "@milkdown/kit": "^7.6.2",
-    "@milkdown/react": "^7.6.2",
+    "@desktalk/ui": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

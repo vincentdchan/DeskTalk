@@ -1,0 +1,44 @@
+.modal {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 40px 36px 36px;
+  max-width: 90vw;
+  background: var(--dt-bg);
+  border: 1px solid var(--dt-border);
+  border-radius: 4px;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.small {
+  width: 360px;
+}
+
+.medium {
+  width: 560px;
+}
+
+.large {
+  width: 720px;
+}
+
+@media (max-width: 640px) {
+  .modal {
+    width: min(92vw, 560px);
+    padding: 28px 20px 20px;
+  }
+
+  .small {
+    width: min(92vw, 360px);
+  }
+
+  .medium {
+    width: min(92vw, 560px);
+  }
+
+  .large {
+    width: min(92vw, 720px);
+  }
+}

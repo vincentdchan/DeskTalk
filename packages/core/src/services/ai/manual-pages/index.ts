@@ -141,7 +141,7 @@ export const MANUAL_PAGES: ManualPageMeta[] = [
   {
     path: 'html/components/dt-chart',
     title: 'dt-chart',
-    description: 'Interactive Chart.js chart with declarative dt-dataset children.',
+    description: 'Interactive Chart.js chart — set .data property to provide chart data.',
     file: 'dt-chart.md',
     related: ['html/components', 'html/components/dt-card', 'html/components/dt-grid'],
   },
