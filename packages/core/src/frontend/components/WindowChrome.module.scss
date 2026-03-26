@@ -33,10 +33,10 @@
 
 .windowFullscreen {
   position: fixed;
-  top: calc(var(--actions-bar-height) + 16px);
-  right: 20px;
-  bottom: 20px;
-  left: 20px;
+  top: calc(var(--actions-bar-height) + 58px);
+  right: 64px;
+  bottom: 64px;
+  left: 64px;
   width: auto;
   height: auto;
   z-index: 25;
