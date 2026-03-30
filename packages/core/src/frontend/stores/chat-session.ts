@@ -10,6 +10,7 @@
 
 import { create } from 'zustand';
 import { httpClient } from '../http-client';
+import type { AgentQuestionData, AgentQuestionType } from '../components/info-panel/AgentQuestion';
 
 export interface ToolCallInfo {
   toolName: string;
@@ -57,6 +58,7 @@ export interface AiEventMessage {
     | 'thinking_update'
     | 'message_end'
     | 'tool_call'
+    | 'agent_question'
     | 'error';
   requestId?: string;
   sessionId?: string;
@@ -72,6 +74,10 @@ export interface AiEventMessage {
   messages?: ChatMessage[];
   toolCall?: ToolCallInfo;
   sessions?: ChatSessionOption[];
+  questionId?: string;
+  question?: string;
+  questionType?: AgentQuestionType;
+  options?: string[];
 }
 
 export interface ChatSessionState {
@@ -95,6 +101,8 @@ export interface ChatSessionState {
   currentSessionId: string | null;
   /** Available persisted AI sessions */
   sessions: ChatSessionOption[];
+  /** Question currently blocking the agent, if any. */
+  pendingQuestion: AgentQuestionData | null;
 
   // Actions
   loadProviders: () => Promise<void>;
@@ -102,6 +110,7 @@ export interface ChatSessionState {
   switchSession: (sessionId: string, socket: WebSocket) => boolean;
   createSession: (socket: WebSocket) => boolean;
   cancelAiRequest: (socket: WebSocket) => boolean;
+  answerQuestion: (questionId: string, answer: string, socket: WebSocket) => boolean;
   submitPrompt: (text: string, source: 'text' | 'voice', socket: WebSocket) => boolean;
   setDraftInput: (value: string) => void;
   clearDraftInput: () => void;
@@ -132,6 +141,7 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
   selectedProvider: '',
   currentSessionId: null,
   sessions: [],
+  pendingQuestion: null,
 
   async loadProviders() {
     try {
@@ -182,6 +192,7 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
       tokenCount: 0,
       activeRequestId: null,
       currentSessionId: sessionId,
+      pendingQuestion: null,
     });
 
     socket.send(
@@ -206,6 +217,7 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
       tokenCount: 0,
       activeRequestId: null,
       currentSessionId: null,
+      pendingQuestion: null,
     });
 
     socket.send(
@@ -230,6 +242,28 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
       }),
     );
 
+    return true;
+  },
+
+  answerQuestion(questionId: string, answer: string, socket: WebSocket) {
+    const state = get();
+    if (
+      socket.readyState !== WebSocket.OPEN ||
+      !state.pendingQuestion ||
+      state.pendingQuestion.questionId !== questionId
+    ) {
+      return false;
+    }
+
+    socket.send(
+      JSON.stringify({
+        type: 'ai:answer',
+        questionId,
+        answer,
+      }),
+    );
+
+    set({ pendingQuestion: null });
     return true;
   },
 
@@ -344,6 +378,19 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
         next.push(toolMsg);
         return { messages: next };
       });
+    } else if (event.type === 'agent_question') {
+      if (!event.questionId || !event.question || !event.questionType) {
+        return;
+      }
+
+      set({
+        pendingQuestion: {
+          questionId: event.questionId,
+          question: event.question,
+          questionType: event.questionType,
+          options: event.options,
+        },
+      });
     } else if (event.type === 'message_end') {
       const endedRequestId = state.activeRequestId;
       const providerOptions = state.providerOptions;
@@ -380,6 +427,7 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
           messages,
           isAiRunning: false,
           activeRequestId: null,
+          pendingQuestion: null,
           tokenCount: event.usage?.totalTokens ?? 0,
           modelLabel: selectedProvider
             ? getProviderStatusLabel(selectedProvider, providerOptions)
@@ -406,6 +454,7 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
           messages: next,
           isAiRunning: false,
           activeRequestId: null,
+          pendingQuestion: null,
         };
       });
     }

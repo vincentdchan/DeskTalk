@@ -1,0 +1,89 @@
+.answeredQuestion,
+.pendingQuestion {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 16px 12px;
+  border-left: 3px solid color-mix(in oklab, var(--dt-accent) 65%, var(--dt-border));
+  background: color-mix(in oklab, var(--dt-accent) 7%, var(--dt-bg));
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.answeredQuestion {
+  gap: 4px;
+  background: color-mix(in oklab, var(--dt-surface) 55%, var(--dt-bg));
+  border-left-color: color-mix(in oklab, var(--dt-text-secondary) 50%, var(--dt-border));
+}
+
+.questionLabel,
+.prompt {
+  color: var(--dt-text);
+  font-weight: 600;
+}
+
+.answerLabel {
+  color: var(--dt-text-muted);
+}
+
+.controlsRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.textInput {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 8px 10px;
+  border: 1px solid var(--dt-border-subtle);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--dt-surface) 92%, transparent);
+  color: var(--dt-text);
+  font: inherit;
+}
+
+.optionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.optionItem {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--dt-text-secondary);
+}
+
+.submitButton,
+.secondaryButton {
+  padding: 8px 12px;
+  border: 1px solid var(--dt-border-subtle);
+  border-radius: 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.submitButton {
+  background: color-mix(in oklab, var(--dt-accent) 20%, var(--dt-surface));
+  color: var(--dt-text);
+}
+
+.secondaryButton {
+  background: color-mix(in oklab, var(--dt-surface) 90%, transparent);
+  color: var(--dt-text-secondary);
+}
+
+.submitButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 640px) {
+  .controlsRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
