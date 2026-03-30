@@ -2,6 +2,7 @@ import envPaths from 'env-paths';
 import { mkdirSync, existsSync, renameSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { MiniAppPaths } from '@desktalk/sdk';
+import { seedDefaultPrompts } from './default-prompts';
 
 /**
  * Platform-resolved workspace paths for DeskTalk.
@@ -66,11 +67,17 @@ export function getUserHomeDir(username: string): string {
  */
 export function ensureUserHome(username: string): void {
   const home = getUserHomeDir(username);
+  const isNewHome = !existsSync(home);
+
   ensureDir(home);
   ensureDir(join(home, '.data'));
   ensureDir(join(home, '.storage'));
   ensureDir(join(home, '.cache'));
   ensureDir(join(home, '.ai-sessions'));
+
+  if (isNewHome) {
+    seedDefaultPrompts(home);
+  }
 }
 
 /**
