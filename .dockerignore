@@ -1,0 +1,11 @@
+.git/
+.github/
+.opencode/
+node_modules/
+dist/
+storybook-static/
+*.tsbuildinfo
+.DS_Store
+.env
+.env.local
+docs/
