@@ -309,6 +309,19 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
               message: (err as Error).message,
             });
           }
+        } else if (msg.type === 'ai:answer') {
+          const questionId = typeof msg.questionId === 'string' ? msg.questionId : '';
+          const answer = typeof msg.answer === 'string' ? msg.answer : '';
+
+          if (!questionId) {
+            sendAiEvent({
+              type: 'error',
+              message: 'A question ID is required to answer an agent question.',
+            });
+            return;
+          }
+
+          piSessionService.resolveQuestion(questionId, answer);
         } else if (msg.type === 'ai:prompt') {
           const requestId = typeof msg.requestId === 'string' ? msg.requestId : `ai-${Date.now()}`;
           const text = typeof msg.text === 'string' ? msg.text.trim() : '';

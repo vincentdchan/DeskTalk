@@ -6,6 +6,7 @@ import { useChatSession, type AiEventMessage } from '../stores/chat-session';
 import { tryExecuteSlashCommand } from '../utils/slash-commands';
 import { ChatMessageItem } from './ChatMessageItem';
 import { CommandInput } from './CommandInput';
+import { AgentQuestion } from './info-panel/AgentQuestion';
 import styles from './InfoPanel.module.scss';
 
 interface QueuedPrompt {
@@ -28,12 +29,14 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const tokenCount = useChatSession((s) => s.tokenCount);
   const currentSessionId = useChatSession((s) => s.currentSessionId);
   const sessions = useChatSession((s) => s.sessions);
+  const pendingQuestion = useChatSession((s) => s.pendingQuestion);
   const loadProviders = useChatSession((s) => s.loadProviders);
   const loadSessions = useChatSession((s) => s.loadSessions);
   const switchSession = useChatSession((s) => s.switchSession);
   const createSession = useChatSession((s) => s.createSession);
   const cancelAiRequest = useChatSession((s) => s.cancelAiRequest);
   const submitPrompt = useChatSession((s) => s.submitPrompt);
+  const answerQuestion = useChatSession((s) => s.answerQuestion);
   const clearDraftInput = useChatSession((s) => s.clearDraftInput);
   const handleAiEvent = useChatSession((s) => s.handleAiEvent);
   const clearMessages = useChatSession((s) => s.clearMessages);
@@ -283,6 +286,14 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
                 <div className={styles.queuedMessageBody}>{prompt.text}</div>
               </div>
             ))}
+            {pendingQuestion && socket && (
+              <AgentQuestion
+                question={pendingQuestion}
+                onAnswer={(questionId, answer) => {
+                  answerQuestion(questionId, answer, socket);
+                }}
+              />
+            )}
           </>
         )}
 

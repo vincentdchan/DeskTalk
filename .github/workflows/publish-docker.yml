@@ -1,0 +1,83 @@
+name: Publish Docker Image
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish-docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Determine Docker image metadata
+        id: image-meta
+        env:
+          REPOSITORY: ${{ github.repository }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          IMAGE_NAME="ghcr.io/${REPOSITORY,,}"
+          VERSION="${VERSION#v}"
+          DIST_TAG="latest"
+
+          case "$VERSION" in
+            *-alpha.*)
+              DIST_TAG="alpha"
+              ;;
+            *-beta.*)
+              DIST_TAG="beta"
+              ;;
+            *-rc.*)
+              DIST_TAG="next"
+              ;;
+          esac
+
+          echo "image_name=$IMAGE_NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "dist_tag=$DIST_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: docker-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image-meta.outputs.image_name }}
+          tags: |
+            type=raw,value=${{ steps.image-meta.outputs.version }}
+            type=raw,value=${{ steps.image-meta.outputs.dist_tag }}
+          labels: |
+            org.opencontainers.image.title=DeskTalk
+            org.opencontainers.image.description=AI-native desktop environment that runs in your browser.
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.image-meta.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.docker-meta.outputs.tags }}
+          labels: ${{ steps.docker-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

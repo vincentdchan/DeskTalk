@@ -63,6 +63,10 @@ function getToolCallSummary(toolName: string, params: Record<string, unknown>): 
     return page ? `Read manual: ${page}` : 'Read manual';
   }
 
+  if (name === 'ask_user') {
+    return 'Ask user';
+  }
+
   return toolName;
 }
 

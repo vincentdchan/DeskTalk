@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AssistantMessage, ToolCall } from '@mariozechner/pi-ai';
-import { scrubHtmlToolCallArgs, summarizeHtml } from './pi-session-service';
+import { PiSessionService, scrubHtmlToolCallArgs, summarizeHtml } from './pi-session-service';
 
 describe('summarizeHtml', () => {
   it('summarizes title, card count, and headings', () => {
@@ -91,5 +91,54 @@ describe('scrubHtmlToolCallArgs', () => {
 
     expect((message.content[0] as ToolCall).arguments).toEqual({ page: 'html/layouts' });
     expect((message.content[1] as ToolCall).arguments).toEqual({ title: 'Preview' });
+  });
+});
+
+describe('PiSessionService.getHistory', () => {
+  it('hydrates ask_user tool calls with question metadata and the saved answer', () => {
+    const history = PiSessionService.prototype.getHistory.call({
+      session: {
+        messages: [
+          {
+            role: 'assistant',
+            provider: 'openai',
+            model: 'gpt',
+            usage: { total: 12 },
+            timestamp: 100,
+            content: [
+              {
+                type: 'toolCall',
+                id: 'tool-ask-1',
+                name: 'ask_user',
+                arguments: {
+                  question: 'Which theme would you prefer?',
+                  type: 'select',
+                  options: ['Light', 'Dark'],
+                },
+              },
+            ],
+          },
+          {
+            role: 'toolResult',
+            toolCallId: 'tool-ask-1',
+            toolName: 'ask_user',
+            timestamp: 101,
+            content: [{ type: 'text', text: 'Dark' }],
+          },
+        ],
+      },
+      getMessageMetadata: () => undefined,
+    }) as ReturnType<PiSessionService['getHistory']>;
+
+    expect(history).toHaveLength(1);
+    expect(history[0]?.toolCall).toEqual({
+      toolName: 'ask_user',
+      params: {
+        question: 'Which theme would you prefer?',
+        questionType: 'select',
+        options: ['Light', 'Dark'],
+        answer: 'Dark',
+      },
+    });
   });
 });

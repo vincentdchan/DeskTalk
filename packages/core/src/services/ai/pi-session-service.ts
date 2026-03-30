@@ -29,6 +29,7 @@ import { ImageGenerationService } from './image-generation-service';
 import { createGenerateIconTool } from './generate-icon-tool';
 import { EditHistory, createManagedPathResolver } from './edit-history';
 import type { AssistantMessage, ToolCall } from '@mariozechner/pi-ai';
+import { randomUUID } from 'node:crypto';
 import type pino from 'pino';
 import {
   AI_PROVIDER_DEFINITIONS,
@@ -43,6 +44,7 @@ import type { WorkspacePaths } from '../workspace';
 import { getUserHomeDir } from '../workspace';
 import { DESKTALK_SYSTEM_PROMPT } from './system-prompt';
 import { listLiveApps } from '../liveapps';
+import { createAskUserTool, type AskUserQuestionType } from './ask-user-tool';
 
 export type ChatSource = 'text' | 'voice';
 
@@ -98,6 +100,15 @@ interface MessageMetadataStore {
   byKey: Record<string, MessageMetadata>;
 }
 
+interface PendingQuestionRecord {
+  resolve: (answer: string) => void;
+  reject: (error: Error) => void;
+}
+
+interface PromptEventSinkRef {
+  current: ((event: Record<string, unknown>) => void) | null;
+}
+
 type BasicUserMessage = {
   role: 'user';
   content: string | Array<{ text?: string }>;
@@ -116,7 +127,16 @@ type BasicAssistantMessage = {
 type BasicAgentMessage =
   | BasicUserMessage
   | BasicAssistantMessage
+  | BasicToolResultMessage
   | { role: string; timestamp: number };
+
+type BasicToolResultMessage = {
+  role: 'toolResult';
+  toolCallId: string;
+  toolName: string;
+  content: Array<{ type?: string; text?: string }>;
+  timestamp: number;
+};
 
 function isUserMessage(message: BasicAgentMessage): message is BasicUserMessage {
   return message.role === 'user';
@@ -124,6 +144,10 @@ function isUserMessage(message: BasicAgentMessage): message is BasicUserMessage 
 
 function isAssistantMessage(message: BasicAgentMessage): message is BasicAssistantMessage {
   return message.role === 'assistant';
+}
+
+function isToolResultMessage(message: BasicAgentMessage): message is BasicToolResultMessage {
+  return message.role === 'toolResult';
 }
 
 function getMessageKey(role: 'user' | 'assistant', timestamp: number): string {
@@ -241,6 +265,55 @@ function getMessageText(message: BasicUserMessage | BasicAssistantMessage): stri
   return '';
 }
 
+function getToolResultText(message: BasicToolResultMessage): string {
+  return message.content
+    .map((part: { type?: string; text?: string }) => {
+      if (part.type === 'text' && typeof part.text === 'string') {
+        return part.text;
+      }
+      return '';
+    })
+    .join('')
+    .trim();
+}
+
+function normalizeAskUserType(value: unknown): AskUserQuestionType {
+  if (value === 'select' || value === 'multi_select' || value === 'confirm') {
+    return value;
+  }
+
+  return 'text';
+}
+
+function normalizeAskUserParams(
+  params: Record<string, unknown>,
+  answer?: string,
+): Record<string, unknown> {
+  const questionType = normalizeAskUserType(params.type);
+  const options = Array.isArray(params.options)
+    ? params.options.filter((option): option is string => typeof option === 'string')
+    : undefined;
+
+  return {
+    question: typeof params.question === 'string' ? params.question : '',
+    questionType,
+    ...(options ? { options } : {}),
+    ...(typeof answer === 'string' ? { answer } : {}),
+  };
+}
+
+function formatToolCallParams(
+  toolName: string,
+  params: Record<string, unknown>,
+  answer?: string,
+): Record<string, unknown> {
+  if (toolName === 'ask_user') {
+    return normalizeAskUserParams(params, answer);
+  }
+
+  return params;
+}
+
 function readMetadata(filePath: string): MessageMetadataStore {
   if (!existsSync(filePath)) {
     return { byKey: {} };
@@ -328,6 +401,8 @@ export class PiSessionService {
   private readonly log: pino.Logger;
   private readonly customTools: ToolDefinition[];
   private readonly getCurrentUsername: () => string;
+  private readonly pendingQuestions: Map<string, PendingQuestionRecord>;
+  private readonly promptEventSinkRef: PromptEventSinkRef;
 
   private constructor(options: {
     session: AgentSession;
@@ -343,6 +418,8 @@ export class PiSessionService {
     logger: pino.Logger;
     customTools: ToolDefinition[];
     getCurrentUsername: () => string;
+    pendingQuestions: Map<string, PendingQuestionRecord>;
+    promptEventSinkRef: PromptEventSinkRef;
   }) {
     this.session = options.session;
     this.authStorage = options.authStorage;
@@ -357,6 +434,8 @@ export class PiSessionService {
     this.log = options.logger;
     this.customTools = options.customTools;
     this.getCurrentUsername = options.getCurrentUsername;
+    this.pendingQuestions = options.pendingQuestions;
+    this.promptEventSinkRef = options.promptEventSinkRef;
   }
 
   static async create(
@@ -429,6 +508,8 @@ export class PiSessionService {
       getPreference,
       logger: logger.child({ scope: 'image-generation' }),
     });
+    const pendingQuestions = new Map<string, PendingQuestionRecord>();
+    const promptEventSinkRef: PromptEventSinkRef = { current: null };
 
     const customTools = [
       createDesktopTool({
@@ -474,6 +555,53 @@ export class PiSessionService {
         resolvePath: resolveManagedPath,
       }),
       createReadManualTool(),
+      createAskUserTool({
+        sendQuestion: async ({ question, questionType, options, signal }) => {
+          if (!promptEventSinkRef.current) {
+            throw new Error('ask_user is only available while a prompt is running.');
+          }
+
+          const questionId = randomUUID();
+
+          return new Promise<string>((resolve, reject) => {
+            const cleanup = () => {
+              pendingQuestions.delete(questionId);
+              signal?.removeEventListener('abort', handleAbort);
+            };
+
+            const handleAbort = () => {
+              cleanup();
+              reject(new Error('Question cancelled before the user answered.'));
+            };
+
+            pendingQuestions.set(questionId, {
+              resolve: (answer) => {
+                cleanup();
+                resolve(answer);
+              },
+              reject: (error) => {
+                cleanup();
+                reject(error);
+              },
+            });
+
+            promptEventSinkRef.current?.({
+              type: 'agent_question',
+              questionId,
+              question,
+              questionType,
+              ...(options ? { options } : {}),
+            });
+
+            if (signal?.aborted) {
+              handleAbort();
+              return;
+            }
+
+            signal?.addEventListener('abort', handleAbort, { once: true });
+          });
+        },
+      }),
     ];
 
     const { session } = await createAgentSession({
@@ -501,6 +629,8 @@ export class PiSessionService {
       logger,
       customTools,
       getCurrentUsername,
+      pendingQuestions,
+      promptEventSinkRef,
     });
   }
 
@@ -579,7 +709,21 @@ export class PiSessionService {
   }
 
   async abort(): Promise<void> {
+    for (const pending of this.pendingQuestions.values()) {
+      pending.reject(new Error('AI request cancelled while waiting for user input.'));
+    }
+
     await this.session.abort();
+  }
+
+  resolveQuestion(questionId: string, answer: string): boolean {
+    const pending = this.pendingQuestions.get(questionId);
+    if (!pending) {
+      return false;
+    }
+
+    pending.resolve(answer);
+    return true;
   }
 
   private maybeAssignSessionTitle(inputText: string): void {
@@ -694,6 +838,16 @@ export class PiSessionService {
 
   getHistory(): HistoryMessage[] {
     const result: HistoryMessage[] = [];
+    const toolResults = new Map<string, string>();
+
+    for (const message of this.session.messages) {
+      const typedMessage = message as BasicAgentMessage;
+      if (!isToolResultMessage(typedMessage) || typedMessage.toolName !== 'ask_user') {
+        continue;
+      }
+
+      toolResults.set(typedMessage.toolCallId, getToolResultText(typedMessage));
+    }
 
     for (const message of this.session.messages) {
       if (message.role !== 'user' && message.role !== 'assistant') {
@@ -758,6 +912,7 @@ export class PiSessionService {
             // Emit tool call as a standalone message
             const toolBlock = block as {
               type: string;
+              id: string;
               name: string;
               arguments: Record<string, unknown>;
             };
@@ -769,7 +924,11 @@ export class PiSessionService {
               ...assistantFields,
               toolCall: {
                 toolName: toolBlock.name,
-                params: toolBlock.arguments ?? {},
+                params: formatToolCallParams(
+                  toolBlock.name,
+                  toolBlock.arguments ?? {},
+                  toolResults.get(toolBlock.id),
+                ),
               },
             });
             blockIndex += 1;
@@ -810,6 +969,7 @@ export class PiSessionService {
     this.maybeAssignSessionTitle(input.text);
 
     const { onEvent } = callbacks;
+    this.promptEventSinkRef.current = onEvent;
     let pendingUserSource: ChatSource | null = input.source;
     let currentAssistantText = '';
     let currentThinkingText = '';
@@ -897,7 +1057,7 @@ export class PiSessionService {
               type: 'tool_call',
               toolCall: {
                 toolName: toolCall.name,
-                params: toolCall.arguments ?? {},
+                params: formatToolCallParams(toolCall.name, toolCall.arguments ?? {}),
               },
             });
           }
@@ -954,6 +1114,7 @@ export class PiSessionService {
       const augmentedText = `${desktopContext}\n\n${input.text}`;
       await this.session.prompt(augmentedText);
     } finally {
+      this.promptEventSinkRef.current = null;
       unsubscribe();
     }
   }

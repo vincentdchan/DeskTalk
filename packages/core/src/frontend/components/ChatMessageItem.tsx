@@ -3,6 +3,7 @@ import { Streamdown } from 'streamdown';
 import type { ChatMessage } from '../stores/chat-session';
 import { getToolCallSummary, simplifyToolCallMarkdown } from '../utils/tool-call-summary';
 import { ThinkingBlock } from './ThinkingBlock';
+import { AgentQuestion, type AgentQuestionData } from './info-panel/AgentQuestion';
 import styles from './ChatMessageItem.module.scss';
 
 export type { ChatMessage };
@@ -41,6 +42,10 @@ export function ChatMessageItem({
 }) {
   // Tool call messages render as compact one-liners
   if (message.toolCall) {
+    if (message.toolCall.toolName === 'ask_user') {
+      return <AgentQuestion question={message.toolCall.params as unknown as AgentQuestionData} />;
+    }
+
     return (
       <ToolCallMessage toolName={message.toolCall.toolName} params={message.toolCall.params} />
     );

@@ -44,6 +44,39 @@ You can also customize the host and port:
 desktalk start --host 0.0.0.0 --port 8080
 ```
 
+### Docker
+
+Build the image from the repository root:
+
+```bash
+docker build -t desktalk .
+```
+
+Then run it with persistent volumes for DeskTalk data and config:
+
+```bash
+docker run -p 3000:3000 \
+  -v desktalk-data:/home/node/.local/share/desktalk \
+  -v desktalk-config:/home/node/.config/desktalk \
+  desktalk
+```
+
+Open `http://localhost:3000` in your browser after the container starts.
+
+The mounted volumes persist DeskTalk state across container restarts:
+
+- `desktalk-data` stores LiveApps, AI sessions, MiniApp data, user files, and embedded databases
+- `desktalk-config` stores DeskTalk configuration and AI provider credentials
+
+If you want to use a different port on the host:
+
+```bash
+docker run -p 8080:3000 \
+  -v desktalk-data:/home/node/.local/share/desktalk \
+  -v desktalk-config:/home/node/.config/desktalk \
+  desktalk
+```
+
 <!-- getting started video -->
 <!-- ![Getting Started](link-to-getting-started-video) -->
 
