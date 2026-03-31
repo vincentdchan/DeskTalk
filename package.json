@@ -10,7 +10,7 @@
     "url": "git+https://github.com/vincentdchan/DeskTalk.git"
   },
   "scripts": {
-    "build": "pnpm -r run build",
+    "build": "pnpm --filter @desktalk/sdk build && pnpm install --frozen-lockfile --ignore-scripts && pnpm -r --filter '!@desktalk/sdk' run build",
     "start": "pnpm --filter @desktalk/core start",
     "dev": "pnpm build && pnpm --filter @desktalk/core dev",
     "ui:storybook": "pnpm --filter @desktalk/ui storybook",
