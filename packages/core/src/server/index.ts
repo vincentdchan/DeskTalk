@@ -19,6 +19,7 @@ import { voiceRoutes } from './voice-routes';
 import { apiRoutes } from './api-routes';
 import { dtfsRoutes } from './dtfs-routes';
 import { monacoRoutes } from './monaco-routes';
+import { thumbnailRoutes } from './thumbnail-routes';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -214,6 +215,7 @@ export async function createServer(options: ServerOptions) {
   });
   await app.register(monacoRoutes);
   await app.register(dtfsRoutes);
+  await app.register(thumbnailRoutes);
 
   app.get('/favicon.ico', async (_req, reply) => {
     return reply.redirect('/logo.png');

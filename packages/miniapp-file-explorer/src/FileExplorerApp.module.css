@@ -113,3 +113,50 @@
   font-size: 12px;
   line-height: 1.5;
 }
+
+/* ─── View Toggle ─────────────────────────────────────────────────────────── */
+
+.viewToggle {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  padding-left: 8px;
+  border-left: 1px solid var(--dt-border);
+}
+
+.viewToggleBtn {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+  background: var(--dt-surface);
+  color: var(--dt-text);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.viewToggleBtn:hover {
+  border-color: var(--dt-accent);
+  background: var(--dt-surface-hover);
+  color: var(--dt-accent);
+}
+
+.viewToggleBtnActive {
+  border-color: var(--dt-accent);
+  background: var(--dt-accent);
+  color: white;
+}
+
+.viewToggleBtnActive:hover {
+  background: var(--dt-accent-hover, var(--dt-accent));
+}

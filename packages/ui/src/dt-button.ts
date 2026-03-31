@@ -118,6 +118,16 @@ export class DtButton extends HTMLElement {
     this._slot = document.createElement('slot');
     this._button.appendChild(this._slot);
 
+    // Handle form submission for submit buttons
+    this._button.addEventListener('click', () => {
+      if (this.type === 'submit' && !this.disabled) {
+        const form = this.closest('form');
+        if (form) {
+          form.requestSubmit();
+        }
+      }
+    });
+
     shadow.appendChild(this._button);
   }
 

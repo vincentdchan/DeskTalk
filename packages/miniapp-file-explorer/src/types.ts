@@ -14,3 +14,6 @@ export type SortColumn = 'name' | 'size' | 'modifiedAt';
 
 /** Sort direction. */
 export type SortDirection = 'asc' | 'desc';
+
+/** View mode for file explorer. */
+export type ViewMode = 'list' | 'icon';

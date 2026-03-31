@@ -8,8 +8,9 @@ import type {
   MiniAppManifest,
 } from '@desktalk/sdk';
 import { useCommand, useOpenMiniApp, MiniAppIdProvider, WindowIdProvider } from '@desktalk/sdk';
-import type { FileEntry, SortColumn } from './types';
+import type { FileEntry, SortColumn, ViewMode } from './types';
 import { FileBreadcrumb } from './components/FileBreadcrumb';
+import { FileGrid } from './components/FileGrid';
 import { FileList } from './components/FileList';
 import { FilePreview } from './components/FilePreview';
 import { FileActions } from './components/FileActions';
@@ -94,6 +95,7 @@ function FileExplorerApp() {
   const entries = useStore(store, (state) => state.entries);
   const sortColumn = useStore(store, (state) => state.sortColumn);
   const sortDirection = useStore(store, (state) => state.sortDirection);
+  const viewMode = useStore(store, (state) => state.viewMode);
   const isDragActive = useStore(store, (state) => state.isDragActive);
   const isUploading = useStore(store, (state) => state.isUploading);
   const miniAppManifests = useStore(store, (state) => state.miniAppManifests);
@@ -108,6 +110,7 @@ function FileExplorerApp() {
   const setEntries = useStore(store, (state) => state.setEntries);
   const setSortColumn = useStore(store, (state) => state.setSortColumn);
   const setSortDirection = useStore(store, (state) => state.setSortDirection);
+  const setViewMode = useStore(store, (state) => state.setViewMode);
   const setDragActive = useStore(store, (state) => state.setDragActive);
   const setUploading = useStore(store, (state) => state.setUploading);
   const setMiniAppManifests = useStore(store, (state) => state.setMiniAppManifests);
@@ -139,6 +142,8 @@ function FileExplorerApp() {
   const uploadEntry = useCommand<{ path: string; contentBase64: string }, FileEntry>(
     'files.upload',
   );
+  const getPrefs = useCommand<void, { viewMode: ViewMode }>('prefs.get');
+  const setPrefs = useCommand<{ viewMode: ViewMode }, void>('prefs.set');
 
   const clipboardRef = useRef<{ path: string; mode: 'copy' | 'cut' } | null>(null);
   const renameSubmittingRef = useRef(false);
@@ -202,6 +207,20 @@ function FileExplorerApp() {
     };
   }, [setMiniAppManifests]);
 
+  // Load preferences on mount
+  useEffect(() => {
+    void (async () => {
+      try {
+        const prefs = await getPrefs();
+        if (prefs.viewMode) {
+          setViewMode(prefs.viewMode);
+        }
+      } catch (error) {
+        console.error('Failed to load preferences:', error);
+      }
+    })();
+  }, [getPrefs, setViewMode]);
+
   const refresh = useMemoizedFn(() => {
     fetchEntries(currentPath);
   });
@@ -216,6 +235,14 @@ function FileExplorerApp() {
       }
     },
     [setSortColumn, setSortDirection, sortColumn, sortDirection],
+  );
+
+  const handleViewModeChange = useCallback(
+    (mode: ViewMode) => {
+      setViewMode(mode);
+      void setPrefs({ viewMode: mode });
+    },
+    [setViewMode, setPrefs],
   );
 
   const handleSelect = useCallback(
@@ -574,6 +601,22 @@ function FileExplorerApp() {
             {'\u25B6'}
           </button>
           <FileBreadcrumb currentPath={currentPath} onNavigate={navigateTo} />
+          <div className={styles.viewToggle}>
+            <button
+              className={`${styles.viewToggleBtn} ${viewMode === 'list' ? styles.viewToggleBtnActive : ''}`}
+              onClick={() => handleViewModeChange('list')}
+              title="List view"
+            >
+              {'\u2630'}
+            </button>
+            <button
+              className={`${styles.viewToggleBtn} ${viewMode === 'icon' ? styles.viewToggleBtnActive : ''}`}
+              onClick={() => handleViewModeChange('icon')}
+              title="Icon view"
+            >
+              {'\u25A4'}
+            </button>
+          </div>
         </div>
 
         <div className={styles.body}>
@@ -585,22 +628,37 @@ function FileExplorerApp() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              <FileList
-                entries={entries}
-                sortColumn={sortColumn}
-                sortDirection={sortDirection}
-                selectedPath={selectedPath}
-                renamingPath={renamingPath}
-                renameValue={renameValue}
-                isUploading={isUploading}
-                onSort={handleSort}
-                onSelect={handleSelect}
-                onOpen={handleOpen}
-                onContextMenu={handleContextMenu}
-                onRenameChange={setRenameValue}
-                onRenameSubmit={handleRenameSubmit}
-                onRenameCancel={handleRenameCancel}
-              />
+              {viewMode === 'list' ? (
+                <FileList
+                  entries={entries}
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  selectedPath={selectedPath}
+                  renamingPath={renamingPath}
+                  renameValue={renameValue}
+                  isUploading={isUploading}
+                  onSort={handleSort}
+                  onSelect={handleSelect}
+                  onOpen={handleOpen}
+                  onContextMenu={handleContextMenu}
+                  onRenameChange={setRenameValue}
+                  onRenameSubmit={handleRenameSubmit}
+                  onRenameCancel={handleRenameCancel}
+                />
+              ) : (
+                <FileGrid
+                  entries={entries}
+                  selectedPath={selectedPath}
+                  renamingPath={renamingPath}
+                  renameValue={renameValue}
+                  onSelect={handleSelect}
+                  onOpen={handleOpen}
+                  onContextMenu={handleContextMenu}
+                  onRenameChange={setRenameValue}
+                  onRenameSubmit={handleRenameSubmit}
+                  onRenameCancel={handleRenameCancel}
+                />
+              )}
               {isDragActive && (
                 <div className={styles.dropOverlay}>
                   <div className={styles.dropOverlayCard}>

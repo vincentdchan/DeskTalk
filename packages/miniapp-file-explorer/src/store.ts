@@ -1,6 +1,6 @@
 import type { MiniAppManifest } from '@desktalk/sdk';
 import { createStore } from 'zustand/vanilla';
-import type { FileEntry, SortColumn, SortDirection } from './types';
+import type { FileEntry, SortColumn, SortDirection, ViewMode } from './types';
 
 export interface FileExplorerContextMenuState {
   x: number;
@@ -15,6 +15,7 @@ interface FileExplorerState {
   entries: FileEntry[];
   sortColumn: SortColumn;
   sortDirection: SortDirection;
+  viewMode: ViewMode;
   isDragActive: boolean;
   isUploading: boolean;
   miniAppManifests: MiniAppManifest[];
@@ -31,6 +32,7 @@ interface FileExplorerActions {
   setEntries: (entries: FileEntry[]) => void;
   setSortColumn: (column: SortColumn) => void;
   setSortDirection: (direction: SortDirection) => void;
+  setViewMode: (viewMode: ViewMode) => void;
   setDragActive: (isDragActive: boolean) => void;
   setUploading: (isUploading: boolean) => void;
   setMiniAppManifests: (manifests: MiniAppManifest[]) => void;
@@ -57,6 +59,7 @@ const INITIAL_STATE: FileExplorerState = {
   entries: [],
   sortColumn: 'name',
   sortDirection: 'asc',
+  viewMode: 'list',
   isDragActive: false,
   isUploading: false,
   miniAppManifests: [],
@@ -96,6 +99,10 @@ export function createFileExplorerStore() {
 
     setSortDirection(sortDirection: SortDirection) {
       set({ sortDirection });
+    },
+
+    setViewMode(viewMode: ViewMode) {
+      set({ viewMode });
     },
 
     setDragActive(isDragActive: boolean) {
