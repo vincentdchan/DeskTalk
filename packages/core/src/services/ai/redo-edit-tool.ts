@@ -32,7 +32,7 @@ export function createRedoEditTool(options: RedoEditToolOptions): ToolDefinition
     async execute(_toolCallId, params) {
       const input = params as RedoEditParams;
       const absolutePath = resolvePath(input.path);
-      const restoredContent = editHistory.redo(absolutePath);
+      const restoredContent = await editHistory.redo(absolutePath);
       if (restoredContent === null) {
         throw new Error(`Nothing to redo for ${input.path}`);
       }

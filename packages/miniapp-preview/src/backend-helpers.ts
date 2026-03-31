@@ -1,6 +1,7 @@
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { simpleGit } from 'simple-git';
 import type { StreamedHtmlSnapshot } from './types';
 import { getStreamedDirectoryName, sanitizeTitleSegment } from './liveapp-id';
 import { stripDtInjections } from './strip-dt-injections';
@@ -16,6 +17,8 @@ const MIME_MAP: Record<string, string> = {
   '.png': 'image/png',
   '.webp': 'image/webp',
 };
+
+const GIT_IGNORE_CONTENT = ['.DS_Store', '.dt-redo-stack.json', ''].join('\n');
 
 export function getExtension(name: string): string {
   const dot = name.lastIndexOf('.');
@@ -121,16 +124,42 @@ export async function saveStreamedHtml(
   content: string,
 ): Promise<StreamedHtmlSnapshot> {
   const path = getStreamedAbsolutePath(homeDir, streamId, title);
+  const liveAppDir = join(homeDir, '.data', 'liveapps', getStreamedDirectoryName(streamId, title));
   const strippedContent = stripDtInjections(content);
-  mkdirSync(join(homeDir, '.data', 'liveapps', getStreamedDirectoryName(streamId, title)), {
-    recursive: true,
-  });
+  mkdirSync(liveAppDir, { recursive: true });
   await writeFile(path, strippedContent, 'utf8');
+  await initializeLiveAppRepo(liveAppDir);
   return {
     name: fileName(path),
     path,
     content: strippedContent,
   };
+}
+
+async function initializeLiveAppRepo(liveAppDir: string): Promise<void> {
+  const git = simpleGit(liveAppDir);
+  let repoWasCreated = false;
+
+  if (!existsSync(join(liveAppDir, '.git'))) {
+    await git.init();
+    await git.addConfig('user.name', 'DeskTalk', false, 'local');
+    await git.addConfig('user.email', 'desktalk@local', false, 'local');
+    repoWasCreated = true;
+  }
+
+  const gitIgnorePath = join(liveAppDir, '.gitignore');
+  if (!existsSync(gitIgnorePath)) {
+    writeFileSync(gitIgnorePath, GIT_IGNORE_CONTENT, 'utf8');
+  }
+
+  const hasHead = await git.revparse(['--verify', 'HEAD']).then(
+    () => true,
+    () => false,
+  );
+  if (repoWasCreated || !hasHead) {
+    await git.add('.');
+    await git.commit('Initial LiveApp snapshot');
+  }
 }
 
 export function parseImageDimensions(

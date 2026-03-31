@@ -110,7 +110,7 @@ On next launch:
     chart.js                            # Optional co-located script
     styles.css                          # Optional co-located stylesheet
     logo.png                            # Optional co-located asset
-    .index.html.history.jsonl           # Edit history (created after AI edits)
+    .git/                               # Per-LiveApp version history repository
   disk-usage_html-stream-2-1711036801000/
     index.html
 ```
@@ -193,7 +193,7 @@ The AI can modify existing LiveApps using the `edit` tool:
 5. Core writes the updated file, records persistent edit history, and broadcasts a reload event
 6. The LiveApp iframe reloads with the updated content
 
-Edit history is stored as a co-located `.index.html.history.jsonl` file, enabling `undo_edit` and `redo_edit` across sessions.
+Each LiveApp directory is initialized as its own git repository. AI edits become commits, enabling `undo_edit` and `redo_edit` across sessions.
 
 ### Design Tokens
 
@@ -390,7 +390,7 @@ Window management is the central feature of DeskTalk.
 Actions are the bridge between the AI and the MiniApp UI.
 
 ```jsx
-  <ActionsProvider>
+<ActionsProvider>
   <Action
     name="Create Note"
     description="Create a new note"
@@ -514,11 +514,12 @@ This is the primary AI interaction — creating a LiveApp:
 
 ### Persistent Edit History
 
-Each file edited through `edit` gets a co-located JSONL sidecar file. For `<dir>/index.html`, the history file is `<dir>/.index.html.history.jsonl`.
+Each LiveApp directory is managed as an independent git repository rooted at `<dir>/.git`.
 
-- Each version stores the full file contents.
-- The last JSONL line stores the active history pointer.
-- `undo_edit` moves the pointer back, `redo_edit` moves it forward.
+- New LiveApps get an initial commit when `index.html` is first saved.
+- Each `edit` call records a new commit for the changed file.
+- `undo_edit` moves back to the previous committed LiveApp state and stores redo information in repo-local metadata.
+- `redo_edit` reapplies the most recently undone commit.
 - History persists on disk, so undo/redo survives app restarts.
 
 ### Event Streaming

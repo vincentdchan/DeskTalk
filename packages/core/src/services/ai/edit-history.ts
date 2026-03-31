@@ -1,18 +1,19 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, isAbsolute, join, relative, resolve } from 'node:path';
+import { simpleGit } from 'simple-git';
 
-interface VersionEntry {
-  v: number;
-  ts: number;
-  content: string;
-}
+const REDO_STACK_FILE = '.dt-redo-stack.json';
+const GIT_IGNORE_FILE = '.gitignore';
+const GIT_IGNORE_CONTENT = ['.DS_Store', REDO_STACK_FILE, ''].join('\n');
 
-interface ParsedHistory {
-  versions: VersionEntry[];
-  pointer: number;
+interface RedoStackState {
+  commits: string[];
 }
 
 export type ManagedPathResolver = (inputPath: string) => string;
+
+const repoLocks = new Map<string, Promise<void>>();
+let gitAvailabilityPromise: Promise<void> | null = null;
 
 export function isPathWithinRoot(rootDir: string, candidatePath: string): boolean {
   const normalizedRoot = resolve(rootDir);
@@ -50,59 +51,126 @@ export function createManagedPathResolver(allowedRoots: string[]): ManagedPathRe
   };
 }
 
-export function getHistoryFilePath(filePath: string): string {
-  return join(dirname(filePath), `.${basename(filePath)}.history.jsonl`);
+function normalizeSlashes(path: string): string {
+  return path.replace(/\\/g, '/');
 }
 
-function parseHistory(raw: string, historyPath: string): ParsedHistory {
-  const lines = raw
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+function getLiveAppRoot(filePath: string): string | null {
+  const absolutePath = resolve(filePath);
+  const normalizedPath = normalizeSlashes(absolutePath);
+  const markerIndex = normalizedPath.indexOf('/.data/liveapps/');
+  if (markerIndex === -1) {
+    return null;
+  }
 
-  const versions: VersionEntry[] = [];
-  let pointer: number | null = null;
+  const liveAppsPrefix = markerIndex + '/.data/liveapps/'.length;
+  const afterPrefix = normalizedPath.slice(liveAppsPrefix);
+  const [liveAppId] = afterPrefix.split('/');
+  if (!liveAppId) {
+    return null;
+  }
 
-  for (const line of lines) {
-    const parsed = JSON.parse(line) as {
-      v?: number;
-      ts?: number;
-      content?: string;
-      pointer?: number;
-    };
-    if (typeof parsed.pointer === 'number') {
-      pointer = parsed.pointer;
-      continue;
-    }
+  const prefixPath = absolutePath.slice(0, markerIndex);
+  return join(prefixPath, '.data', 'liveapps', liveAppId);
+}
 
+function getRedoStackPath(repoRoot: string): string {
+  return join(repoRoot, REDO_STACK_FILE);
+}
+
+function readRedoStack(repoRoot: string): RedoStackState {
+  const redoStackPath = getRedoStackPath(repoRoot);
+  if (!existsSync(redoStackPath)) {
+    return { commits: [] };
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(redoStackPath, 'utf-8')) as Partial<RedoStackState>;
     if (
-      typeof parsed.v !== 'number' ||
-      typeof parsed.ts !== 'number' ||
-      typeof parsed.content !== 'string'
+      Array.isArray(parsed.commits) &&
+      parsed.commits.every((commit) => typeof commit === 'string')
     ) {
-      throw new Error(`Malformed edit history entry in ${historyPath}`);
+      return { commits: parsed.commits };
     }
-
-    versions.push({ v: parsed.v, ts: parsed.ts, content: parsed.content });
+  } catch {
+    return { commits: [] };
   }
 
-  if (versions.length === 0) {
-    throw new Error(`Edit history is empty: ${historyPath}`);
-  }
-
-  const resolvedPointer = pointer ?? versions[versions.length - 1].v;
-  if (resolvedPointer < 1 || resolvedPointer > versions.length) {
-    throw new Error(`Edit history pointer is invalid in ${historyPath}`);
-  }
-
-  return { versions, pointer: resolvedPointer };
+  return { commits: [] };
 }
 
-function serializeHistory(history: ParsedHistory): string {
-  const versionLines = history.versions.map((entry, index) =>
-    JSON.stringify({ v: index + 1, ts: entry.ts, content: entry.content }),
+function writeRedoStack(repoRoot: string, state: RedoStackState): void {
+  writeFileSync(getRedoStackPath(repoRoot), JSON.stringify(state, null, 2) + '\n', 'utf-8');
+}
+
+function clearRedoStack(repoRoot: string): void {
+  writeRedoStack(repoRoot, { commits: [] });
+}
+
+async function ensureGitAvailable(): Promise<void> {
+  gitAvailabilityPromise ??= simpleGit()
+    .version()
+    .then(() => undefined)
+    .catch((error) => {
+      throw new Error(`Git is required for LiveApp version history: ${(error as Error).message}`);
+    });
+  await gitAvailabilityPromise;
+}
+
+async function withRepoLock<T>(repoRoot: string, fn: () => Promise<T>): Promise<T> {
+  const previous = repoLocks.get(repoRoot) ?? Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((resolvePromise) => {
+    release = resolvePromise;
+  });
+  repoLocks.set(
+    repoRoot,
+    previous.then(() => current),
   );
-  return [...versionLines, JSON.stringify({ pointer: history.pointer })].join('\n') + '\n';
+
+  await previous;
+
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (repoLocks.get(repoRoot) === current) {
+      repoLocks.delete(repoRoot);
+    }
+  }
+}
+
+async function ensureRepoInitialized(repoRoot: string): Promise<void> {
+  const git = simpleGit(repoRoot);
+  let repoWasCreated = false;
+  if (!existsSync(join(repoRoot, '.git'))) {
+    await git.init();
+    await git.addConfig('user.name', 'DeskTalk', false, 'local');
+    await git.addConfig('user.email', 'desktalk@local', false, 'local');
+    repoWasCreated = true;
+  }
+
+  const gitIgnorePath = join(repoRoot, GIT_IGNORE_FILE);
+  if (!existsSync(gitIgnorePath)) {
+    writeFileSync(gitIgnorePath, GIT_IGNORE_CONTENT, 'utf-8');
+  }
+
+  const hasHead = await git.revparse(['--verify', 'HEAD']).then(
+    () => true,
+    () => false,
+  );
+  if (repoWasCreated || !hasHead) {
+    await git.add('.');
+    await git.commit('Initial LiveApp snapshot');
+  }
+}
+
+async function readFileContent(filePath: string): Promise<string | null> {
+  if (!existsSync(filePath)) {
+    return null;
+  }
+
+  return readFileSync(filePath, 'utf-8');
 }
 
 export class EditHistory {
@@ -112,77 +180,83 @@ export class EditHistory {
     return this.resolvePath(inputPath);
   }
 
-  recordEdit(filePath: string, previousContent: string, nextContent: string): void {
+  async recordEdit(filePath: string, previousContent: string, nextContent: string): Promise<void> {
     const absolutePath = this.resolvePath(filePath);
-    const history = this.loadOrCreateHistory(absolutePath, previousContent);
-    const currentContent = history.versions[history.pointer - 1]?.content;
-
-    history.versions = history.versions.slice(0, history.pointer);
-
-    if (currentContent !== previousContent) {
-      history.versions.push({
-        v: history.versions.length + 1,
-        ts: Date.now(),
-        content: previousContent,
-      });
-      history.pointer = history.versions.length;
+    const repoRoot = getLiveAppRoot(absolutePath);
+    if (!repoRoot || previousContent === nextContent) {
+      return;
     }
 
-    history.versions.push({
-      v: history.versions.length + 1,
-      ts: Date.now(),
-      content: nextContent,
-    });
-    history.pointer = history.versions.length;
+    await ensureGitAvailable();
 
-    this.writeHistory(absolutePath, history);
-  }
+    await withRepoLock(repoRoot, async () => {
+      await ensureRepoInitialized(repoRoot);
 
-  undo(filePath: string): string | null {
-    const absolutePath = this.resolvePath(filePath);
-    const history = this.loadHistory(absolutePath);
-    if (!history || history.pointer <= 1) {
-      return null;
-    }
-
-    history.pointer -= 1;
-    this.writeHistory(absolutePath, history);
-    return history.versions[history.pointer - 1]?.content ?? null;
-  }
-
-  redo(filePath: string): string | null {
-    const absolutePath = this.resolvePath(filePath);
-    const history = this.loadHistory(absolutePath);
-    if (!history || history.pointer >= history.versions.length) {
-      return null;
-    }
-
-    history.pointer += 1;
-    this.writeHistory(absolutePath, history);
-    return history.versions[history.pointer - 1]?.content ?? null;
-  }
-
-  private loadOrCreateHistory(filePath: string, initialContent: string): ParsedHistory {
-    return (
-      this.loadHistory(filePath) ?? {
-        versions: [{ v: 1, ts: Date.now(), content: initialContent }],
-        pointer: 1,
+      const git = simpleGit(repoRoot);
+      const relativePath = normalizeSlashes(relative(repoRoot, absolutePath));
+      if (readFileSync(absolutePath, 'utf-8') !== nextContent) {
+        writeFileSync(absolutePath, nextContent, 'utf-8');
       }
-    );
+      clearRedoStack(repoRoot);
+      await git.add([relativePath, '.gitignore']);
+      await git.commit(`Edit ${basename(absolutePath)}`);
+    });
   }
 
-  private loadHistory(filePath: string): ParsedHistory | null {
-    const historyPath = getHistoryFilePath(filePath);
-    if (!existsSync(historyPath)) {
+  async undo(filePath: string): Promise<string | null> {
+    const absolutePath = this.resolvePath(filePath);
+    const repoRoot = getLiveAppRoot(absolutePath);
+    if (!repoRoot || !existsSync(join(repoRoot, '.git'))) {
       return null;
     }
 
-    return parseHistory(readFileSync(historyPath, 'utf-8'), historyPath);
+    await ensureGitAvailable();
+
+    return withRepoLock(repoRoot, async () => {
+      const git = simpleGit(repoRoot);
+      const commitCount = Number.parseInt(
+        (await git.raw(['rev-list', '--count', 'HEAD'])).trim(),
+        10,
+      );
+      if (!Number.isFinite(commitCount) || commitCount <= 1) {
+        return null;
+      }
+
+      const headSha = (await git.revparse(['HEAD'])).trim();
+      const redoStack = readRedoStack(repoRoot);
+      redoStack.commits.push(headSha);
+      writeRedoStack(repoRoot, redoStack);
+
+      const relativePath = normalizeSlashes(relative(repoRoot, absolutePath));
+      await git.raw(['reset', '--soft', 'HEAD~1']);
+      await git.raw(['checkout', 'HEAD', '--', relativePath]);
+
+      return readFileContent(absolutePath);
+    });
   }
 
-  private writeHistory(filePath: string, history: ParsedHistory): void {
-    const historyPath = getHistoryFilePath(filePath);
-    mkdirSync(dirname(historyPath), { recursive: true });
-    writeFileSync(historyPath, serializeHistory(history), 'utf-8');
+  async redo(filePath: string): Promise<string | null> {
+    const absolutePath = this.resolvePath(filePath);
+    const repoRoot = getLiveAppRoot(absolutePath);
+    if (!repoRoot || !existsSync(join(repoRoot, '.git'))) {
+      return null;
+    }
+
+    await ensureGitAvailable();
+
+    return withRepoLock(repoRoot, async () => {
+      const redoStack = readRedoStack(repoRoot);
+      const commitSha = redoStack.commits.pop();
+      if (!commitSha) {
+        return null;
+      }
+
+      writeRedoStack(repoRoot, redoStack);
+
+      const git = simpleGit(repoRoot);
+      await git.raw(['cherry-pick', commitSha]);
+
+      return readFileContent(absolutePath);
+    });
   }
 }

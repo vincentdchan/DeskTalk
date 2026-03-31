@@ -236,15 +236,15 @@ After the snapshot is saved, the AI can edit it without regenerating the whole d
 
 1. Pi calls `Get State` on the focused Preview window and reads `file.path`.
 2. Pi reads the file and calls `edit` with `{ path, oldText, newText }`.
-3. The core records persistent history in a co-located `.history.jsonl` file and writes the updated HTML to disk.
+3. The core records the change in the LiveApp's git repository and writes the updated HTML to disk.
 4. The core broadcasts `preview.file-changed` with `{ filePath, content }`.
 5. The Preview frontend matches the file path and performs a full iframe replacement render.
 6. Pi can call `undo_edit` or `redo_edit` later using the same file path.
 
 ### Persistent Edit History
 
-For a file at `<dir>/index.html`, Preview-related edits store history in `<dir>/.index.html.history.jsonl`.
+For a file at `<dir>/index.html`, Preview-related edits are tracked in the LiveApp directory's `.git/` repository.
 
-- Each JSONL version entry stores the full file content.
-- The final pointer entry marks which version is active.
-- `undo_edit` and `redo_edit` move that pointer and restore the corresponding file content.
+- New snapshots create an initial commit for the LiveApp.
+- Each later `edit` call creates a commit for the changed file.
+- `undo_edit` and `redo_edit` move through that git-backed history.
