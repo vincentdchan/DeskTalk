@@ -28,7 +28,7 @@
     }
   },
   "scripts": {
-    "build": "node ../sdk/dist/cli/desktalk-build.js",
+    "build": "desktalk-build",
     "clean": "rm -rf dist",
     "unit:test": "vitest run",
     "prepack": "pnpm build"
