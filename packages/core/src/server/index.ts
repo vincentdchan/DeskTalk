@@ -215,6 +215,10 @@ export async function createServer(options: ServerOptions) {
   await app.register(monacoRoutes);
   await app.register(dtfsRoutes);
 
+  app.get('/favicon.ico', async (_req, reply) => {
+    return reply.redirect('/logo.png');
+  });
+
   app.setNotFoundHandler(async (req, reply) => {
     if (req.url.startsWith('/api/') || req.url.startsWith('/ws')) {
       reply.code(404);
