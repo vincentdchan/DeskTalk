@@ -1,7 +1,13 @@
+export interface DtMilkdownCssEntry {
+  name: string;
+  css: string;
+}
+
 export interface DtMilkdownRuntime {
   Crepe: typeof import('@milkdown/crepe').Crepe;
   replaceAll: typeof import('@milkdown/kit/utils').replaceAll;
   cssText: string;
+  cssEntries: DtMilkdownCssEntry[];
 }
 
 declare global {

@@ -27,7 +27,8 @@ export interface DtMarkdownEditorChangeDetail {
  * - `dt-blur` — fired when the editor loses focus
  */
 export class DtMarkdownEditor extends HTMLElement {
-  private readonly _runtimeStyle: HTMLStyleElement;
+  private readonly _shadow: ShadowRoot;
+  private readonly _runtimeStyleAnchor: Comment;
   private readonly _surface: HTMLDivElement;
   private readonly _content: HTMLDivElement;
   private readonly _status: HTMLDivElement;
@@ -80,13 +81,14 @@ export class DtMarkdownEditor extends HTMLElement {
   constructor() {
     super();
     const shadow = this.attachShadow({ mode: 'open' });
+    this._shadow = shadow;
 
     const style = document.createElement('style');
     style.textContent = markdownEditorCss;
     shadow.appendChild(style);
 
-    this._runtimeStyle = document.createElement('style');
-    shadow.appendChild(this._runtimeStyle);
+    this._runtimeStyleAnchor = document.createComment('runtime-styles');
+    shadow.appendChild(this._runtimeStyleAnchor);
 
     this._surface = document.createElement('div');
     this._surface.className = 'dt-markdown-editor';
@@ -135,7 +137,13 @@ export class DtMarkdownEditor extends HTMLElement {
     if (!this._loadPromise) {
       this._loadPromise = loadMilkdown().then((runtime) => {
         this._runtime = runtime;
-        this._runtimeStyle.textContent = runtime.cssText;
+        const anchor = this._runtimeStyleAnchor;
+        for (const entry of runtime.cssEntries) {
+          const el = document.createElement('style');
+          el.dataset.css = entry.name;
+          el.textContent = entry.css;
+          anchor.parentNode!.insertBefore(el, anchor.nextSibling);
+        }
         return runtime;
       });
     }
