@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import * as ReactDOM_NS from 'react-dom';
 import { createRoot, hydrateRoot } from 'react-dom/client';
@@ -37,6 +37,8 @@ function App() {
   const [themePreferences, setThemePreferences] =
     useState<ThemePreferences>(DEFAULT_THEME_PREFERENCES);
   const [page, setPage] = useState<Page>('loading');
+  const latestCatalogRequestRef = useRef(0);
+  const onboardingAccentOverrideRef = useRef(false);
 
   const checkSession = useCallback(async () => {
     try {
@@ -59,34 +61,28 @@ function App() {
     }
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadCatalog = useCallback(async (nextLocale?: string): Promise<void> => {
+    const query = nextLocale ? `?locale=${encodeURIComponent(nextLocale)}` : '';
+    const requestId = latestCatalogRequestRef.current + 1;
+    latestCatalogRequestRef.current = requestId;
 
-    async function loadCatalog(nextLocale?: string): Promise<void> {
-      const query = nextLocale ? `?locale=${encodeURIComponent(nextLocale)}` : '';
-      try {
-        const { data: payload } = await httpClient.get<I18nCatalogResponse>(
-          `/api/i18n/catalog${query}`,
-        );
-        if (!cancelled) {
-          setLocale(payload.locale);
-          setMessages(payload.messages);
-        }
-      } catch (error) {
-        // i18n catalog requires auth — if not authenticated, just use defaults
-        if (axios.isAxiosError(error)) {
-          const status = error.response?.status;
-          if (status === 401) return;
-          throw new Error(`Failed to load i18n catalog (${status ?? 'unknown'})`);
-        }
-        throw error;
-      }
+    const { data: payload } = await httpClient.get<I18nCatalogResponse>(
+      `/api/i18n/catalog${query}`,
+    );
+
+    if (requestId !== latestCatalogRequestRef.current) {
+      return;
     }
 
+    setLocale(payload.locale);
+    setMessages(payload.messages);
+  }, []);
+
+  useEffect(() => {
     async function loadThemePreferences(): Promise<void> {
       const { data: payload } =
         await httpClient.get<PublicPreferencesResponse>('/api/preferences/public');
-      if (!cancelled) {
+      if (!onboardingAccentOverrideRef.current) {
         setThemePreferences({
           theme: payload.theme,
           accentColor: payload.accentColor,
@@ -102,8 +98,13 @@ function App() {
     // Check session to determine which page to show
     void checkSession();
 
-    // Load i18n catalog (may fail if not authenticated — that's okay)
+    // Load i18n catalog used by onboarding and the desktop shell.
     void loadCatalog().catch((error) => {
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        console.error(`[i18n] Could not load catalog (${status ?? 'unknown'}):`, error);
+        return;
+      }
       console.error('[i18n] Could not load catalog:', error);
     });
 
@@ -150,10 +151,9 @@ function App() {
 
     window.addEventListener('desktalk:event', handleEvent);
     return () => {
-      cancelled = true;
       window.removeEventListener('desktalk:event', handleEvent);
     };
-  }, [checkSession]);
+  }, [checkSession, loadCatalog]);
 
   useEffect(() => {
     applyTheme(themePreferences);
@@ -164,17 +164,36 @@ function App() {
     return null;
   }
 
+  let content: React.ReactNode;
   if (page === 'login') {
-    return <LoginPage onLoginSuccess={checkSession} />;
-  }
-
-  if (page === 'onboard') {
-    return <OnboardPage onComplete={checkSession} />;
+    content = <LoginPage onLoginSuccess={checkSession} />;
+  } else if (page === 'onboard') {
+    content = (
+      <OnboardPage
+        onComplete={checkSession}
+        locale={locale}
+        accentColor={themePreferences.accentColor}
+        onLanguageChange={(nextLocale) =>
+          loadCatalog(nextLocale).catch((error) => {
+            console.error('[i18n] Could not refresh onboarding catalog:', error);
+          })
+        }
+        onAccentColorChange={(nextAccentColor) => {
+          onboardingAccentOverrideRef.current = true;
+          setThemePreferences((current) => ({
+            ...current,
+            accentColor: nextAccentColor,
+          }));
+        }}
+      />
+    );
+  } else {
+    content = <Shell themePreferences={themePreferences} />;
   }
 
   return (
     <I18nProvider locale={locale} messages={messages}>
-      <Shell themePreferences={themePreferences} />
+      {content}
     </I18nProvider>
   );
 }

@@ -53,6 +53,12 @@
   gap: 16px;
 }
 
+.welcomeOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .providerList {
   display: flex;
   flex-direction: column;
@@ -162,6 +168,22 @@
   }
 }
 
+.colorControl {
+  display: flex;
+  gap: 10px;
+}
+
+.colorInput {
+  width: 44px;
+  min-width: 44px;
+  height: 40px;
+  padding: 4px;
+  border: 1px solid var(--dt-border);
+  border-radius: 2px;
+  background: var(--dt-surface);
+  cursor: pointer;
+}
+
 .footer {
   display: flex;
   justify-content: space-between;
@@ -209,6 +231,10 @@
   .footer,
   .footerActions {
     flex-direction: column;
+  }
+
+  .welcomeOptions {
+    grid-template-columns: 1fr;
   }
 
   .providerCardActions,

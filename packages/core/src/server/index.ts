@@ -159,22 +159,29 @@ export async function createServer(options: ServerOptions) {
     '/api/auth/me',
     '/api/setup/status',
     '/api/setup',
+    '/api/i18n/catalog',
     '/api/preferences/public',
     '/api/ui/desktalk-theme.css',
   ]);
 
   app.addHook('onRequest', async (req, reply) => {
+    const requestPath = req.url.split('?', 1)[0] ?? req.url;
+
     // Skip auth for public routes
-    if (PUBLIC_ROUTES.has(req.url)) return;
+    if (PUBLIC_ROUTES.has(requestPath)) return;
 
-    if (req.url.startsWith('/api/ui/') && req.url.endsWith('.js')) return;
+    if (requestPath.startsWith('/api/ui/') && requestPath.endsWith('.js')) return;
 
-    if (req.url.startsWith('/api/ui/fonts/')) return;
+    if (requestPath.startsWith('/api/ui/fonts/')) return;
 
-    if (req.url.startsWith('/api/miniapps/text-edit/monaco/')) return;
+    if (requestPath.startsWith('/api/miniapps/text-edit/monaco/')) return;
 
     // Skip auth for static file requests (non-API, non-WS, non-dtfs)
-    if (!req.url.startsWith('/api/') && !req.url.startsWith('/ws') && !req.url.startsWith('/@dtfs'))
+    if (
+      !requestPath.startsWith('/api/') &&
+      !requestPath.startsWith('/ws') &&
+      !requestPath.startsWith('/@dtfs')
+    )
       return;
 
     const token = req.cookies[COOKIE_NAME];

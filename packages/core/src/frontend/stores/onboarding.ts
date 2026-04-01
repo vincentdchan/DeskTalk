@@ -11,6 +11,9 @@
 
 import { create } from 'zustand';
 import { getErrorMessage, httpClient } from '../http-client';
+import { DEFAULT_THEME_PREFERENCES } from '../theme';
+
+const DEFAULT_LANGUAGE = 'en';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -93,6 +96,8 @@ export interface OnboardingState {
   stepIndex: number;
 
   // Account
+  language: string;
+  accentColor: string;
   username: string;
   displayName: string;
   password: string;
@@ -113,6 +118,8 @@ export interface OnboardingState {
   goBack: () => void;
 
   // Actions — field setters
+  setLanguage: (value: string) => void;
+  setAccentColor: (value: string) => void;
   setUsername: (value: string) => void;
   setDisplayName: (value: string) => void;
   setPassword: (value: string) => void;
@@ -143,6 +150,8 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
   stepIndex: 0,
 
   // Account
+  language: DEFAULT_LANGUAGE,
+  accentColor: DEFAULT_THEME_PREFERENCES.accentColor,
   username: '',
   displayName: '',
   password: '',
@@ -178,6 +187,8 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
 
   // ─── Field Setters ───────────────────────────────────────────────────
 
+  setLanguage: (value) => set({ language: value }),
+  setAccentColor: (value) => set({ accentColor: value }),
   setUsername: (value) => set({ username: value }),
   setDisplayName: (value) => set({ displayName: value }),
   setPassword: (value) => set({ password: value }),
@@ -247,23 +258,29 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
     const { username, displayName, password, confirmPassword } = get();
 
     if (!username.trim()) {
-      set({ error: 'Username is required.' });
+      set({ error: $localize`onboard.account.errors.usernameRequired:Username is required.` });
       return false;
     }
     if (!/^[a-zA-Z0-9_-]{1,32}$/.test(username)) {
-      set({ error: 'Username must be 1-32 alphanumeric characters, hyphens, or underscores.' });
+      set({
+        error: $localize`onboard.account.errors.usernameInvalid:Username must be 1-32 alphanumeric characters, hyphens, or underscores.`,
+      });
       return false;
     }
     if (!displayName.trim()) {
-      set({ error: 'Display name is required.' });
+      set({
+        error: $localize`onboard.account.errors.displayNameRequired:Display name is required.`,
+      });
       return false;
     }
     if (password.length < 8) {
-      set({ error: 'Password must be at least 8 characters.' });
+      set({
+        error: $localize`onboard.account.errors.passwordShort:Password must be at least 8 characters.`,
+      });
       return false;
     }
     if (password !== confirmPassword) {
-      set({ error: 'Passwords do not match.' });
+      set({ error: $localize`onboard.account.errors.passwordMismatch:Passwords do not match.` });
       return false;
     }
     return true;
@@ -272,12 +289,15 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
   // ─── Submission ──────────────────────────────────────────────────────
 
   async submit(onComplete) {
-    const { username, displayName, password, aiProviders, voiceProviders } = get();
+    const { username, displayName, password, language, accentColor, aiProviders, voiceProviders } =
+      get();
 
     set({ error: '', loading: true });
 
     try {
       const payload: Record<string, unknown> = {
+        language: language.trim() || DEFAULT_LANGUAGE,
+        accentColor: accentColor.trim() || DEFAULT_THEME_PREFERENCES.accentColor,
         username: username.trim(),
         displayName: displayName.trim(),
         password,

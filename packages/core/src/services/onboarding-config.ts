@@ -50,8 +50,10 @@ export function saveOnboardingConfig(
   username: string,
   aiConfig?: AiOnboardingConfig,
   voiceConfig?: VoiceOnboardingConfig,
+  language?: string,
+  accentColor?: string,
 ): void {
-  if (!aiConfig && !voiceConfig) return;
+  if (!aiConfig && !voiceConfig && !language && !accentColor) return;
 
   const storagePath = join(getUserHomeDir(username), '.storage', 'preference.json');
 
@@ -66,6 +68,16 @@ export function saveOnboardingConfig(
   }
 
   const config: Record<string, PreferenceValue> = store.config ?? {};
+
+  const normalizedLanguage = language?.trim();
+  if (normalizedLanguage) {
+    config['general.language'] = normalizedLanguage;
+  }
+
+  const normalizedAccentColor = accentColor?.trim();
+  if (normalizedAccentColor) {
+    config['general.accentColor'] = normalizedAccentColor;
+  }
 
   if (aiConfig) {
     const enabledProviders = aiConfig.providers.map((provider) => provider.provider).join(',');

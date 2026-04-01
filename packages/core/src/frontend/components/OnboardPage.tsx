@@ -1,11 +1,24 @@
+import { useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { DEFAULT_THEME_PREFERENCES } from '../theme';
 import styles from './OnboardPage.module.scss';
 import { useOnboarding, ONBOARD_STEPS, type OnboardStep } from '../stores/onboarding';
 import { Modal } from './Modal';
 
 export interface OnboardPageProps {
   onComplete: () => void;
+  locale: string;
+  accentColor: string;
+  onLanguageChange: (locale: string) => Promise<void>;
+  onAccentColorChange: (accentColor: string) => void;
 }
+
+const DEFAULT_LANGUAGE = 'en';
+
+const LANGUAGE_OPTIONS = [
+  { value: 'en', label: 'English' },
+  { value: 'zh', label: '简体中文' },
+];
 
 /** AI providers shown during onboarding. */
 const AI_PROVIDERS = [
@@ -40,8 +53,44 @@ const STT_PROVIDERS = [
   },
 ] as const;
 
-export function OnboardPage({ onComplete }: OnboardPageProps) {
+function isHexColor(value: string): boolean {
+  return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value);
+}
+
+export function OnboardPage({
+  onComplete,
+  locale,
+  accentColor,
+  onLanguageChange,
+  onAccentColorChange,
+}: OnboardPageProps) {
   const store = useOnboarding();
+  const backLabel = $localize`onboard.common.back:Back`;
+  const nextLabel = $localize`onboard.common.next:Next`;
+  const skipLabel = $localize`onboard.common.skip:Skip`;
+  const defaultBadgeLabel = $localize`onboard.common.default:Default`;
+  const setDefaultLabel = $localize`onboard.common.setDefault:Set as default`;
+  const deleteLabel = $localize`onboard.common.delete:Delete`;
+  const providerLabel = $localize`onboard.common.provider:Provider`;
+  const apiKeyLabel = $localize`onboard.common.apiKey:API Key`;
+  const addProviderLabel = $localize`onboard.common.addProvider:Add provider`;
+  const modelOptionalLabel = $localize`onboard.common.modelOptional:Model (optional)`;
+  const baseUrlOptionalLabel = $localize`onboard.common.baseUrlOptional:Base URL (optional)`;
+
+  useEffect(() => {
+    if (store.language === DEFAULT_LANGUAGE && locale !== store.language) {
+      store.setLanguage(locale);
+    }
+  }, [locale, store]);
+
+  useEffect(() => {
+    if (
+      store.accentColor === DEFAULT_THEME_PREFERENCES.accentColor &&
+      accentColor !== store.accentColor
+    ) {
+      store.setAccentColor(accentColor);
+    }
+  }, [accentColor, store]);
 
   function renderStepDots() {
     return (
@@ -57,23 +106,74 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
   }
 
   function renderWelcome() {
+    const pickerValue = isHexColor(store.accentColor)
+      ? store.accentColor
+      : DEFAULT_THEME_PREFERENCES.accentColor;
+
     return (
       <>
         <div className={styles.header}>
-          <h1 className={styles.title}>Welcome to DeskTalk</h1>
-          <p className={styles.subtitle}>Let&apos;s create your admin account</p>
+          <h1 className={styles.title}>{$localize`onboard.welcome.title:Welcome to DeskTalk`}</h1>
+          <p className={styles.subtitle}>
+            {$localize`onboard.welcome.subtitle:Choose your language and accent before creating your admin account`}
+          </p>
         </div>
         <div className={styles.body}>
           <p className={styles.welcomeText}>
-            DeskTalk is a browser-based desktop environment with an AI assistant and modular
-            MiniApps. Since this is the first time running DeskTalk, you&apos;ll need to create an
-            administrator account.
+            {$localize`onboard.welcome.body:DeskTalk is a browser-based desktop environment with an AI assistant and modular MiniApps. Since this is the first time running DeskTalk, you'll need to create an administrator account.`}
           </p>
+          <div className={styles.welcomeOptions}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="onboard-language">
+                {$localize`onboard.welcome.languageLabel:Language`}
+              </label>
+              <OnboardSelect
+                id="onboard-language"
+                value={store.language}
+                options={LANGUAGE_OPTIONS}
+                onChange={async (nextValue) => {
+                  store.setLanguage(nextValue);
+                  await onLanguageChange(nextValue);
+                }}
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="onboard-accent-color-text">
+                {$localize`onboard.welcome.accentColorLabel:Accent Color`}
+              </label>
+              <div className={styles.colorControl}>
+                <input
+                  id="onboard-accent-color"
+                  type="color"
+                  className={styles.colorInput}
+                  value={pickerValue}
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    store.setAccentColor(nextValue);
+                    onAccentColorChange(nextValue);
+                  }}
+                  aria-label={$localize`onboard.welcome.accentColorPicker:Accent color picker`}
+                />
+                <input
+                  id="onboard-accent-color-text"
+                  className={styles.input}
+                  type="text"
+                  value={store.accentColor}
+                  placeholder={DEFAULT_THEME_PREFERENCES.accentColor}
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    store.setAccentColor(nextValue);
+                    onAccentColorChange(nextValue);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
         </div>
         <div className={styles.footer}>
           <span />
           <dt-button variant="primary" onClick={store.goNext}>
-            Get Started
+            {$localize`onboard.welcome.getStarted:Get Started`}
           </dt-button>
         </div>
       </>
@@ -84,19 +184,21 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
     return (
       <>
         <div className={styles.header}>
-          <h1 className={styles.title}>Create Admin Account</h1>
-          <p className={styles.subtitle}>Choose your credentials</p>
+          <h1 className={styles.title}>{$localize`onboard.account.title:Create Admin Account`}</h1>
+          <p className={styles.subtitle}>
+            {$localize`onboard.account.subtitle:Choose your credentials`}
+          </p>
         </div>
         <div className={styles.body}>
           <div className={styles.field}>
             <label className={styles.label} htmlFor="onboard-username">
-              Username
+              {$localize`onboard.account.username:Username`}
             </label>
             <input
               id="onboard-username"
               className={styles.input}
               type="text"
-              placeholder="e.g. admin"
+              placeholder={$localize`onboard.account.usernamePlaceholder:e.g. admin`}
               autoComplete="username"
               value={store.username}
               onChange={(e) => store.setUsername(e.target.value)}
@@ -104,13 +206,13 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
           </div>
           <div className={styles.field}>
             <label className={styles.label} htmlFor="onboard-displayname">
-              Display Name
+              {$localize`onboard.account.displayName:Display Name`}
             </label>
             <input
               id="onboard-displayname"
               className={styles.input}
               type="text"
-              placeholder="Your display name"
+              placeholder={$localize`onboard.account.displayNamePlaceholder:Your display name`}
               autoComplete="name"
               value={store.displayName}
               onChange={(e) => store.setDisplayName(e.target.value)}
@@ -118,13 +220,13 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
           </div>
           <div className={styles.field}>
             <label className={styles.label} htmlFor="onboard-password">
-              Password
+              {$localize`onboard.account.password:Password`}
             </label>
             <input
               id="onboard-password"
               className={styles.input}
               type="password"
-              placeholder="At least 8 characters"
+              placeholder={$localize`onboard.account.passwordPlaceholder:At least 8 characters`}
               autoComplete="new-password"
               value={store.password}
               onChange={(e) => store.setPassword(e.target.value)}
@@ -132,13 +234,13 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
           </div>
           <div className={styles.field}>
             <label className={styles.label} htmlFor="onboard-confirm">
-              Confirm Password
+              {$localize`onboard.account.confirmPassword:Confirm Password`}
             </label>
             <input
               id="onboard-confirm"
               className={styles.input}
               type="password"
-              placeholder="Re-enter your password"
+              placeholder={$localize`onboard.account.confirmPasswordPlaceholder:Re-enter your password`}
               autoComplete="new-password"
               value={store.confirmPassword}
               onChange={(e) => store.setConfirmPassword(e.target.value)}
@@ -148,7 +250,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
         </div>
         <div className={styles.footer}>
           <dt-button variant="secondary" onClick={store.goBack}>
-            Back
+            {backLabel}
           </dt-button>
           <dt-button
             variant="primary"
@@ -159,7 +261,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
               !store.username || !store.displayName || !store.password || !store.confirmPassword
             }
           >
-            Next
+            {nextLabel}
           </dt-button>
         </div>
       </>
@@ -170,13 +272,14 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
     return (
       <>
         <div className={styles.header}>
-          <h1 className={styles.title}>AI Configuration</h1>
-          <p className={styles.subtitle}>Configure your AI provider (optional)</p>
+          <h1 className={styles.title}>{$localize`onboard.ai.title:AI Configuration`}</h1>
+          <p className={styles.subtitle}>
+            {$localize`onboard.ai.subtitle:Configure your AI provider (optional)`}
+          </p>
         </div>
         <div className={styles.body}>
           <p className={styles.hintText}>
-            Set up an AI provider so DeskTalk&apos;s assistant is ready to use. You can change these
-            settings later in Preferences.
+            {$localize`onboard.ai.body:Set up an AI provider so DeskTalk's assistant is ready to use. You can change these settings later in Preferences.`}
           </p>
           <div className={styles.providerList}>
             {store.aiProviders.map((item, index) => {
@@ -200,7 +303,9 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                           <div className={styles.providerCardTitle}>
                             {selectedProvider?.label ?? item.provider}
                           </div>
-                          {index === 0 && <dt-badge variant="default">Default</dt-badge>}
+                          {index === 0 && (
+                            <dt-badge variant="default">{defaultBadgeLabel}</dt-badge>
+                          )}
                         </div>
                         <div className={styles.providerCardActions}>
                           <dt-button
@@ -209,7 +314,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                             variant="secondary"
                             size="sm"
                           >
-                            Set as default
+                            {setDefaultLabel}
                           </dt-button>
                           <dt-button
                             onClick={() => store.removeAiProvider(item.provider)}
@@ -217,7 +322,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                             variant="danger"
                             size="sm"
                           >
-                            Delete
+                            {deleteLabel}
                           </dt-button>
                         </div>
                       </div>
@@ -228,7 +333,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                             className={styles.label}
                             htmlFor={`onboard-ai-provider-${item.provider}`}
                           >
-                            Provider
+                            {providerLabel}
                           </label>
                           <OnboardSelect
                             id={`onboard-ai-provider-${item.provider}`}
@@ -247,13 +352,13 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                             className={styles.label}
                             htmlFor={`onboard-ai-apikey-${item.provider}`}
                           >
-                            API Key
+                            {apiKeyLabel}
                           </label>
                           <input
                             id={`onboard-ai-apikey-${item.provider}`}
                             className={styles.input}
                             type="password"
-                            placeholder="Enter your API key"
+                            placeholder={$localize`onboard.ai.apiKeyPlaceholder:Enter your API key`}
                             autoComplete="off"
                             value={item.apiKey}
                             onChange={(e) =>
@@ -266,13 +371,13 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                             className={styles.label}
                             htmlFor={`onboard-ai-model-${item.provider}`}
                           >
-                            Model (optional)
+                            {modelOptionalLabel}
                           </label>
                           <input
                             id={`onboard-ai-model-${item.provider}`}
                             className={styles.input}
                             type="text"
-                            placeholder="e.g. gpt-4o"
+                            placeholder={$localize`onboard.ai.modelPlaceholder:e.g. gpt-4o`}
                             value={item.model}
                             onChange={(e) =>
                               store.updateAiProvider(item.provider, 'model', e.target.value)
@@ -285,13 +390,13 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                               className={styles.label}
                               htmlFor={`onboard-ai-baseurl-${item.provider}`}
                             >
-                              Base URL (optional)
+                              {baseUrlOptionalLabel}
                             </label>
                             <input
                               id={`onboard-ai-baseurl-${item.provider}`}
                               className={styles.input}
                               type="text"
-                              placeholder="Custom API endpoint"
+                              placeholder={$localize`onboard.ai.baseUrlPlaceholder:Custom API endpoint`}
                               value={item.baseUrl}
                               onChange={(e) =>
                                 store.updateAiProvider(item.provider, 'baseUrl', e.target.value)
@@ -322,20 +427,20 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
               disabled={store.aiProviders.length >= AI_PROVIDERS.length}
               variant="secondary"
             >
-              Add provider
+              {addProviderLabel}
             </dt-button>
           </div>
         </div>
         <div className={styles.footer}>
           <dt-button variant="secondary" onClick={store.goBack}>
-            Back
+            {backLabel}
           </dt-button>
           <div className={styles.footerActions}>
             <dt-button variant="ghost" onClick={store.goNext}>
-              Skip
+              {skipLabel}
             </dt-button>
             <dt-button variant="primary" onClick={store.goNext}>
-              Next
+              {nextLabel}
             </dt-button>
           </div>
         </div>
@@ -347,13 +452,14 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
     return (
       <>
         <div className={styles.header}>
-          <h1 className={styles.title}>Voice Configuration</h1>
-          <p className={styles.subtitle}>Configure speech-to-text (optional)</p>
+          <h1 className={styles.title}>{$localize`onboard.voice.title:Voice Configuration`}</h1>
+          <p className={styles.subtitle}>
+            {$localize`onboard.voice.subtitle:Configure speech-to-text (optional)`}
+          </p>
         </div>
         <div className={styles.body}>
           <p className={styles.hintText}>
-            Set up a speech-to-text provider for voice input. You can change these settings later in
-            Preferences.
+            {$localize`onboard.voice.body:Set up a speech-to-text provider for voice input. You can change these settings later in Preferences.`}
           </p>
           <div className={styles.providerList}>
             {store.voiceProviders.map((item, index) => {
@@ -377,7 +483,9 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                           <div className={styles.providerCardTitle}>
                             {selectedProvider?.label ?? item.provider}
                           </div>
-                          {index === 0 && <dt-badge variant="default">Default</dt-badge>}
+                          {index === 0 && (
+                            <dt-badge variant="default">{defaultBadgeLabel}</dt-badge>
+                          )}
                         </div>
                         <div className={styles.providerCardActions}>
                           <dt-button
@@ -386,7 +494,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                             variant="secondary"
                             size="sm"
                           >
-                            Set as default
+                            {setDefaultLabel}
                           </dt-button>
                           <dt-button
                             onClick={() => store.removeVoiceProvider(item.provider)}
@@ -394,14 +502,16 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                             variant="danger"
                             size="sm"
                           >
-                            Delete
+                            {deleteLabel}
                           </dt-button>
                         </div>
                       </div>
 
                       <div className={styles.providerFieldGrid}>
                         <div className={styles.field}>
-                          <label className={styles.label}>STT Provider</label>
+                          <label className={styles.label}>
+                            {$localize`onboard.voice.provider:STT Provider`}
+                          </label>
                           <OnboardSelect
                             value={item.provider}
                             options={availableProviders.map((provider) => ({
@@ -418,13 +528,13 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                             className={styles.label}
                             htmlFor={`onboard-stt-apikey-${item.provider}`}
                           >
-                            API Key
+                            {apiKeyLabel}
                           </label>
                           <input
                             id={`onboard-stt-apikey-${item.provider}`}
                             className={styles.input}
                             type="password"
-                            placeholder="Enter your STT API key"
+                            placeholder={$localize`onboard.voice.apiKeyPlaceholder:Enter your STT API key`}
                             autoComplete="off"
                             value={item.apiKey}
                             onChange={(e) =>
@@ -438,7 +548,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                               className={styles.label}
                               htmlFor={`onboard-stt-model-${item.provider}`}
                             >
-                              Model
+                              {$localize`onboard.voice.model:Model`}
                             </label>
                             <input
                               id={`onboard-stt-model-${item.provider}`}
@@ -457,7 +567,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                               className={styles.label}
                               htmlFor={`onboard-stt-baseurl-${item.provider}`}
                             >
-                              Base URL
+                              {$localize`onboard.voice.baseUrl:Base URL`}
                             </label>
                             <input
                               id={`onboard-stt-baseurl-${item.provider}`}
@@ -476,7 +586,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                               className={styles.label}
                               htmlFor={`onboard-stt-deployment-${item.provider}`}
                             >
-                              Azure Deployment
+                              {$localize`onboard.voice.azureDeployment:Azure Deployment`}
                             </label>
                             <input
                               id={`onboard-stt-deployment-${item.provider}`}
@@ -499,7 +609,7 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
                               className={styles.label}
                               htmlFor={`onboard-stt-api-version-${item.provider}`}
                             >
-                              Azure API Version
+                              {$localize`onboard.voice.azureApiVersion:Azure API Version`}
                             </label>
                             <input
                               id={`onboard-stt-api-version-${item.provider}`}
@@ -539,20 +649,20 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
               disabled={store.voiceProviders.length >= STT_PROVIDERS.length}
               variant="secondary"
             >
-              Add provider
+              {addProviderLabel}
             </dt-button>
           </div>
         </div>
         <div className={styles.footer}>
           <dt-button variant="secondary" onClick={store.goBack}>
-            Back
+            {backLabel}
           </dt-button>
           <div className={styles.footerActions}>
             <dt-button variant="ghost" onClick={store.goNext}>
-              Skip
+              {skipLabel}
             </dt-button>
             <dt-button variant="primary" onClick={store.goNext}>
-              Next
+              {nextLabel}
             </dt-button>
           </div>
         </div>
@@ -561,29 +671,34 @@ export function OnboardPage({ onComplete }: OnboardPageProps) {
   }
 
   function renderDone() {
+    const displayUserName = store.displayName || store.username;
+
     return (
       <>
         <div className={styles.header}>
-          <h1 className={styles.title}>All Set!</h1>
-          <p className={styles.subtitle}>Your admin account is ready</p>
+          <h1 className={styles.title}>{$localize`onboard.done.title:All Set!`}</h1>
+          <p className={styles.subtitle}>
+            {$localize`onboard.done.subtitle:Your admin account is ready`}
+          </p>
         </div>
         <div className={styles.body}>
           <p className={styles.doneText}>
-            Welcome, {store.displayName || store.username}. Click below to enter your DeskTalk
-            desktop.
+            {$localize`onboard.done.body:Welcome, ${displayUserName}. Click below to enter your DeskTalk desktop.`}
           </p>
           <div className={styles.error}>{store.error}</div>
         </div>
         <div className={styles.footer}>
           <dt-button variant="secondary" onClick={store.goBack}>
-            Back
+            {backLabel}
           </dt-button>
           <dt-button
             variant="primary"
             onClick={() => store.submit(onComplete)}
             disabled={store.loading}
           >
-            {store.loading ? 'Setting up...' : 'Enter Desktop'}
+            {store.loading
+              ? $localize`onboard.done.loading:Setting up...`
+              : $localize`onboard.done.enter:Enter Desktop`}
           </dt-button>
         </div>
       </>
