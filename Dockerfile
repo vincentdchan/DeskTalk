@@ -1,5 +1,7 @@
 FROM node:22-bookworm AS builder
 
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
 
 WORKDIR /app
@@ -25,6 +27,8 @@ RUN pnpm build
 
 
 FROM node:22-bookworm-slim AS production
+
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
 
