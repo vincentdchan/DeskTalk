@@ -105,6 +105,34 @@
   color: var(--dt-text);
 }
 
+.milkdown .ProseMirror.editor {
+  padding: 0px 54px;
+}
+
+.milkdown .ProseMirror.editor h1 {
+  font-size: 36px;
+}
+
+.milkdown .ProseMirror.editor h2 {
+  font-size: 30px;
+}
+
+.milkdown .ProseMirror.editor h3 {
+  font-size: 24px;
+}
+
+.milkdown .ProseMirror.editor h4 {
+  font-size: 20px;
+}
+
+.milkdown .ProseMirror.editor h5 {
+  font-size: 16px;
+}
+
+.milkdown .ProseMirror.editor h6 {
+  font-size: 16px;
+}
+
 .milkdown .editor {
   min-height: 100%;
   padding: 16px 18px 20px;
