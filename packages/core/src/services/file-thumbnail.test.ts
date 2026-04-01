@@ -299,7 +299,14 @@ describe('file-thumbnail', () => {
       const result = await getThumbnailOrOriginal(textPath, cacheDir, 64);
 
       expect(result.contentType).toBe('application/octet-stream');
-      expect(typeof (result.data as NodeJS.ReadableStream).pipe).toBe('function'); // It's a stream
+      const stream = result.data as NodeJS.ReadableStream;
+      expect(typeof stream.pipe).toBe('function');
+
+      await new Promise<void>((resolve, reject) => {
+        stream.on('error', reject);
+        stream.on('end', resolve);
+        stream.resume();
+      });
     });
   });
 });
