@@ -40,10 +40,11 @@ The breadcrumb root `~` represents the user's home directory (`<data>/home/<user
 
 Note: The Actions Bar is a global element managed by the core shell (see `docs/spec.md`). MiniApps register their actions via `<ActionsProvider>`, but the bar itself is not part of the MiniApp window.
 
-| Element    | Description                                                                                                  |
-| ---------- | ------------------------------------------------------------------------------------------------------------ |
-| Navigation | Back/forward buttons and a breadcrumb path bar. The root `~` represents the user's home directory.           |
-| File List  | Table of directory contents with name, size, and last-modified columns. Sortable by clicking column headers. |
+| Element    | Description                                                                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Navigation | Back/forward buttons and a breadcrumb path bar. The root `~` represents the user's home directory. Includes a view mode toggle (list/icon). |
+| File List  | Table of directory contents with name, size, and last-modified columns. Sortable by clicking column headers.                                |
+| File Grid  | Icon/grid view showing thumbnails for images and icons for other files. Toggle with the view mode button.                                   |
 
 ### Interactions
 
@@ -82,8 +83,18 @@ The `Open with` context menu entry lets the user choose a MiniApp manually, over
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `FileBreadcrumb` | Displays the current path as clickable breadcrumb segments. The root segment shows `~` to represent the user's home directory. |
 | `FileList`       | Table of files and directories with sorting.                                                                                   |
+| `FileGrid`       | Icon/grid view showing thumbnails for images and icons for other files.                                                        |
 | `FilePreview`    | Displays file content or metadata.                                                                                             |
 | `FileActions`    | Provides actions via `<ActionsProvider>`.                                                                                      |
+
+### View Modes
+
+The File Explorer supports two view modes:
+
+- **List view**: Table layout with columns for name, size, and modification date. Supports sorting by clicking column headers.
+- **Icon view**: Grid layout showing thumbnails for images and large icons for other files and directories.
+
+Users can toggle between view modes using the buttons in the navigation bar (☰ for list, ⊞ for icons). The view mode preference is persisted to `ctx.storage` (`<data>/home/<username>/.storage/file-explorer.json`) and restored on the next session.
 
 ## Actions (AI-invokable)
 
@@ -115,6 +126,33 @@ The file explorer operates within the authenticated user's home directory (`<dat
 | `files.delete` | `{ path: string }`                                                | `void`                                  | Delete a file or directory. |
 | `files.move`   | `{ source: string, destination: string }`                         | `FileEntry`                             | Move a file or directory.   |
 | `files.copy`   | `{ source: string, destination: string }`                         | `FileEntry`                             | Copy a file or directory.   |
+| `prefs.get`    | `void`                                                            | `{ viewMode: 'list' \| 'icon' }`        | Get view mode preference.   |
+| `prefs.set`    | `{ viewMode: 'list' \| 'icon' }`                                  | `void`                                  | Set view mode preference.   |
+
+### Thumbnail API
+
+Image thumbnails for the icon view are served via an HTTP endpoint:
+
+```
+GET /api/files/thumbnail?path=<relative-path>&size=<64|96|128>
+```
+
+**Query Parameters:**
+
+- `path` (required): Relative path to the image file within the user's home directory.
+- `size` (optional): Thumbnail size in pixels. Supported: 64, 96, 128. Default: 96.
+
+**Response:**
+
+- Success: `200 OK` with `image/png` body
+- Error: `400` (invalid path), `403` (access denied), `404` (not found or not an image), `500` (thumbnail generation failed)
+
+**Features:**
+
+- Thumbnails are generated on-demand using `sharp` and cached to disk at `<data>/home/<username>/.cache/file-explorer/thumbs/<hash>_<size>.png`.
+- Cache is invalidated automatically when the source file's modification time changes.
+- Supported image formats: PNG, JPEG, WebP, GIF, BMP.
+- Returns appropriate `Cache-Control` headers for browser caching.
 
 ### Data Model
 

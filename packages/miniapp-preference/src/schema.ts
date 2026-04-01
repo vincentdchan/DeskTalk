@@ -413,7 +413,7 @@ export const PREFERENCE_SCHEMAS: PreferenceSchema[] = [
     description: 'UI language/locale.',
     type: 'string',
     default: 'en',
-    options: ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de'],
+    options: ['en', 'zh'],
     category: 'General',
   },
   {

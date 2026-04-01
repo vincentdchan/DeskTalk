@@ -334,6 +334,27 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
     },
   );
 
+  // ─── Preferences ─────────────────────────────────────────────────────────
+
+  interface Preferences {
+    viewMode: 'list' | 'icon';
+  }
+
+  const DEFAULT_PREFERENCES: Preferences = {
+    viewMode: 'list',
+  };
+
+  ctx.messaging.onCommand<void, Preferences>('prefs.get', async () => {
+    const stored = await ctx.storage.get<Partial<Preferences>>('prefs');
+    return { ...DEFAULT_PREFERENCES, ...stored };
+  });
+
+  ctx.messaging.onCommand<Preferences, void>('prefs.set', async (req) => {
+    const stored = await ctx.storage.get<Partial<Preferences>>('prefs');
+    await ctx.storage.set('prefs', { ...stored, ...req });
+    ctx.logger.info('Preferences saved');
+  });
+
   // ─── Recursive helpers ───────────────────────────────────────────────────
 
   async function copyRecursive(source: string, destination: string): Promise<void> {

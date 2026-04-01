@@ -6,6 +6,14 @@
   color: color-mix(in oklab, var(--dt-text) 85%, var(--dt-text-secondary));
 }
 
+.messageCompact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  overflow: hidden;
+}
+
 .messageUser {
   composes: message;
   background: color-mix(in oklab, var(--dt-accent) 8%, var(--dt-bg));
@@ -48,6 +56,14 @@
   font-weight: 700;
   font-size: 12px;
   letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.compactMessageText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .messageUser .messageSpeaker {

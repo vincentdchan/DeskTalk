@@ -14,6 +14,7 @@ export interface CommandInputProps {
   onVoiceToggle: () => void;
   modelLabel: string;
   wsReady: boolean;
+  compact?: boolean;
 }
 
 const MAX_TEXTAREA_HEIGHT = 200;
@@ -27,6 +28,7 @@ export function CommandInput({
   onVoiceToggle,
   modelLabel,
   wsReady,
+  compact = false,
 }: CommandInputProps) {
   const value = useChatSession((state) => state.draftInput);
   const setDraftInput = useChatSession((state) => state.setDraftInput);
@@ -161,7 +163,7 @@ export function CommandInput({
   }, [value]);
 
   return (
-    <div className={styles.controlFrame}>
+    <div className={`${styles.controlFrame} ${compact ? styles.controlFrameCompact : ''}`}>
       {showSuggestions && (
         <ul className={styles.slashMenu} role="listbox">
           {suggestions.map((cmd, i) => (
@@ -182,10 +184,10 @@ export function CommandInput({
           ))}
         </ul>
       )}
-      <div className={styles.inputRow}>
+      <div className={`${styles.inputRow} ${compact ? styles.inputRowCompact : ''}`}>
         <textarea
           ref={textareaRef}
-          className={styles.input}
+          className={`${styles.input} ${compact ? styles.inputCompact : ''}`}
           value={value}
           onChange={(e) => setDraftInput(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -203,17 +205,19 @@ export function CommandInput({
         />
         <dt-tooltip content={isVoiceActive ? 'Stop voice input' : 'Start voice input'}>
           <button
-            className={`${styles.voiceButton} ${isVoiceActive ? styles.voiceButtonActive : ''}`}
+            className={`${styles.voiceButton} ${compact ? styles.voiceButtonCompact : ''} ${isVoiceActive ? styles.voiceButtonActive : ''}`}
             onClick={onVoiceToggle}
           >
             <MicIcon />
           </button>
         </dt-tooltip>
       </div>
-      <div className={styles.statusRow}>
-        <span className={styles.statusItem}>{wsReady ? modelLabel : 'offline'}</span>
-        {queuedCount > 0 && <span className={styles.statusItem}>{queuedCount} queued</span>}
-      </div>
+      {!compact && (
+        <div className={styles.statusRow}>
+          <span className={styles.statusItem}>{wsReady ? modelLabel : 'offline'}</span>
+          {queuedCount > 0 && <span className={styles.statusItem}>{queuedCount} queued</span>}
+        </div>
+      )}
     </div>
   );
 }

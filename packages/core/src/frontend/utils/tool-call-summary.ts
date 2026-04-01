@@ -1,5 +1,31 @@
 import { simplifyPath } from '@desktalk/sdk';
 
+function getLayoutToolCallSummary(params: Record<string, unknown>): string {
+  const action = typeof params.action === 'string' ? params.action : null;
+  const direction = typeof params.direction === 'string' ? params.direction : null;
+  const delta = typeof params.delta === 'number' ? params.delta : null;
+  const mode = typeof params.mode === 'string' ? params.mode : null;
+
+  if (action === 'focus_direction') {
+    return direction ? `Focus ${direction}` : 'Focus direction';
+  }
+  if (action === 'swap') {
+    return direction ? `Swap ${direction}` : 'Swap window';
+  }
+  if (action === 'resize') {
+    return delta !== null
+      ? `Resize focused split ${delta > 0 ? '+' : ''}${delta}`
+      : 'Resize focused split';
+  }
+  if (action === 'rotate') return 'Rotate focused split';
+  if (action === 'equalize') return 'Equalize focused split';
+  if (action === 'split_mode') {
+    return mode ? `Set split mode ${mode}` : 'Set split mode';
+  }
+
+  return action ? `Layout ${action}` : 'Layout';
+}
+
 function getToolCallSummary(toolName: string, params: Record<string, unknown>): string {
   const name = toolName.toLowerCase();
   const filePath =
@@ -27,6 +53,10 @@ function getToolCallSummary(toolName: string, params: Record<string, unknown>): 
     if (action === 'maximize') return windowId ? `Maximize window ${windowId}` : 'Maximize window';
     if (action === 'close') return windowId ? `Close window ${windowId}` : 'Close window';
     return action ? `Desktop ${action}` : 'Desktop';
+  }
+
+  if (name === 'layout') {
+    return getLayoutToolCallSummary(params);
   }
 
   // action — invoke MiniApp action
@@ -188,4 +218,4 @@ function simplifyToolCallMarkdown(content: string): string {
     .trim();
 }
 
-export { extractToolCall, getToolCallSummary, simplifyToolCallMarkdown };
+export { extractToolCall, getLayoutToolCallSummary, getToolCallSummary, simplifyToolCallMarkdown };

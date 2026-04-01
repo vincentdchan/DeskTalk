@@ -152,6 +152,8 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       username: string;
       displayName: string;
       password: string;
+      language?: string;
+      accentColor?: string;
       aiConfig?: {
         defaultProvider: string;
         providers: Array<{
@@ -180,7 +182,8 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       return { error: 'System is already set up. An admin account exists.' };
     }
 
-    const { username, displayName, password, aiConfig, voiceConfig } = req.body ?? {};
+    const { username, displayName, password, language, accentColor, aiConfig, voiceConfig } =
+      req.body ?? {};
 
     if (!username || !displayName || !password) {
       reply.code(400);
@@ -207,7 +210,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     ensureUserHome(username);
 
     // Persist optional provider configuration from onboarding
-    saveOnboardingConfig(username, aiConfig, voiceConfig);
+    saveOnboardingConfig(username, aiConfig, voiceConfig, language, accentColor);
 
     // Automatically log the admin in
     const token = createSession(username);

@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -59,6 +60,9 @@ describe('backend helpers', () => {
     await expect(
       loadStreamedHtml(homeDir, 'stream-7', 'Dashboard Demo', previewDataDir),
     ).resolves.toEqual(snapshot);
+    expect(existsSync(join(homeDir, '.data', 'liveapps', 'dashboard-demo_stream-7', '.git'))).toBe(
+      true,
+    );
   });
 
   it('strips injected DeskTalk runtime tags before saving', async () => {

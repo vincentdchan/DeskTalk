@@ -64,6 +64,36 @@ describe('getToolCallSummary', () => {
     );
   });
 
+  it('formats layout focus_direction action', () => {
+    expect(getToolCallSummary('layout', { action: 'focus_direction', direction: 'left' })).toBe(
+      'Focus left',
+    );
+  });
+
+  it('formats layout swap action', () => {
+    expect(getToolCallSummary('layout', { action: 'swap', direction: 'right' })).toBe('Swap right');
+  });
+
+  it('formats layout resize action', () => {
+    expect(getToolCallSummary('layout', { action: 'resize', delta: 0.1 })).toBe(
+      'Resize focused split +0.1',
+    );
+  });
+
+  it('formats layout rotate action', () => {
+    expect(getToolCallSummary('layout', { action: 'rotate' })).toBe('Rotate focused split');
+  });
+
+  it('formats layout equalize action', () => {
+    expect(getToolCallSummary('layout', { action: 'equalize' })).toBe('Equalize focused split');
+  });
+
+  it('formats layout split_mode action', () => {
+    expect(getToolCallSummary('layout', { action: 'split_mode', mode: 'vertical' })).toBe(
+      'Set split mode vertical',
+    );
+  });
+
   it('formats action tool calls', () => {
     expect(getToolCallSummary('action', { name: 'setTheme' })).toBe('Invoke setTheme');
   });
@@ -184,5 +214,14 @@ describe('simplifyToolCallMarkdown', () => {
     ].join('\n');
 
     expect(simplifyToolCallMarkdown(content)).toBe('- Edit <dt-home>/documents/index.html');
+  });
+
+  it('summarizes layout tool calls with action details', () => {
+    const content = [
+      'Called the layout tool with the following input: {"action":"resize","delta":0.1}',
+      '{"ok":true}',
+    ].join('\n');
+
+    expect(simplifyToolCallMarkdown(content)).toBe('- Resize focused split +0.1');
   });
 });

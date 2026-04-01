@@ -32,7 +32,7 @@ export function createUndoEditTool(options: UndoEditToolOptions): ToolDefinition
     async execute(_toolCallId, params) {
       const input = params as UndoEditParams;
       const absolutePath = resolvePath(input.path);
-      const restoredContent = editHistory.undo(absolutePath);
+      const restoredContent = await editHistory.undo(absolutePath);
       if (restoredContent === null) {
         throw new Error(`Nothing to undo for ${input.path}`);
       }

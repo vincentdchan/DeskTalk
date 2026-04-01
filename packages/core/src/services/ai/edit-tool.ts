@@ -121,7 +121,7 @@ export function createEditTool(options: EditToolOptions): ToolDefinition {
         input.newText +
         currentContent.slice(matchIndex + input.oldText.length);
 
-      editHistory.recordEdit(absolutePath, currentContent, nextContent);
+      await editHistory.recordEdit(absolutePath, currentContent, nextContent);
       writeFileSync(absolutePath, nextContent, 'utf-8');
 
       broadcastEvent('preview', 'preview.file-changed', {

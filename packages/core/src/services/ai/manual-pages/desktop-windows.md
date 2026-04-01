@@ -2,6 +2,8 @@
 
 Use the `desktop` tool for window-level operations.
 
+For tiling-layout changes like swapping panes, resizing splits, or rotating the current layout, use the `layout` tool instead.
+
 ## Actions
 
 - `action="list"` -> get all open windows, the focused window, and available MiniApps

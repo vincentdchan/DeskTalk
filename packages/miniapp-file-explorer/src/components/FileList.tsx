@@ -38,7 +38,7 @@ function formatDate(iso: string): string {
   return `${month} ${day}`;
 }
 
-function getFileIcon(entry: FileEntry): string {
+export function getFileIcon(entry: FileEntry): string {
   if (entry.type === 'directory') return '\uD83D\uDCC1';
 
   const ext = entry.name.includes('.')

@@ -9,6 +9,33 @@ import {
 import type { WindowSyncPayload } from '../stores/window-manager';
 import { httpClient } from '../http-client';
 
+const DIRECTIONS = new Set(['left', 'right', 'up', 'down']);
+const SPLIT_MODES = new Set(['horizontal', 'vertical', 'auto']);
+
+function requireDirection(args: Record<string, unknown> | undefined, action: string) {
+  const direction = args?.direction;
+  if (typeof direction !== 'string' || !DIRECTIONS.has(direction)) {
+    throw new Error(`direction is required for action="${action}"`);
+  }
+  return direction as 'left' | 'right' | 'up' | 'down';
+}
+
+function requireDelta(args: Record<string, unknown> | undefined) {
+  const delta = args?.delta;
+  if (typeof delta !== 'number' || Number.isNaN(delta)) {
+    throw new Error('delta is required for action="resize"');
+  }
+  return delta;
+}
+
+function requireSplitMode(args: Record<string, unknown> | undefined) {
+  const mode = args?.mode;
+  if (typeof mode !== 'string' || !SPLIT_MODES.has(mode)) {
+    throw new Error('mode is required for action="split_mode"');
+  }
+  return mode as 'horizontal' | 'vertical' | 'auto';
+}
+
 export function useWindowSync(socket: WebSocket | null): {
   actionHandlersRef: React.MutableRefObject<Map<string, Map<string, ActionHandler>>>;
   buildClientActions: (
@@ -91,8 +118,56 @@ export function useWindowSync(socket: WebSocket | null): {
               store.maximizeWindow(windowId);
             }
             break;
+          case 'focus_direction': {
+            const direction = requireDirection(args, action);
+            const previousFocusedWindowId = store.focusedWindowId;
+            store.focusDirection(direction);
+            if (useWindowManager.getState().focusedWindowId === previousFocusedWindowId) {
+              throw new Error('No window found in that direction.');
+            }
+            break;
+          }
+          case 'swap': {
+            const direction = requireDirection(args, action);
+            const previousTree = store.tree;
+            store.swapDirection(direction);
+            if (useWindowManager.getState().tree === previousTree) {
+              throw new Error('No neighboring window found to swap with.');
+            }
+            break;
+          }
+          case 'resize': {
+            const delta = requireDelta(args);
+            const previousTree = store.tree;
+            store.adjustFocusedRatio(delta);
+            if (useWindowManager.getState().tree === previousTree) {
+              throw new Error('Focused window has no adjustable parent split.');
+            }
+            break;
+          }
+          case 'rotate': {
+            const previousTree = store.tree;
+            store.rotateFocusedSplit();
+            if (useWindowManager.getState().tree === previousTree) {
+              throw new Error('Focused window has no rotatable parent split.');
+            }
+            break;
+          }
+          case 'equalize': {
+            const previousTree = store.tree;
+            store.equalizeFocusedRatio();
+            if (useWindowManager.getState().tree === previousTree) {
+              throw new Error('Focused window has no adjustable parent split.');
+            }
+            break;
+          }
+          case 'split_mode': {
+            const mode = requireSplitMode(args);
+            store.setNextSplitDirection(mode);
+            break;
+          }
           default:
-            console.warn(`[shell] Unknown AI window command: ${action}`);
+            throw new Error(`Unknown AI window command: ${action}`);
         }
 
         if (requestId) {

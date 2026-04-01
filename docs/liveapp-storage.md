@@ -50,7 +50,7 @@ Using `<home>` as shorthand for `<data>/home/<username>/`:
         index.html                    # LiveApp source code
         icon.png                      # App icon (optional)
         chart.js                      # Co-located script (optional)
-        .index.html.history.jsonl     # Edit history (optional)
+        .git/                         # Per-LiveApp version history
   .storage/
     liveapps/
       my-tracker_html-stream-1-xxx/   # Matches the LiveApp directory name
@@ -322,7 +322,7 @@ The AI can check this and decide whether migration is needed. This is a conventi
 
 ### Undo/redo support
 
-Data files edited through the `edit` tool automatically get persistent edit history (`.storage/liveapps/<id>/.tasks.jsonl.history.jsonl`), the same as HTML files. This means `undo_edit` and `redo_edit` work on data migrations, giving the user a safety net.
+Git-backed undo/redo currently applies to files inside the LiveApp directory itself. Storage files under `.storage/liveapps/<id>/` are not versioned by this mechanism.
 
 ## Security
 
