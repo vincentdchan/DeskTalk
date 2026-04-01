@@ -115,10 +115,6 @@
   line-height: 1.7;
 }
 
-.milkdown .editor > :first-child {
-  margin-top: 0;
-}
-
 .milkdown .editor h1,
 .milkdown .editor h2,
 .milkdown .editor h3,
@@ -142,10 +138,6 @@
 
 .milkdown .editor h3 {
   font-size: 1.08rem;
-}
-
-.milkdown .editor p {
-  margin: 0.65em 0;
 }
 
 .milkdown .editor code {
@@ -202,6 +194,38 @@
 .milkdown .editor ul,
 .milkdown .editor ol {
   padding-left: 1.5rem;
+}
+
+/* Runtime Milkdown styles are injected after this file, so use scoped CSS
+   variables instead of direct property overrides. */
+.milkdown .milkdown-list-item-block {
+  --crepe-color-outline: var(--dt-text-secondary);
+}
+
+.milkdown .milkdown-block-handle {
+  --crepe-color-outline: var(--dt-text-muted);
+}
+
+.milkdown .milkdown-block-handle .operation-item:hover {
+  --crepe-color-outline: var(--dt-text-secondary);
+}
+
+.milkdown .milkdown-toolbar {
+  --crepe-color-outline: var(--dt-text-muted);
+  --crepe-color-hover: color-mix(
+    in srgb,
+    var(--dt-surface-hover) 88%,
+    var(--dt-text-secondary) 12%
+  );
+  --crepe-color-selected: color-mix(in srgb, var(--dt-surface-active) 74%, var(--dt-accent) 26%);
+}
+
+.milkdown .milkdown-toolbar .toolbar-item:hover {
+  --crepe-color-outline: var(--dt-text-secondary);
+}
+
+.milkdown .milkdown-toolbar .toolbar-item.active {
+  --crepe-color-primary: var(--dt-accent);
 }
 
 .milkdown .editor img {
