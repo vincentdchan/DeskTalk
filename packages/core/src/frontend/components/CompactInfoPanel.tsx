@@ -122,6 +122,7 @@ export function CompactInfoPanel({ socket, wsReady }: CompactInfoPanelProps) {
         {latestMessage ? (
           <ChatMessageItem
             message={latestMessage}
+            compact
             isThinking={
               latestMessage.id === activeAssistantMessageId &&
               latestMessage.role === 'assistant' &&
@@ -177,6 +178,7 @@ export function CompactInfoPanel({ socket, wsReady }: CompactInfoPanelProps) {
           onVoiceToggle={handleVoiceToggle}
           modelLabel={modelLabel}
           wsReady={wsReady}
+          compact
         />
       </div>
     </div>

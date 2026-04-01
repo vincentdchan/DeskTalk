@@ -8,6 +8,40 @@ import styles from './ChatMessageItem.module.scss';
 
 export type { ChatMessage };
 
+function toSingleLine(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function getAgentQuestionPreview(question: AgentQuestionData): string {
+  if (question.answer === undefined) {
+    return question.question;
+  }
+
+  return `${question.question}: ${question.answer}`;
+}
+
+function getCompactPreview(message: ChatMessage, isThinking: boolean): string {
+  if (message.toolCall) {
+    if (message.toolCall.toolName === 'ask_user') {
+      return toSingleLine(
+        getAgentQuestionPreview(message.toolCall.params as unknown as AgentQuestionData),
+      );
+    }
+
+    return toSingleLine(getToolCallSummary(message.toolCall.toolName, message.toolCall.params));
+  }
+
+  if (message.content) {
+    return toSingleLine(simplifyToolCallMarkdown(message.content));
+  }
+
+  if (message.thinkingContent) {
+    return toSingleLine(simplifyToolCallMarkdown(message.thinkingContent));
+  }
+
+  return isThinking ? 'Thinking...' : '';
+}
+
 function MarkdownMessage({ content, isStreaming }: { content: string; isStreaming: boolean }) {
   return (
     <Streamdown className={styles.markdownContent} isAnimating={isStreaming} animated>
@@ -35,11 +69,30 @@ export function ChatMessageItem({
   message,
   isThinking,
   isStreaming,
+  compact = false,
 }: {
   message: ChatMessage;
   isThinking: boolean;
   isStreaming: boolean;
+  compact?: boolean;
 }) {
+  if (compact) {
+    const compactPreview = getCompactPreview(message, isThinking);
+
+    if (!compactPreview) {
+      return null;
+    }
+
+    return (
+      <div
+        className={`${message.role === 'user' ? styles.messageUser : styles.messageAssistant} ${styles.messageCompact}`}
+      >
+        <span className={styles.messageSpeaker}>{message.role === 'user' ? 'ME' : 'AI'}</span>
+        <span className={styles.compactMessageText}>{compactPreview}</span>
+      </div>
+    );
+  }
+
   // Tool call messages render as compact one-liners
   if (message.toolCall) {
     if (message.toolCall.toolName === 'ask_user') {
