@@ -174,14 +174,22 @@ export const MANUAL_PAGES: ManualPageMeta[] = [
     title: 'Desktop Windows',
     description: 'How to list windows, open MiniApps, focus windows, and manage desktop state.',
     file: 'desktop-windows.md',
-    related: ['desktop/actions', 'editing/preview'],
+    related: ['desktop/layout', 'desktop/actions', 'editing/preview'],
+  },
+  {
+    path: 'desktop/layout',
+    title: 'Desktop Layout',
+    description:
+      'How to move focus, swap tiles, resize splits, rotate layouts, and set split mode.',
+    file: 'desktop-layout.md',
+    related: ['desktop/windows', 'desktop/actions'],
   },
   {
     path: 'desktop/actions',
     title: 'Desktop Actions',
     description: 'How to use the action tool with the Desktop Context block and window actions.',
     file: 'desktop-actions.md',
-    related: ['desktop/windows', 'html/actions', 'editing/preview'],
+    related: ['desktop/windows', 'desktop/layout', 'html/actions', 'editing/preview'],
   },
   {
     path: 'editing/preview',

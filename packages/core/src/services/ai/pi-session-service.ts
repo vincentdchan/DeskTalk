@@ -18,6 +18,7 @@ import {
   type ToolDefinition,
 } from '@mariozechner/pi-coding-agent';
 import { createDesktopTool, type SendAiCommand } from './desktop-tool';
+import { createLayoutTool } from './layout-tool';
 import { createActionTool } from './action-tool';
 import { createLiveAppTool } from './create-liveapp-tool';
 import { createReadManualTool } from './manual-tool';
@@ -523,6 +524,9 @@ export class PiSessionService {
         activateMiniApp: (miniAppId: string) => {
           registry.activate(miniAppId, getCurrentUsername());
         },
+        sendAiCommand,
+      }),
+      createLayoutTool({
         sendAiCommand,
       }),
       createActionTool({
