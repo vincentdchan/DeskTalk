@@ -27,6 +27,7 @@ export function createRootLogger(opts: { dev: boolean; logDir: string }): pino.L
           colorize: true,
           translateTime: 'HH:MM:ss.l',
           ignore: 'pid,hostname',
+          singleLine: true,
         },
       },
     });
@@ -62,6 +63,7 @@ export function createChildLogger(config: LoggerConfig, scope: string): pino.Log
           colorize: true,
           translateTime: 'HH:MM:ss.l',
           ignore: 'pid,hostname',
+          singleLine: true,
         },
       },
     });
