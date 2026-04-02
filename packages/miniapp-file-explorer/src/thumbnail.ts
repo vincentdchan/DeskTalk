@@ -24,7 +24,6 @@ export function parseThumbnailSize(value: unknown): ThumbnailSize | undefined {
   }
 
   const trimmed = value.trim();
-  // Ensure the entire string is a valid integer (no extra characters like '96px')
   if (!/^\d+$/.test(trimmed)) {
     return undefined;
   }
@@ -37,7 +36,6 @@ export function parseThumbnailSize(value: unknown): ThumbnailSize | undefined {
   return parsed;
 }
 
-// Image extensions that can be thumbnailed
 const SUPPORTED_IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp']);
 
 export function isImageFile(filePath: string): boolean {
@@ -63,7 +61,7 @@ export function ensureCacheDir(cacheDir: string): void {
   try {
     mkdirSync(cacheDir, { recursive: true });
   } catch {
-    // Directory might already exist, ignore
+    // Directory might already exist, ignore.
   }
 }
 
@@ -77,22 +75,18 @@ export async function generateThumbnail(
   cacheDir: string,
   size: number,
 ): Promise<GenerateThumbnailResult> {
-  // Ensure cache directory exists
   ensureCacheDir(cacheDir);
 
-  // Get file stats for cache key
   const stats = statSync(sourcePath);
   const cachePath = getThumbnailCachePath(cacheDir, sourcePath, stats.mtimeMs, size);
 
-  // Try to read from cache
   try {
     const cached = await readFile(cachePath);
     return { data: cached, fromCache: true };
   } catch {
-    // Cache miss, generate thumbnail
+    // Cache miss.
   }
 
-  // Generate thumbnail using sharp
   const image = await sharp(sourcePath)
     .resize({
       width: size,
@@ -103,15 +97,12 @@ export async function generateThumbnail(
     .png()
     .toBuffer();
 
-  // Write to cache
   try {
     mkdirSync(dirname(cachePath), { recursive: true });
-    // Use a temporary file and rename for atomic writes
     const tempPath = `${cachePath}.tmp`;
     await writeFile(tempPath, image);
     renameSync(tempPath, cachePath);
   } catch (error) {
-    // Cache write failure is not critical, just log
     console.warn('Failed to write thumbnail cache:', error);
   }
 

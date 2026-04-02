@@ -19,6 +19,8 @@ export interface ActivateMessage {
   paths: MiniAppPaths;
   /** Launch args for the active or restored windows of this MiniApp. */
   launchArgs: LaunchWindowArgs[];
+  /** Whether the MiniApp should start an internal HTTP server. */
+  httpRoutes?: boolean;
   /** Locale string (e.g. "en", "zh-CN"). */
   locale: string;
   /** Logger configuration so the child can recreate an equivalent pino instance. */
@@ -56,6 +58,13 @@ export interface CommandResponseMessage {
   error?: string;
 }
 
+/** The MiniApp child process started its internal HTTP server. */
+export interface HttpReadyMessage {
+  type: 'http:ready';
+  miniAppId: string;
+  socketPath: string;
+}
+
 /** The MiniApp backend emitted an event that should be broadcast to renderers. */
 export interface EventBroadcastMessage {
   type: 'event';
@@ -73,5 +82,6 @@ export interface ChildErrorMessage {
 export type ChildToMainMessage =
   | ReadyMessage
   | CommandResponseMessage
+  | HttpReadyMessage
   | EventBroadcastMessage
   | ChildErrorMessage;

@@ -24,6 +24,8 @@ export interface MiniAppManifest {
   description?: string;
   /** Optional file associations used by File Explorer and Open With flows */
   fileAssociations?: MiniAppFileAssociation;
+  /** Whether this MiniApp exposes HTTP routes proxied by the core. */
+  httpRoutes?: boolean;
 }
 
 /**

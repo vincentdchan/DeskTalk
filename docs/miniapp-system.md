@@ -8,7 +8,7 @@ The MiniApp system follows the same principles as VSCode extensions:
 
 - MiniApps are **npm packages** that export a set of well-defined interfaces.
 - They are **discovered and activated** by the core host, not self-started.
-- They communicate with the backend exclusively through **hooks provided by the core**, never by creating their own HTTP servers or routes.
+- They communicate with the backend through **hooks provided by the core**. Most use WebSocket messaging; MiniApps that opt into `manifest.httpRoutes` receive a core-managed Fastify server that is reverse-proxied by the core.
 - The core is the single authority for networking, storage, and lifecycle.
 - The core enforces **permission-based access control** — certain privileged APIs (e.g., global configuration) are only available to authorized MiniApps (see [Privileged Access & Permissions](#privileged-access--permissions)).
 

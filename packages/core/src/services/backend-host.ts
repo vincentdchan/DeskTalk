@@ -8,7 +8,10 @@
  */
 
 import type { MiniAppContext, MessagingHook, Disposable } from '@desktalk/sdk';
-import { dirname } from 'node:path';
+import type { FastifyInstance } from 'fastify';
+import { unlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, dirname, join } from 'node:path';
 import type { MainToChildMessage, ChildToMainMessage, ActivateMessage } from './backend-ipc';
 import { createStorageHook } from './storage';
 import { createFileSystemHook } from './filesystem';
@@ -20,6 +23,8 @@ import { createPackageLocalizer } from './i18n';
 const commandHandlers = new Map<string, (data: unknown) => Promise<unknown>>();
 let deactivateFn: (() => void) | null = null;
 let subscriptions: Disposable[] = [];
+let httpServer: FastifyInstance | null = null;
+let httpSocketPath: string | null = null;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -55,10 +60,33 @@ function resolveUserHomeDir(miniAppDataDir: string): string {
   return dirname(dirname(miniAppDataDir));
 }
 
+function getHttpSocketPath(miniAppId: string, username: string): string {
+  if (process.platform === 'win32') {
+    return `\\\\.\\pipe\\desktalk-${miniAppId}-${username}-${process.pid}`;
+  }
+
+  return join(tmpdir(), `desktalk-${miniAppId}-${username}-${process.pid}.sock`);
+}
+
+function cleanupHttpSocket(socketPath: string | null): void {
+  if (!socketPath || process.platform === 'win32') {
+    return;
+  }
+
+  try {
+    unlinkSync(socketPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error;
+    }
+  }
+}
+
 // ─── Message handlers ───────────────────────────────────────────────────────
 
 async function handleActivate(msg: ActivateMessage): Promise<void> {
   const mod = await import(msg.backendPath);
+  const username = basename(msg.paths.home);
 
   const context: MiniAppContext = {
     paths: msg.paths,
@@ -75,9 +103,22 @@ async function handleActivate(msg: ActivateMessage): Promise<void> {
     }),
   };
 
+  if (msg.httpRoutes) {
+    httpSocketPath = getHttpSocketPath(msg.miniAppId, username);
+    cleanupHttpSocket(httpSocketPath);
+    const { default: createFastify } = await import('fastify');
+    httpServer = createFastify({ logger: false });
+    context.http = { server: httpServer };
+  }
+
   subscriptions = context.subscriptions;
   deactivateFn = () => mod.deactivate();
   mod.activate(context);
+
+  if (httpServer && httpSocketPath) {
+    await httpServer.listen({ path: httpSocketPath });
+    sendToMain({ type: 'http:ready', miniAppId: msg.miniAppId, socketPath: httpSocketPath });
+  }
 
   sendToMain({ type: 'ready', miniAppId: msg.miniAppId });
 }
@@ -109,11 +150,20 @@ async function handleCommandInvoke(
   }
 }
 
-function handleDeactivate(): void {
+async function handleDeactivate(): Promise<void> {
   for (const sub of subscriptions) {
     sub.dispose();
   }
   deactivateFn?.();
+
+  if (httpServer) {
+    const server = httpServer;
+    httpServer = null;
+    await server.close();
+  }
+  cleanupHttpSocket(httpSocketPath);
+  httpSocketPath = null;
+
   process.exit(0);
 }
 
@@ -129,7 +179,7 @@ process.on('message', async (msg: MainToChildMessage) => {
         await handleCommandInvoke(msg.requestId, msg.command, msg.data);
         break;
       case 'deactivate':
-        handleDeactivate();
+        await handleDeactivate();
         break;
     }
   } catch (err) {

@@ -29,6 +29,7 @@ interface ManagedProcess {
   processKey: string;
   /** Original MiniApp ID (e.g. "note"). */
   miniAppId: string;
+  httpSocketPath?: string;
   ready: boolean;
   readyPromise: Promise<void>;
 }
@@ -88,6 +89,7 @@ class BackendProcessManager {
     locale: string,
     miniAppId?: string,
     launchArgs: Array<Record<string, unknown>> = [],
+    httpRoutes = false,
   ): Promise<void> {
     if (this.processes.has(processKey)) {
       return; // already running
@@ -110,6 +112,7 @@ class BackendProcessManager {
       child,
       processKey,
       miniAppId: actualMiniAppId,
+      httpSocketPath: undefined,
       ready: false,
       readyPromise,
     };
@@ -151,6 +154,7 @@ class BackendProcessManager {
       packageRoot,
       paths,
       launchArgs,
+      httpRoutes,
       locale,
       loggerConfig: this.loggerConfig!,
     };
@@ -228,6 +232,10 @@ class BackendProcessManager {
     return this.processes.has(processKey);
   }
 
+  getHttpSocketPath(processKey: string): string | undefined {
+    return this.processes.get(processKey)?.httpSocketPath;
+  }
+
   /** Gracefully shut down every child process. */
   async killAll(): Promise<void> {
     const ids = Array.from(this.processes.keys());
@@ -248,6 +256,13 @@ class BackendProcessManager {
           } else {
             pending.resolve(msg.data);
           }
+        }
+        break;
+      }
+      case 'http:ready': {
+        const managed = this.processes.get(processKey);
+        if (managed) {
+          managed.httpSocketPath = msg.socketPath;
         }
         break;
       }

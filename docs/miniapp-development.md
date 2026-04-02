@@ -323,7 +323,7 @@ useEffect(() => {
 
 ## Communication Hooks (MiniAppContext)
 
-MiniApps **never** create their own HTTP servers, routes, or direct database connections. Instead, the core provides a `MiniAppContext` object (passed to the backend `activate`) containing hooks for all backend communication. This is analogous to the `vscode` API namespace that VSCode extensions import.
+MiniApps **never** create their own standalone network listeners or direct database connections. Instead, the core provides a `MiniAppContext` object (passed to the backend `activate`) containing hooks for backend communication. Most MiniApps only use `ctx.messaging`. MiniApps that opt into HTTP routes with `manifest.httpRoutes = true` also receive a Fastify instance on `ctx.http.server`, which the core reverse-proxies at `/api/miniapps/:id/http/*`.
 
 ```ts
 export interface MiniAppContext {
@@ -353,6 +353,12 @@ export interface MiniAppContext {
   messaging: MessagingHook;
 
   /**
+   * Optional Fastify instance for MiniApps that expose HTTP routes.
+   * Available only when manifest.httpRoutes is true.
+   */
+  http?: MiniAppHttpServer;
+
+  /**
    * Register disposable resources cleaned up on deactivation.
    * Analogous to VSCode's `ExtensionContext.subscriptions`.
    */
@@ -372,6 +378,10 @@ export interface MiniAppContext {
    * See docs/spec.md — Privileged Access & Permissions.
    */
   config?: ConfigHook;
+}
+
+interface MiniAppHttpServer {
+  server: FastifyInstance;
 }
 ```
 
@@ -440,6 +450,51 @@ interface MessagingHook {
 function useCommand<TReq, TRes>(command: string): (data: TReq) => Promise<TRes>;
 function useEvent<T>(event: string, handler: (data: T) => void): void;
 ```
+
+### HTTP Routes
+
+MiniApps that need browser-cacheable binary responses, streaming, or normal `<img src="...">` URLs can opt into proxied HTTP routes.
+
+1. Set `manifest.httpRoutes = true` in `src/backend.ts`
+2. Register routes on `ctx.http.server`
+3. Access them from the frontend at `/api/miniapps/:id/http/*`
+
+Example:
+
+```ts
+import type { MiniAppManifest, MiniAppContext } from '@desktalk/sdk';
+
+export const manifest: MiniAppManifest = {
+  id: 'file-explorer',
+  name: 'File Explorer',
+  icon: '📁',
+  version: '0.1.0',
+  httpRoutes: true,
+};
+
+export function activate(ctx: MiniAppContext) {
+  ctx.http?.server.get('/thumbnail', async (request, reply) => {
+    const userHomeDir = request.headers['x-desktalk-userhome'];
+    if (typeof userHomeDir !== 'string') {
+      reply.code(401);
+      return { error: 'Missing user context' };
+    }
+
+    reply.header('Cache-Control', 'public, max-age=86400');
+    reply.type('image/png');
+    return reply.send(Buffer.from([]));
+  });
+
+  return {};
+}
+```
+
+Notes:
+
+- The child process runs the Fastify server on an internal Unix socket (or Windows named pipe).
+- The core authenticates the outer request, then reverse-proxies it to the MiniApp backend.
+- The proxy injects `x-desktalk-username` and `x-desktalk-userhome` headers so the MiniApp can resolve user-scoped resources safely.
+- Use `ctx.messaging` for app-internal commands and events. Use `ctx.http.server` only when normal HTTP semantics matter.
 
 ## Build Toolchain
 

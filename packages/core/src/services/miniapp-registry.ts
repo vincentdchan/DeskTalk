@@ -126,6 +126,7 @@ class MiniAppRegistry {
       locale,
       id,
       this.normalizeLaunchArgs(options?.launchArgs),
+      entry.manifest.httpRoutes === true,
     );
   }
 

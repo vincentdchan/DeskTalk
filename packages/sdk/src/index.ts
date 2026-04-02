@@ -17,6 +17,7 @@ export type {
 } from './types/manifest';
 export type {
   MiniAppContext,
+  MiniAppHttpServer,
   MiniAppPaths,
   StorageHook,
   FileSystemHook,

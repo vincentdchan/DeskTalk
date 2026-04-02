@@ -31,7 +31,7 @@ function getThumbnailUrl(entry: FileEntry): string | null {
   if (!isImageFile(entry.name)) {
     return null;
   }
-  return `/api/files/thumbnail?path=${encodeURIComponent(entry.path)}&size=96`;
+  return `/api/miniapps/file-explorer/http/thumbnail?path=${encodeURIComponent(entry.path)}&size=96`;
 }
 
 export const FileGrid: React.FC<FileGridProps> = ({

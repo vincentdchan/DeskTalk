@@ -1,3 +1,5 @@
+import type { FastifyInstance } from 'fastify';
+
 /**
  * Communication hooks provided by the core to each MiniApp at activation time.
  * Analogous to VSCode's ExtensionContext.
@@ -13,12 +15,19 @@ export interface MiniAppContext {
   fs: FileSystemHook;
   /** Message passing between frontend and backend */
   messaging: MessagingHook;
+  /** Optional Fastify server for MiniApps that expose HTTP routes. */
+  http?: MiniAppHttpServer;
   /** Register disposable resources cleaned up on deactivation */
   subscriptions: Disposable[];
   /** Logger scoped to this MiniApp */
   logger: Logger;
   /** Localizer scoped to this MiniApp */
   i18n: Localizer;
+}
+
+export interface MiniAppHttpServer {
+  /** Register MiniApp-specific HTTP routes on this Fastify instance. */
+  server: FastifyInstance;
 }
 
 export interface Localizer {

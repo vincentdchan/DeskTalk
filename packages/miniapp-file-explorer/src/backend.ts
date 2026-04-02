@@ -1,5 +1,15 @@
 import type { MiniAppManifest, MiniAppContext, MiniAppBackendActivation } from '@desktalk/sdk';
+import { lstatSync, realpathSync } from 'node:fs';
+import { resolve, sep } from 'node:path';
 import type { FileEntry } from './types';
+import {
+  DEFAULT_THUMBNAIL_SIZE,
+  generateThumbnail,
+  isImageFile as isThumbnailImageFile,
+  parseThumbnailSize,
+  THUMBNAIL_CACHE_CONTROL,
+  THUMBNAIL_SIZES,
+} from './thumbnail';
 
 // ─── Manifest ────────────────────────────────────────────────────────────────
 
@@ -9,6 +19,7 @@ export const manifest: MiniAppManifest = {
   icon: '\uD83D\uDCC1',
   version: '0.1.0',
   description: 'Browse and manage files in your workspace',
+  httpRoutes: true,
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -123,10 +134,105 @@ function normalizePath(path: string): string {
   return path.replace(/^\/+/, '').replace(/\/+$/, '') || '.';
 }
 
+function normalizeRelativePath(rawPath: string): string {
+  return rawPath.replace(/\\/g, '/');
+}
+
+function resolveUserFile(userHomeDir: string, relativePath: string): string {
+  const normalized = normalizeRelativePath(relativePath).replace(/^\/+/, '');
+  const resolvedPath = resolve(userHomeDir, normalized);
+  const homePrefix = `${resolve(userHomeDir)}${sep}`;
+  if (resolvedPath !== resolve(userHomeDir) && !resolvedPath.startsWith(homePrefix)) {
+    throw new Error('Path escapes the user home directory.');
+  }
+  return resolvedPath;
+}
+
+function hasDisallowedHiddenSegment(relativePath: string): boolean {
+  const segments = normalizeRelativePath(relativePath).split('/').filter(Boolean);
+  return segments.some((segment) => segment.startsWith('.'));
+}
+
 // ─── Activate ────────────────────────────────────────────────────────────────
 
 export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
   ctx.logger.info('File Explorer MiniApp activated');
+
+  if (ctx.http) {
+    ctx.http.server.get<{
+      Querystring: { path?: string; size?: string };
+    }>('/thumbnail', async (req, reply) => {
+      const rawPath = req.query.path;
+      if (!rawPath) {
+        reply.code(400);
+        return { error: 'Missing path parameter' };
+      }
+
+      const relativePath = normalizeRelativePath(decodeURIComponent(rawPath));
+      if (!relativePath || relativePath.split('/').some((segment) => segment === '..')) {
+        reply.code(400);
+        return { error: 'Invalid file path' };
+      }
+
+      if (hasDisallowedHiddenSegment(relativePath)) {
+        reply.code(403);
+        return { error: 'Access denied' };
+      }
+
+      const userHomeDir = req.headers['x-desktalk-userhome'];
+      if (typeof userHomeDir !== 'string' || userHomeDir.length === 0) {
+        reply.code(401);
+        return { error: 'Missing user context' };
+      }
+
+      const absolutePath = resolveUserFile(userHomeDir, relativePath);
+
+      let stats;
+      try {
+        stats = lstatSync(absolutePath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          reply.code(404);
+          return { error: 'Not found' };
+        }
+        throw error;
+      }
+
+      if (!stats.isFile() || stats.isSymbolicLink()) {
+        reply.code(403);
+        return { error: 'Access denied' };
+      }
+
+      const realFilePath = realpathSync(absolutePath);
+      const realHomeDir = realpathSync(userHomeDir);
+      const realHomePrefix = `${realHomeDir}${sep}`;
+      if (realFilePath !== realHomeDir && !realFilePath.startsWith(realHomePrefix)) {
+        reply.code(403);
+        return { error: 'Access denied' };
+      }
+
+      const size = parseThumbnailSize(req.query.size) ?? DEFAULT_THUMBNAIL_SIZE;
+      if (req.query.size !== undefined && !parseThumbnailSize(req.query.size)) {
+        reply.code(400);
+        return {
+          error: `Invalid thumbnail size. Supported sizes: ${THUMBNAIL_SIZES.join(', ')}`,
+        };
+      }
+
+      if (!isThumbnailImageFile(absolutePath)) {
+        reply.code(404);
+        return { error: 'Not an image file' };
+      }
+
+      const cacheDir = resolve(userHomeDir, '.cache', 'file-explorer', 'thumbs');
+      const { data, fromCache } = await generateThumbnail(realFilePath, cacheDir, size);
+
+      reply.header('Cache-Control', THUMBNAIL_CACHE_CONTROL);
+      reply.header('X-Thumbnail-Source', fromCache ? 'cache' : 'generated');
+      reply.type('image/png');
+      return reply.send(data);
+    });
+  }
 
   /** Build a FileEntry from a directory entry and stat info. */
   async function buildFileEntry(dirPath: string, name: string): Promise<FileEntry> {

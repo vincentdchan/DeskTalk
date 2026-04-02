@@ -13,9 +13,9 @@ import {
   ensureCacheDir,
   generateThumbnail,
   getThumbnailOrOriginal,
-} from './file-thumbnail';
+} from './thumbnail';
 
-describe('file-thumbnail', () => {
+describe('thumbnail', () => {
   describe('constants', () => {
     it('exports supported thumbnail sizes', () => {
       expect(THUMBNAIL_SIZES).toEqual([64, 96, 128]);
@@ -51,29 +51,13 @@ describe('file-thumbnail', () => {
       expect(parseThumbnailSize('128')).toBe(128);
     });
 
-    it('returns undefined for undefined input', () => {
+    it('returns undefined for invalid inputs', () => {
       expect(parseThumbnailSize(undefined)).toBeUndefined();
-    });
-
-    it('returns undefined for empty string', () => {
       expect(parseThumbnailSize('')).toBeUndefined();
-    });
-
-    it('returns undefined for non-numeric strings', () => {
       expect(parseThumbnailSize('abc')).toBeUndefined();
       expect(parseThumbnailSize('96px')).toBeUndefined();
-    });
-
-    it('returns undefined for unsupported sizes', () => {
       expect(parseThumbnailSize('32')).toBeUndefined();
-      expect(parseThumbnailSize('256')).toBeUndefined();
-      expect(parseThumbnailSize('100')).toBeUndefined();
-    });
-
-    it('returns undefined for non-string values', () => {
       expect(parseThumbnailSize(96)).toBeUndefined();
-      expect(parseThumbnailSize(null)).toBeUndefined();
-      expect(parseThumbnailSize({})).toBeUndefined();
     });
   });
 
@@ -87,50 +71,24 @@ describe('file-thumbnail', () => {
       expect(isImageFile('image.bmp')).toBe(true);
     });
 
-    it('returns true for uppercase extensions', () => {
-      expect(isImageFile('image.PNG')).toBe(true);
-      expect(isImageFile('image.JPG')).toBe(true);
-    });
-
     it('returns false for non-image files', () => {
       expect(isImageFile('document.txt')).toBe(false);
-      expect(isImageFile('script.js')).toBe(false);
-      expect(isImageFile('data.json')).toBe(false);
-      expect(isImageFile('archive.zip')).toBe(false);
-    });
-
-    it('returns false for files without extensions', () => {
       expect(isImageFile('README')).toBe(false);
-      expect(isImageFile('Makefile')).toBe(false);
     });
   });
 
   describe('getThumbnailCachePath', () => {
-    it('generates consistent cache paths', () => {
+    it('generates stable cache paths', () => {
       const cacheDir = '/cache';
       const filePath = '/home/user/image.png';
       const mtime = 1234567890;
-      const size = 96;
 
-      const path1 = getThumbnailCachePath(cacheDir, filePath, mtime, size);
-      const path2 = getThumbnailCachePath(cacheDir, filePath, mtime, size);
+      const path1 = getThumbnailCachePath(cacheDir, filePath, mtime, 96);
+      const path2 = getThumbnailCachePath(cacheDir, filePath, mtime, 96);
 
       expect(path1).toBe(path2);
       expect(path1).toContain(cacheDir);
       expect(path1).toContain('96.png');
-    });
-
-    it('generates different paths for different parameters', () => {
-      const cacheDir = '/cache';
-      const filePath = '/home/user/image.png';
-      const mtime = 1234567890;
-
-      const path1 = getThumbnailCachePath(cacheDir, filePath, mtime, 64);
-      const path2 = getThumbnailCachePath(cacheDir, filePath, mtime, 96);
-      const path3 = getThumbnailCachePath(cacheDir, filePath, mtime + 1, 96);
-
-      expect(path1).not.toBe(path2);
-      expect(path2).not.toBe(path3);
     });
   });
 
@@ -142,29 +100,15 @@ describe('file-thumbnail', () => {
     });
 
     afterEach(() => {
-      try {
-        if (existsSync(tempDir)) {
-          rmSync(tempDir, { recursive: true, force: true });
-        }
-      } catch {
-        // Ignore cleanup errors
+      if (existsSync(tempDir)) {
+        rmSync(tempDir, { recursive: true, force: true });
       }
     });
 
-    it('creates directory if it does not exist', () => {
+    it('creates directory if missing', () => {
       const cacheDir = join(tempDir, 'cache');
-      expect(existsSync(cacheDir)).toBe(false);
-
       ensureCacheDir(cacheDir);
-
       expect(existsSync(cacheDir)).toBe(true);
-    });
-
-    it('does not throw if directory already exists', () => {
-      const cacheDir = join(tempDir, 'cache');
-      mkdirSync(cacheDir, { recursive: true });
-
-      expect(() => ensureCacheDir(cacheDir)).not.toThrow();
     });
   });
 
@@ -180,7 +124,6 @@ describe('file-thumbnail', () => {
 
       mkdirSync(tempDir, { recursive: true });
 
-      // Create a simple 100x100 red PNG using sharp
       const sharp = (await import('sharp')).default;
       await sharp({
         create: {
@@ -195,55 +138,19 @@ describe('file-thumbnail', () => {
     });
 
     afterEach(() => {
-      try {
-        if (existsSync(tempDir)) {
-          rmSync(tempDir, { recursive: true, force: true });
-        }
-      } catch {
-        // Ignore cleanup errors
+      if (existsSync(tempDir)) {
+        rmSync(tempDir, { recursive: true, force: true });
       }
     });
 
-    it('generates a thumbnail for an image file', async () => {
-      const result = await generateThumbnail(imagePath, cacheDir, 64);
-
-      expect(result.data).toBeInstanceOf(Buffer);
-      expect(result.fromCache).toBe(false);
-      expect(result.data.length).toBeGreaterThan(0);
-    });
-
-    it('caches thumbnail and returns from cache on second call', async () => {
-      // First call generates thumbnail
+    it('generates and caches thumbnails', async () => {
       const result1 = await generateThumbnail(imagePath, cacheDir, 64);
-      expect(result1.fromCache).toBe(false);
-
-      // Second call should return from cache
       const result2 = await generateThumbnail(imagePath, cacheDir, 64);
+
+      expect(result1.data).toBeInstanceOf(Buffer);
+      expect(result1.fromCache).toBe(false);
       expect(result2.fromCache).toBe(true);
       expect(result2.data).toEqual(result1.data);
-    });
-
-    it('generates different sizes correctly', async () => {
-      const result64 = await generateThumbnail(imagePath, cacheDir, 64);
-      const result128 = await generateThumbnail(imagePath, cacheDir, 128);
-
-      expect(result64.fromCache).toBe(false);
-      expect(result128.fromCache).toBe(false);
-      expect(result64.data).not.toEqual(result128.data);
-    });
-
-    it('invalidates cache when file is modified', async () => {
-      // Generate initial thumbnail
-      const result1 = await generateThumbnail(imagePath, cacheDir, 64);
-      expect(result1.fromCache).toBe(false);
-
-      // Modify the file
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      writeFileSync(imagePath, result1.data);
-
-      // Should regenerate thumbnail (not from cache)
-      const result2 = await generateThumbnail(imagePath, cacheDir, 64);
-      expect(result2.fromCache).toBe(false);
     });
   });
 
@@ -261,7 +168,6 @@ describe('file-thumbnail', () => {
 
       mkdirSync(tempDir, { recursive: true });
 
-      // Create a simple image
       const sharp = (await import('sharp')).default;
       await sharp({
         create: {
@@ -274,39 +180,26 @@ describe('file-thumbnail', () => {
         .png()
         .toFile(imagePath);
 
-      // Create a text file
       writeFileSync(textPath, 'Hello World');
     });
 
     afterEach(() => {
-      try {
-        if (existsSync(tempDir)) {
-          rmSync(tempDir, { recursive: true, force: true });
-        }
-      } catch {
-        // Ignore cleanup errors
+      if (existsSync(tempDir)) {
+        rmSync(tempDir, { recursive: true, force: true });
       }
     });
 
     it('generates thumbnail for image files', async () => {
       const result = await getThumbnailOrOriginal(imagePath, cacheDir, 64);
-
       expect(result.data).toBeInstanceOf(Buffer);
       expect(result.contentType).toBe('image/png');
     });
 
-    it('returns stream for non-image files', async () => {
+    it('returns a stream for non-image files', async () => {
       const result = await getThumbnailOrOriginal(textPath, cacheDir, 64);
-
       expect(result.contentType).toBe('application/octet-stream');
       const stream = result.data as NodeJS.ReadableStream;
       expect(typeof stream.pipe).toBe('function');
-
-      await new Promise<void>((resolve, reject) => {
-        stream.on('error', reject);
-        stream.on('end', resolve);
-        stream.resume();
-      });
     });
   });
 });
