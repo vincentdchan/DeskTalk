@@ -1,15 +1,18 @@
-import React, { useRef, useState, useMemo, useLayoutEffect } from 'react';
+import React, { useRef, useState, useMemo, useLayoutEffect, useEffect } from 'react';
 import { useMemoizedFn } from 'ahooks';
 import { useChatSession } from '../stores/chat-session';
+import type { AgentQuestionData } from './info-panel/AgentQuestion';
 import { MicIcon } from './MicIcon';
 import { matchCommands, getAllCommands } from '../utils/slash-commands';
 import styles from './CommandInput.module.scss';
 
 export interface CommandInputProps {
   onSubmit: () => void;
+  onAnswer?: (questionId: string, answer: string) => void;
+  onDismissQuestion?: () => void;
   onCancelAi: () => boolean;
   isAiRunning: boolean;
-  hasPendingQuestion?: boolean;
+  pendingQuestion?: AgentQuestionData | null;
   queuedCount: number;
   isVoiceActive: boolean;
   onVoiceToggle: () => void;
@@ -22,9 +25,11 @@ const MAX_TEXTAREA_HEIGHT = 200;
 
 export function CommandInput({
   onSubmit,
+  onAnswer,
+  onDismissQuestion,
   onCancelAi,
   isAiRunning,
-  hasPendingQuestion = false,
+  pendingQuestion = null,
   queuedCount,
   isVoiceActive,
   onVoiceToggle,
@@ -40,6 +45,71 @@ export function CommandInput({
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [isCancelArmed, setIsCancelArmed] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [selectedQuestionValue, setSelectedQuestionValue] = useState('');
+  const [selectedQuestionValues, setSelectedQuestionValues] = useState<string[]>([]);
+
+  const isAnsweringQuestion = pendingQuestion !== null;
+  const isQuestionControlsDisabled = !wsReady || isAiRunning;
+
+  const submitPendingQuestionAnswer = useMemoizedFn(() => {
+    if (!pendingQuestion?.questionId || !onAnswer || isQuestionControlsDisabled) {
+      return;
+    }
+
+    if (pendingQuestion.questionType === 'text') {
+      const nextAnswer = value.trim();
+      if (!nextAnswer) {
+        return;
+      }
+
+      onAnswer(pendingQuestion.questionId, nextAnswer);
+      return;
+    }
+
+    if (pendingQuestion.questionType === 'select') {
+      if (!selectedQuestionValue) {
+        return;
+      }
+
+      onAnswer(pendingQuestion.questionId, selectedQuestionValue);
+      return;
+    }
+
+    if (pendingQuestion.questionType === 'multi_select') {
+      if (selectedQuestionValues.length === 0) {
+        return;
+      }
+
+      onAnswer(pendingQuestion.questionId, JSON.stringify(selectedQuestionValues));
+      return;
+    }
+  });
+
+  const canSubmitPendingQuestion = useMemo(() => {
+    if (!pendingQuestion || isQuestionControlsDisabled) {
+      return false;
+    }
+
+    if (pendingQuestion.questionType === 'text') {
+      return value.trim().length > 0;
+    }
+
+    if (pendingQuestion.questionType === 'select') {
+      return selectedQuestionValue.length > 0;
+    }
+
+    if (pendingQuestion.questionType === 'multi_select') {
+      return selectedQuestionValues.length > 0;
+    }
+
+    return false;
+  }, [
+    isQuestionControlsDisabled,
+    pendingQuestion,
+    selectedQuestionValue,
+    selectedQuestionValues,
+    value,
+  ]);
 
   const resetCancelState = useMemoizedFn(() => {
     if (cancelResetTimeoutRef.current !== null) {
@@ -65,11 +135,12 @@ export function CommandInput({
   // Determine if we should show the slash command autocomplete.
   // Only when input starts with "/" and contains no spaces (still typing the command name).
   const slashPrefix = useMemo(() => {
+    if (isAnsweringQuestion) return null;
     const trimmed = value.trimStart();
     if (!trimmed.startsWith('/')) return null;
     if (trimmed.includes(' ')) return null;
     return trimmed.slice(1); // text after "/"
-  }, [value]);
+  }, [isAnsweringQuestion, value]);
 
   const suggestions = useMemo(() => {
     if (slashPrefix === null) return [];
@@ -131,9 +202,38 @@ export function CommandInput({
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      if (isAnsweringQuestion) {
+        submitPendingQuestionAnswer();
+        return;
+      }
       onSubmit();
     }
   });
+
+  // Global Esc listener to dismiss a pending question.
+  // The textarea may be disabled (select/multi_select/confirm), so we listen on document.
+  useEffect(() => {
+    if (!isAnsweringQuestion || isAiRunning) return;
+
+    const handleGlobalEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onDismissQuestion?.();
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalEsc);
+    return () => document.removeEventListener('keydown', handleGlobalEsc);
+  }, [isAnsweringQuestion, isAiRunning, onDismissQuestion]);
+
+  useEffect(() => {
+    setSelectedQuestionValue('');
+    setSelectedQuestionValues([]);
+
+    if (pendingQuestion?.questionType !== 'text') {
+      clearDraftInput();
+    }
+  }, [clearDraftInput, pendingQuestion?.questionId, pendingQuestion?.questionType]);
 
   // Reset the selected index whenever the suggestion list changes.
   useLayoutEffect(() => {
@@ -166,6 +266,29 @@ export function CommandInput({
 
   return (
     <div className={`${styles.controlFrame} ${compact ? styles.controlFrameCompact : ''}`}>
+      {pendingQuestion && (
+        <div className={styles.questionBanner}>
+          <span className={styles.questionPrompt}>{pendingQuestion.question}</span>
+          {pendingQuestion.questionType === 'multi_select' && (
+            <span className={styles.questionHint}>
+              Choose one or more options, then press Enter. Press Esc to dismiss.
+            </span>
+          )}
+          {pendingQuestion.questionType === 'select' && (
+            <span className={styles.questionHint}>
+              Choose an option, then press Enter. Press Esc to dismiss.
+            </span>
+          )}
+          {pendingQuestion.questionType === 'text' && (
+            <span className={styles.questionHint}>
+              Press Enter to submit your answer. Press Esc to dismiss.
+            </span>
+          )}
+          {pendingQuestion.questionType === 'confirm' && (
+            <span className={styles.questionHint}>Press Esc to dismiss.</span>
+          )}
+        </div>
+      )}
       {showSuggestions && (
         <ul className={styles.slashMenu} role="listbox">
           {suggestions.map((cmd, i) => (
@@ -186,36 +309,107 @@ export function CommandInput({
           ))}
         </ul>
       )}
-      <div className={`${styles.inputRow} ${compact ? styles.inputRowCompact : ''}`}>
-        <textarea
-          ref={textareaRef}
-          className={`${styles.input} ${compact ? styles.inputCompact : ''}`}
-          value={value}
-          onChange={(e) => setDraftInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          rows={1}
-          placeholder={
-            isCancelling
-              ? 'Cancelling AI...'
-              : hasPendingQuestion
-                ? 'Answer the pending question above, or press Esc twice to cancel'
-                : isAiRunning
-                  ? isCancelArmed
-                    ? 'Press Esc again to cancel AI, or Enter to queue the next message'
-                    : 'AI is thinking... press Esc twice to cancel or Enter to queue the next message'
-                  : 'Ask the AI...'
-          }
-          disabled={!wsReady}
-        />
-        <dt-tooltip content={isVoiceActive ? 'Stop voice input' : 'Start voice input'}>
+      {pendingQuestion &&
+        pendingQuestion.questionType !== 'text' &&
+        pendingQuestion.questionType !== 'confirm' && (
+          <div className={styles.optionChips}>
+            {(pendingQuestion.options ?? []).map((option) => {
+              const isSelected =
+                pendingQuestion.questionType === 'select'
+                  ? selectedQuestionValue === option
+                  : selectedQuestionValues.includes(option);
+
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  className={`${styles.optionChip} ${isSelected ? styles.optionChipSelected : ''}`}
+                  onClick={() => {
+                    if (pendingQuestion.questionType === 'select') {
+                      setSelectedQuestionValue(option);
+                      return;
+                    }
+
+                    setSelectedQuestionValues((current) =>
+                      current.includes(option)
+                        ? current.filter((entry) => entry !== option)
+                        : [...current, option],
+                    );
+                  }}
+                  disabled={isQuestionControlsDisabled}
+                  aria-pressed={isSelected}
+                >
+                  {option}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      {pendingQuestion?.questionType === 'confirm' ? (
+        <div className={`${styles.confirmButtons} ${compact ? styles.confirmButtonsCompact : ''}`}>
           <button
-            className={`${styles.voiceButton} ${compact ? styles.voiceButtonCompact : ''} ${isVoiceActive ? styles.voiceButtonActive : ''}`}
-            onClick={onVoiceToggle}
+            type="button"
+            className={styles.confirmPrimaryButton}
+            onClick={() =>
+              pendingQuestion.questionId && onAnswer?.(pendingQuestion.questionId, 'yes')
+            }
+            disabled={isQuestionControlsDisabled}
           >
-            <MicIcon />
+            Yes
           </button>
-        </dt-tooltip>
-      </div>
+          <button
+            type="button"
+            className={styles.confirmSecondaryButton}
+            onClick={() =>
+              pendingQuestion.questionId && onAnswer?.(pendingQuestion.questionId, 'no')
+            }
+            disabled={isQuestionControlsDisabled}
+          >
+            No
+          </button>
+        </div>
+      ) : (
+        <div className={`${styles.inputRow} ${compact ? styles.inputRowCompact : ''}`}>
+          <textarea
+            ref={textareaRef}
+            className={`${styles.input} ${compact ? styles.inputCompact : ''}`}
+            value={value}
+            onChange={(e) => setDraftInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            rows={1}
+            placeholder={
+              isCancelling
+                ? 'Cancelling AI...'
+                : pendingQuestion?.questionType === 'text'
+                  ? 'Type your answer...'
+                  : isAiRunning
+                    ? isCancelArmed
+                      ? 'Press Esc again to cancel AI, or Enter to queue the next message'
+                      : 'AI is thinking... press Esc twice to cancel or Enter to queue the next message'
+                    : 'Ask the AI...'
+            }
+            disabled={!wsReady || (isAnsweringQuestion && pendingQuestion.questionType !== 'text')}
+          />
+          {isAnsweringQuestion && pendingQuestion.questionType !== 'text' ? (
+            <button
+              type="button"
+              className={`${styles.inlineSubmitButton} ${compact ? styles.inlineSubmitButtonCompact : ''}`}
+              onClick={submitPendingQuestionAnswer}
+              disabled={!canSubmitPendingQuestion}
+            >
+              Submit
+            </button>
+          ) : null}
+          <dt-tooltip content={isVoiceActive ? 'Stop voice input' : 'Start voice input'}>
+            <button
+              className={`${styles.voiceButton} ${compact ? styles.voiceButtonCompact : ''} ${isVoiceActive ? styles.voiceButtonActive : ''}`}
+              onClick={onVoiceToggle}
+            >
+              <MicIcon />
+            </button>
+          </dt-tooltip>
+        </div>
+      )}
       {!compact && (
         <div className={styles.statusRow}>
           <span className={styles.statusItem}>{wsReady ? modelLabel : 'offline'}</span>

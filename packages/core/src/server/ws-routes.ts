@@ -533,6 +533,50 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
               activeAiRequestId = null;
             }
           }
+        } else if (msg.type === 'ai:dismiss-question') {
+          const questionId = typeof msg.questionId === 'string' ? msg.questionId : '';
+
+          if (!questionId) {
+            sendAiEvent({
+              type: 'error',
+              message: 'A question ID is required to dismiss a pending question.',
+            });
+            return;
+          }
+
+          if (activeAiRequestId) {
+            sendAiEvent({
+              type: 'error',
+              message: 'Cannot dismiss while AI is running.',
+            });
+            return;
+          }
+
+          const didCancel = piSessionService.cancelPendingQuestion();
+          if (!didCancel) {
+            sendAiEvent({
+              type: 'error',
+              message: 'No pending question to dismiss.',
+            });
+            return;
+          }
+
+          sendAiEvent({
+            type: 'question_dismissed',
+            questionId,
+          });
+
+          sendAiEvent({
+            type: 'history_sync',
+            sessionId: piSessionService.getSessionId(),
+            messages: piSessionService.getHistory(),
+          });
+
+          sendAiEvent({
+            type: 'sessions_sync',
+            sessionId: piSessionService.getSessionId(),
+            sessions: await piSessionService.listSessions(),
+          });
         }
       } catch {
         // Ignore malformed messages

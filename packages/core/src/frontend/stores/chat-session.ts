@@ -59,6 +59,7 @@ export interface AiEventMessage {
     | 'message_end'
     | 'tool_call'
     | 'agent_question'
+    | 'question_dismissed'
     | 'error';
   requestId?: string;
   sessionId?: string;
@@ -110,6 +111,7 @@ export interface ChatSessionState {
   switchSession: (sessionId: string, socket: WebSocket) => boolean;
   createSession: (socket: WebSocket) => boolean;
   cancelAiRequest: (socket: WebSocket) => boolean;
+  dismissQuestion: (socket: WebSocket) => boolean;
   answerQuestion: (questionId: string, answer: string, socket: WebSocket) => boolean;
   submitPrompt: (text: string, source: 'text' | 'voice', socket: WebSocket) => boolean;
   setDraftInput: (value: string) => void;
@@ -243,6 +245,28 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
       }),
     );
 
+    return true;
+  },
+
+  dismissQuestion(socket: WebSocket) {
+    const state = get();
+    if (
+      socket.readyState !== WebSocket.OPEN ||
+      state.isAiRunning ||
+      !state.pendingQuestion ||
+      !state.pendingQuestion.questionId
+    ) {
+      return false;
+    }
+
+    socket.send(
+      JSON.stringify({
+        type: 'ai:dismiss-question',
+        questionId: state.pendingQuestion.questionId,
+      }),
+    );
+
+    set({ pendingQuestion: null });
     return true;
   },
 
@@ -408,6 +432,10 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
           options: event.options,
         },
       });
+    } else if (event.type === 'question_dismissed') {
+      if (event.questionId && state.pendingQuestion?.questionId === event.questionId) {
+        set({ pendingQuestion: null });
+      }
     } else if (event.type === 'message_end') {
       const endedRequestId = state.activeRequestId;
       const providerOptions = state.providerOptions;

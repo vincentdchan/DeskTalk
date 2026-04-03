@@ -831,6 +831,20 @@ export class PiSessionService {
     );
   }
 
+  cancelPendingQuestion(): boolean {
+    const pending = this.getCurrentSessionPendingQuestion();
+    if (!pending) {
+      return false;
+    }
+
+    if (this.isPrompting) {
+      return false;
+    }
+
+    this.pendingQuestionStore.markCancelled(pending.questionId);
+    return true;
+  }
+
   async abort(): Promise<void> {
     const pending = this.getCurrentSessionPendingQuestion();
     if (pending) {

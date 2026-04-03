@@ -6,7 +6,6 @@ import { useChatSession, type AiEventMessage } from '../stores/chat-session';
 import { tryExecuteSlashCommand } from '../utils/slash-commands';
 import { ChatMessageItem } from './ChatMessageItem';
 import { CommandInput } from './CommandInput';
-import { AgentQuestion } from './info-panel/AgentQuestion';
 import styles from './InfoPanel.module.scss';
 
 interface QueuedPrompt {
@@ -37,6 +36,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const cancelAiRequest = useChatSession((s) => s.cancelAiRequest);
   const submitPrompt = useChatSession((s) => s.submitPrompt);
   const answerQuestion = useChatSession((s) => s.answerQuestion);
+  const dismissQuestion = useChatSession((s) => s.dismissQuestion);
   const clearDraftInput = useChatSession((s) => s.clearDraftInput);
   const handleAiEvent = useChatSession((s) => s.handleAiEvent);
   const clearMessages = useChatSession((s) => s.clearMessages);
@@ -169,13 +169,6 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
       }
     }
 
-    if (pendingQuestion) {
-      addSystemMessage(
-        'Answer the pending question above or cancel the current AI request before sending another message.',
-      );
-      return;
-    }
-
     if (isAiRunning) {
       setQueuedPrompts((prev) => [
         ...prev,
@@ -297,19 +290,6 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
                 <div className={styles.queuedMessageBody}>{prompt.text}</div>
               </div>
             ))}
-            {pendingQuestion && socket && (
-              <AgentQuestion
-                question={pendingQuestion}
-                disabled={isAiRunning}
-                onAnswer={(questionId, answer) => {
-                  if (!answerQuestion(questionId, answer, socket)) {
-                    addSystemMessage(
-                      'Unable to submit the pending answer. Reconnect or cancel the current AI request and try again.',
-                    );
-                  }
-                }}
-              />
-            )}
           </>
         )}
 
@@ -348,9 +328,21 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
 
       <CommandInput
         onSubmit={handleSend}
+        onAnswer={(questionId, answer) => {
+          if (!socket || !answerQuestion(questionId, answer, socket)) {
+            addSystemMessage(
+              'Unable to submit the pending answer. Reconnect or cancel the current AI request and try again.',
+            );
+          }
+        }}
+        onDismissQuestion={() => {
+          if (socket) {
+            dismissQuestion(socket);
+          }
+        }}
         onCancelAi={handleCancelAi}
         isAiRunning={isAiRunning}
-        hasPendingQuestion={Boolean(pendingQuestion)}
+        pendingQuestion={pendingQuestion}
         queuedCount={queuedPrompts.length}
         isVoiceActive={isVoiceActive}
         onVoiceToggle={handleVoiceToggle}

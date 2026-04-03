@@ -9,6 +9,105 @@
   background: transparent;
 }
 
+.questionBanner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 16px 0;
+  border-left: 3px solid color-mix(in oklab, var(--dt-accent) 65%, var(--dt-border));
+  background: color-mix(in oklab, var(--dt-accent) 7%, var(--dt-bg));
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.questionPrompt {
+  color: var(--dt-text);
+  font-weight: 600;
+}
+
+.questionHint {
+  color: var(--dt-text-muted);
+}
+
+.optionChips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 12px 16px 0;
+}
+
+.optionChip {
+  padding: 8px 12px;
+  border: 1px solid var(--dt-border-subtle);
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--dt-surface) 90%, transparent);
+  color: var(--dt-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.optionChipSelected {
+  border-color: var(--dt-accent);
+  background: color-mix(in oklab, var(--dt-accent) 18%, var(--dt-surface));
+  color: var(--dt-text);
+}
+
+.confirmButtons {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.confirmButtonsCompact {
+  padding: 10px;
+}
+
+.confirmPrimaryButton,
+.confirmSecondaryButton,
+.inlineSubmitButton {
+  padding: 8px 12px;
+  border: 1px solid var(--dt-border-subtle);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.confirmPrimaryButton,
+.inlineSubmitButton {
+  background: color-mix(in oklab, var(--dt-accent) 20%, var(--dt-surface));
+  color: var(--dt-text);
+}
+
+.confirmSecondaryButton {
+  background: color-mix(in oklab, var(--dt-surface) 90%, transparent);
+  color: var(--dt-text-secondary);
+}
+
+.inlineSubmitButtonCompact {
+  padding-inline: 10px;
+}
+
 /* ── Slash command autocomplete menu ──────────────────────────── */
 
 .slashMenu {
@@ -172,5 +271,11 @@
 
   50% {
     box-shadow: 0 0 0 6px color-mix(in oklab, var(--dt-danger) 0%, transparent);
+  }
+}
+
+@media (max-width: 640px) {
+  .confirmButtons {
+    flex-direction: column;
   }
 }

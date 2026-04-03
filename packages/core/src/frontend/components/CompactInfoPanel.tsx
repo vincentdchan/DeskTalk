@@ -20,9 +20,13 @@ export function CompactInfoPanel({ socket, wsReady }: CompactInfoPanelProps) {
   const isAiRunning = useChatSession((s) => s.isAiRunning);
   const activeRequestId = useChatSession((s) => s.activeRequestId);
   const modelLabel = useChatSession((s) => s.modelLabel);
+  const pendingQuestion = useChatSession((s) => s.pendingQuestion);
   const cancelAiRequest = useChatSession((s) => s.cancelAiRequest);
   const submitPrompt = useChatSession((s) => s.submitPrompt);
+  const answerQuestion = useChatSession((s) => s.answerQuestion);
+  const dismissQuestion = useChatSession((s) => s.dismissQuestion);
   const clearDraftInput = useChatSession((s) => s.clearDraftInput);
+  const addSystemMessage = useChatSession((s) => s.addSystemMessage);
 
   const voiceStatus = useVoiceSession((s) => s.status);
   const partialText = useVoiceSession((s) => s.partialText);
@@ -171,8 +175,21 @@ export function CompactInfoPanel({ socket, wsReady }: CompactInfoPanelProps) {
       <div className={styles.commandInputWrapper}>
         <CommandInput
           onSubmit={handleSend}
+          onAnswer={(questionId, answer) => {
+            if (!socket || !answerQuestion(questionId, answer, socket)) {
+              addSystemMessage(
+                'Unable to submit the pending answer. Reconnect or cancel the current AI request and try again.',
+              );
+            }
+          }}
+          onDismissQuestion={() => {
+            if (socket) {
+              dismissQuestion(socket);
+            }
+          }}
           onCancelAi={handleCancelAi}
           isAiRunning={isAiRunning}
+          pendingQuestion={pendingQuestion}
           queuedCount={0}
           isVoiceActive={isVoiceActive}
           onVoiceToggle={handleVoiceToggle}
