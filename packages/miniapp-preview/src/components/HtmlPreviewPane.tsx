@@ -142,6 +142,7 @@ export function HtmlPreviewPane({
   const fileName = useMemo(() => getFileName(initialPath), [initialPath]);
   const shouldInjectRuntime = Boolean(liveAppId && bridgeToken && isLiveAppPath(initialPath));
   const canEditLiveAppSource = Boolean(shouldInjectRuntime && normalizedPath);
+  const hasHistory = historyEntries.length > 0;
 
   const publishLiveAppActions = useCallback(() => {
     onLiveAppActionsChange(Array.from(liveAppActionsRef.current.values()));
@@ -159,6 +160,29 @@ export function HtmlPreviewPane({
     liveAppActionsRef.current.clear();
     publishLiveAppActions();
   }, [publishLiveAppActions]);
+
+  const refreshHistory = useCallback((): Promise<PreviewHistoryEntry[]> => {
+    if (!normalizedPath || !canEditLiveAppSource) {
+      setHistoryEntries([]);
+      setHistoryOpen(false);
+      return Promise.resolve([]);
+    }
+
+    return listHistory({ path: normalizedPath })
+      .then((entries) => {
+        setHistoryEntries(entries);
+        if (entries.length === 0) {
+          setHistoryOpen(false);
+        }
+        return entries;
+      })
+      .catch((historyError) => {
+        setHistoryEntries([]);
+        setHistoryOpen(false);
+        console.error('Failed to load preview history:', historyError);
+        return [];
+      });
+  }, [canEditLiveAppSource, listHistory, normalizedPath]);
 
   const iframeSrc = useMemo(() => {
     if (!normalizedPath) {
@@ -182,7 +206,12 @@ export function HtmlPreviewPane({
     clearLiveAppActions();
     rejectPendingActionInvocations('LiveApp reloaded before the action completed.');
     setReloadKey(Date.now());
+    void refreshHistory();
   });
+
+  useEffect(() => {
+    void refreshHistory();
+  }, [refreshHistory]);
 
   useEffect(() => {
     if (!shouldInjectRuntime || !liveAppId || !bridgeToken) {
@@ -517,15 +546,12 @@ export function HtmlPreviewPane({
       return;
     }
 
-    void listHistory({ path: normalizedPath })
-      .then((entries) => {
-        setHistoryEntries(entries);
+    void refreshHistory().then((entries) => {
+      if (entries && entries.length > 0) {
         setHistoryOpen(true);
-      })
-      .catch((historyError) => {
-        console.error('Failed to load preview history:', historyError);
-      });
-  }, [canEditLiveAppSource, listHistory, normalizedPath]);
+      }
+    });
+  }, [canEditLiveAppSource, normalizedPath, refreshHistory]);
 
   const handleRestoreHistory = useCallback(
     (entry: PreviewHistoryEntry) => {
@@ -544,6 +570,7 @@ export function HtmlPreviewPane({
       void restoreHistory({ path: normalizedPath, commitHash: entry.hash })
         .then(() => {
           setHistoryOpen(false);
+          return refreshHistory();
         })
         .catch((historyError) => {
           console.error('Failed to restore preview history:', historyError);
@@ -552,7 +579,7 @@ export function HtmlPreviewPane({
           setRestoringHistoryHash(null);
         });
     },
-    [fileName, normalizedPath, restoreHistory],
+    [fileName, normalizedPath, refreshHistory, restoreHistory],
   );
 
   useEffect(() => {
@@ -577,7 +604,7 @@ export function HtmlPreviewPane({
           filename={fileName}
           filepath={normalizedPath ?? undefined}
           mode="html"
-          onShowHistory={canEditLiveAppSource ? handleShowHistory : undefined}
+          onShowHistory={canEditLiveAppSource && hasHistory ? handleShowHistory : undefined}
           onEditSource={canEditLiveAppSource ? handleEditSource : undefined}
         />
         <HtmlViewport
