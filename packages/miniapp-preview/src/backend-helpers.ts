@@ -1,8 +1,8 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, isAbsolute, join, relative, resolve } from 'node:path';
 import { simpleGit } from 'simple-git';
-import type { StreamedHtmlSnapshot } from './types';
+import type { PreviewHistoryEntry, StreamedHtmlSnapshot } from './types';
 import { getStreamedDirectoryName, sanitizeTitleSegment } from './liveapp-id';
 import { stripDtInjections } from './strip-dt-injections';
 
@@ -19,6 +19,27 @@ const MIME_MAP: Record<string, string> = {
 };
 
 const GIT_IGNORE_CONTENT = ['.DS_Store', '.dt-redo-stack.json', ''].join('\n');
+const REDO_STACK_FILE = '.dt-redo-stack.json';
+
+function normalizePathSlashes(path: string): string {
+  return path.replace(/\\/g, '/');
+}
+
+function resolveManagedPath(homeDir: string, inputPath: string): string {
+  return isAbsolute(inputPath) ? resolve(inputPath) : resolve(homeDir, inputPath);
+}
+
+function getLiveAppsRoot(homeDir: string): string {
+  return resolve(homeDir, '.data', 'liveapps');
+}
+
+function clearRedoStack(liveAppDir: string): void {
+  writeFileSync(
+    join(liveAppDir, REDO_STACK_FILE),
+    JSON.stringify({ commits: [] }, null, 2) + '\n',
+    'utf8',
+  );
+}
 
 export function getExtension(name: string): string {
   const dot = name.lastIndexOf('.');
@@ -160,6 +181,92 @@ async function initializeLiveAppRepo(liveAppDir: string): Promise<void> {
     await git.add('.');
     await git.commit('Initial LiveApp snapshot');
   }
+}
+
+export function getLiveAppDir(homeDir: string, filePath: string): string | null {
+  const absolutePath = resolveManagedPath(homeDir, filePath);
+  const liveAppsRoot = getLiveAppsRoot(homeDir);
+  const rel = normalizePathSlashes(relative(liveAppsRoot, absolutePath));
+
+  if (!rel || rel.startsWith('..') || rel === '.' || rel === '') {
+    return null;
+  }
+
+  const [liveAppId] = rel.split('/');
+  if (!liveAppId) {
+    return null;
+  }
+
+  return join(liveAppsRoot, liveAppId);
+}
+
+export async function getCommitHistory(
+  homeDir: string,
+  filePath: string,
+): Promise<PreviewHistoryEntry[]> {
+  const absolutePath = resolveManagedPath(homeDir, filePath);
+  const liveAppDir = getLiveAppDir(homeDir, absolutePath);
+  if (!liveAppDir || !existsSync(join(liveAppDir, '.git'))) {
+    return [];
+  }
+
+  const git = simpleGit(liveAppDir);
+  const relativePath = normalizePathSlashes(relative(liveAppDir, absolutePath));
+  const output = await git.raw([
+    'log',
+    '--date=iso-strict',
+    '--pretty=format:%H%x09%cI%x09%s',
+    '--',
+    relativePath,
+  ]);
+
+  return output
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [hash, date, ...messageParts] = line.split('\t');
+      return {
+        hash,
+        date,
+        message: messageParts.join('\t') || `Edit ${basename(absolutePath)}`,
+      } satisfies PreviewHistoryEntry;
+    })
+    .filter((entry) => entry.hash && entry.date);
+}
+
+export async function restoreToCommit(
+  homeDir: string,
+  filePath: string,
+  commitHash: string,
+): Promise<{ path: string; content: string }> {
+  const absolutePath = resolveManagedPath(homeDir, filePath);
+  const liveAppDir = getLiveAppDir(homeDir, absolutePath);
+  if (!liveAppDir) {
+    throw new Error('File is not inside a managed LiveApp directory.');
+  }
+
+  await initializeLiveAppRepo(liveAppDir);
+
+  const git = simpleGit(liveAppDir);
+  const relativePath = normalizePathSlashes(relative(liveAppDir, absolutePath));
+  const resolvedHash = (await git.revparse([commitHash])).trim();
+  const headHash = (await git.revparse(['HEAD'])).trim();
+
+  if (resolvedHash !== headHash) {
+    const targetMessage = (await git.raw(['show', '-s', '--format=%s', resolvedHash])).trim();
+    await git.raw(['checkout', resolvedHash, '--', relativePath]);
+    clearRedoStack(liveAppDir);
+    await git.add(relativePath);
+    await git.commit(
+      `Restore ${basename(absolutePath)} to ${targetMessage || resolvedHash.slice(0, 7)}`,
+    );
+  }
+
+  return {
+    path: absolutePath,
+    content: readFileSync(absolutePath, 'utf8'),
+  };
 }
 
 export function parseImageDimensions(

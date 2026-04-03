@@ -15,8 +15,10 @@ import type {
   PreviewBridgeResponseMessage,
   PreviewBridgeStoragePayload,
   PreviewBridgeStorageResult,
+  PreviewHistoryEntry,
 } from '../types';
 import { HtmlViewport, type HtmlViewportHandle } from './HtmlViewport';
+import { HistoryDialog } from './HistoryDialog';
 import { PreviewToolbar } from './PreviewToolbar';
 import type { PreviewThemeRuntime } from '../html-injections';
 import {
@@ -105,6 +107,9 @@ export function HtmlPreviewPane({
     >
   >(new Map());
   const [reloadKey, setReloadKey] = useState(0);
+  const [historyEntries, setHistoryEntries] = useState<PreviewHistoryEntry[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [restoringHistoryHash, setRestoringHistoryHash] = useState<string | null>(null);
   const [pendingBridgeConfirm, setPendingBridgeConfirm] = useState<{
     confirmationRequestId: string;
     bridgeRequestId: string;
@@ -127,6 +132,10 @@ export function HtmlPreviewPane({
   );
   const requestBridgeCommand = useCommand<PreviewBridgeRequestPayload, PreviewBridgeRequestResult>(
     'preview.bridge.request',
+  );
+  const listHistory = useCommand<{ path: string }, PreviewHistoryEntry[]>('preview.history.list');
+  const restoreHistory = useCommand<{ path: string; commitHash: string }, { content: string }>(
+    'preview.history.restore',
   );
 
   const normalizedPath = normalizePreviewPath(initialPath);
@@ -503,6 +512,49 @@ export function HtmlPreviewPane({
     openMiniApp('text-edit', { path: normalizedPath });
   }, [normalizedPath, openMiniApp, shouldInjectRuntime]);
 
+  const handleShowHistory = useCallback(() => {
+    if (!normalizedPath || !canEditLiveAppSource) {
+      return;
+    }
+
+    void listHistory({ path: normalizedPath })
+      .then((entries) => {
+        setHistoryEntries(entries);
+        setHistoryOpen(true);
+      })
+      .catch((historyError) => {
+        console.error('Failed to load preview history:', historyError);
+      });
+  }, [canEditLiveAppSource, listHistory, normalizedPath]);
+
+  const handleRestoreHistory = useCallback(
+    (entry: PreviewHistoryEntry) => {
+      if (!normalizedPath || !fileName) {
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Restore ${fileName} to this version?\n\n${entry.message}\n${new Date(entry.date).toLocaleString()}`,
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      setRestoringHistoryHash(entry.hash);
+      void restoreHistory({ path: normalizedPath, commitHash: entry.hash })
+        .then(() => {
+          setHistoryOpen(false);
+        })
+        .catch((historyError) => {
+          console.error('Failed to restore preview history:', historyError);
+        })
+        .finally(() => {
+          setRestoringHistoryHash(null);
+        });
+    },
+    [fileName, normalizedPath, restoreHistory],
+  );
+
   useEffect(() => {
     onActionStateChange({
       mode: 'html',
@@ -525,6 +577,7 @@ export function HtmlPreviewPane({
           filename={fileName}
           filepath={normalizedPath ?? undefined}
           mode="html"
+          onShowHistory={canEditLiveAppSource ? handleShowHistory : undefined}
           onEditSource={canEditLiveAppSource ? handleEditSource : undefined}
         />
         <HtmlViewport
@@ -535,6 +588,18 @@ export function HtmlPreviewPane({
           onInvokeActionResult={shouldInjectRuntime ? handleInvokeActionResult : undefined}
           onLoad={shouldInjectRuntime ? handleViewportLoad : undefined}
         />
+        {historyOpen ? (
+          <HistoryDialog
+            entries={historyEntries}
+            restoringHash={restoringHistoryHash}
+            onRestore={handleRestoreHistory}
+            onClose={() => {
+              if (!restoringHistoryHash) {
+                setHistoryOpen(false);
+              }
+            }}
+          />
+        ) : null}
         {pendingBridgeConfirm ? (
           <BridgeConfirmDialog
             command={pendingBridgeConfirm.commandPreview}

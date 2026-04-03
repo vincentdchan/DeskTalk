@@ -21,6 +21,7 @@ interface PreviewToolbarProps {
   /** Shown in stream mode when content is still arriving. */
   streaming?: boolean;
   onRefreshFromFile?: () => void;
+  onShowHistory?: () => void;
   onEditSource?: () => void;
 }
 
@@ -39,6 +40,7 @@ export function PreviewToolbar({
   onNext,
   streaming,
   onRefreshFromFile,
+  onShowHistory,
   onEditSource,
 }: PreviewToolbarProps) {
   // HTML and stream modes: browser-like toolbar
@@ -119,6 +121,16 @@ export function PreviewToolbar({
 
         {/* Right: html actions */}
         <div className={styles.browserNavGroup}>
+          {onShowHistory && !streaming ? (
+            <button
+              className={styles.browserActionBtn}
+              onClick={onShowHistory}
+              title="History"
+              aria-label="History"
+            >
+              History
+            </button>
+          ) : null}
           {onEditSource && !streaming ? (
             <button
               className={styles.browserNavBtn}
@@ -140,9 +152,12 @@ export function PreviewToolbar({
                 <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4Z"></path>
               </svg>
             </button>
-          ) : (
+          ) : !onShowHistory || streaming ? (
             <div className={styles.browserActionSpacer} aria-hidden="true" />
-          )}
+          ) : null}
+          {!onEditSource && onShowHistory && !streaming ? (
+            <div className={styles.browserActionSpacer} aria-hidden="true" />
+          ) : null}
         </div>
       </div>
     );
