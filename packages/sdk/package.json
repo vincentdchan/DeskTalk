@@ -1,6 +1,6 @@
 {
   "name": "@desktalk/sdk",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0",
   "description": "DeskTalk SDK for building MiniApps.",
   "type": "module",
   "license": "MIT",

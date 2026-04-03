@@ -1,6 +1,6 @@
 {
   "name": "@desktalk/miniapp-player",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0",
   "description": "Media player MiniApp for DeskTalk.",
   "type": "module",
   "license": "MIT",

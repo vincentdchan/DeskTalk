@@ -1,6 +1,6 @@
 {
   "name": "@desktalk/miniapp-preview",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0",
   "description": "Preview MiniApp and LiveApp renderer for DeskTalk.",
   "type": "module",
   "license": "MIT",
