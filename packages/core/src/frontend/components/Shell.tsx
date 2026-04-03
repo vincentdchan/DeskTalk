@@ -1,10 +1,12 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useEventListener } from 'ahooks';
-import type { MiniAppManifest, WindowState } from '@desktalk/sdk';
+import type { WindowState } from '@desktalk/sdk';
 import type { ActionDefinition } from '@desktalk/sdk';
 import { reportWindowActions, useWindowManager } from '../stores/window-manager';
+import { useAppStore } from '../stores/app-store';
 import { ActionsBar } from './ActionsBar';
+import { ConfirmDialog } from './ConfirmDialog';
 import { ConnectionOverlay } from './ConnectionOverlay';
 import { SplitResizer } from './SplitResizer';
 import { DropZoneOverlay } from './DropZoneOverlay';
@@ -20,7 +22,7 @@ import { useDragStore } from '../stores/drag-store';
 import { httpClient } from '../http-client';
 import type { ThemePreferences } from '../theme';
 import { HTML_FORM_CONTROLS_STYLESHEET } from '../theme';
-import type { LauncherApp, LiveAppRecord } from './launcher-types';
+import type { LauncherApp } from './launcher-types';
 import styles from './Shell.module.scss';
 
 const TILE_GAP = 4;
@@ -73,12 +75,16 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
   const tree = useWindowManager((s) => s.tree);
   const fullscreenWindowId = useWindowManager((s) => s.fullscreenWindowId);
   const setWindowActions = useWindowManager((s) => s.setWindowActions);
+  const manifests = useAppStore((s) => s.manifests);
+  const liveApps = useAppStore((s) => s.liveApps);
+  const loadManifests = useAppStore((s) => s.loadManifests);
+  const loadLiveApps = useAppStore((s) => s.loadLiveApps);
 
   const isDragging = useDragStore((s) => s.isDragging);
 
-  const [manifests, setManifests] = useState<MiniAppManifest[]>([]);
-  const [liveApps, setLiveApps] = useState<LiveAppRecord[]>([]);
   const [assistantRatio, setAssistantRatio] = useState(ASSISTANT_DEFAULT_RATIO);
+  const [appToRemove, setAppToRemove] = useState<LauncherApp | null>(null);
+  const [isRemovingApp, setIsRemovingApp] = useState(false);
   const { actionHandlersRef, buildClientActions } = useWindowSync(socket);
 
   const desktopRef = useRef<HTMLDivElement>(null);
@@ -147,43 +153,10 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
     zIndex: 1,
   };
 
-  const loadLiveApps = useCallback(async () => {
-    try {
-      const response = await httpClient.get<LiveAppRecord[]>('/api/liveapps');
-      setLiveApps(response.data);
-    } catch (error) {
-      console.error('[shell] Could not load LiveApps:', error);
-    }
-  }, []);
-
-  // Fetch MiniApp manifests on mount
   useEffect(() => {
-    let cancelled = false;
-
-    void (async () => {
-      try {
-        const response = await httpClient.get<MiniAppManifest[]>('/api/miniapps');
-        if (!cancelled) {
-          setManifests(response.data);
-        }
-      } catch (error) {
-        console.error('[shell] Could not load MiniApps:', error);
-      }
-
-      try {
-        const response = await httpClient.get<LiveAppRecord[]>('/api/liveapps');
-        if (!cancelled) {
-          setLiveApps(response.data);
-        }
-      } catch (error) {
-        console.error('[shell] Could not load LiveApps:', error);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void loadManifests();
+    void loadLiveApps();
+  }, [loadLiveApps, loadManifests]);
 
   useEventListener('desktalk:event', (event: Event) => {
     const detail = (event as CustomEvent<{ event: string | null }>).detail;
@@ -192,25 +165,29 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
     }
   });
 
-  const launcherApps: LauncherApp[] = [
-    ...manifests.map((manifest) => ({
-      id: `miniapp:${manifest.id}`,
-      name: manifest.name,
-      icon: manifest.icon,
-      iconPng: manifest.iconPng,
-      kind: 'miniapp' as const,
-      miniAppId: manifest.id,
-    })),
-    ...liveApps.map((app) => ({
-      id: `liveapp:${app.id}`,
-      name: app.name,
-      icon: app.icon,
-      iconPng: app.iconPng,
-      kind: 'liveapp' as const,
-      miniAppId: 'preview',
-      args: { path: app.path, liveAppId: app.id },
-    })),
-  ].sort((a, b) => a.name.localeCompare(b.name));
+  const launcherApps = useMemo<LauncherApp[]>(
+    () =>
+      [
+        ...manifests.map((manifest) => ({
+          id: `miniapp:${manifest.id}`,
+          name: manifest.name,
+          icon: manifest.icon,
+          iconPng: manifest.iconPng,
+          kind: 'miniapp' as const,
+          miniAppId: manifest.id,
+        })),
+        ...liveApps.map((app) => ({
+          id: `liveapp:${app.id}`,
+          name: app.name,
+          icon: app.icon,
+          iconPng: app.iconPng,
+          kind: 'liveapp' as const,
+          miniAppId: 'preview',
+          args: { path: app.path, liveAppId: app.id },
+        })),
+      ].sort((a, b) => a.name.localeCompare(b.name)),
+    [liveApps, manifests],
+  );
 
   // Listen for MiniApp action registrations from within windows
   useEventListener('desktalk:actions-changed', (event: Event) => {
@@ -280,12 +257,58 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
     }
   }, []);
 
+  const handleRequestRemove = useCallback((app: LauncherApp) => {
+    if (app.kind === 'liveapp') {
+      setAppToRemove(app);
+    }
+  }, []);
+
+  const handleCancelRemove = useCallback(() => {
+    if (!isRemovingApp) {
+      setAppToRemove(null);
+    }
+  }, [isRemovingApp]);
+
+  const handleConfirmRemove = useCallback(async () => {
+    if (!appToRemove || appToRemove.kind !== 'liveapp') {
+      return;
+    }
+
+    const liveAppId =
+      typeof appToRemove.args?.liveAppId === 'string' ? appToRemove.args.liveAppId : null;
+    if (!liveAppId) {
+      return;
+    }
+
+    setIsRemovingApp(true);
+    try {
+      await useAppStore.getState().removeLiveApp(liveAppId);
+      setAppToRemove(null);
+    } catch (error) {
+      console.error('[shell] Could not remove LiveApp:', error);
+    } finally {
+      setIsRemovingApp(false);
+    }
+  }, [appToRemove]);
+
+  const removeLiveAppName = appToRemove?.name ?? '';
+  const removeLiveAppTitle = $localize`liveapp.remove.title:Remove LiveApp`;
+  const removeLiveAppMessage = $localize`liveapp.remove.confirm:Are you sure you want to remove "${removeLiveAppName}"? This will close all running instances and permanently delete it from disk.`;
+  const removeLiveAppConfirmLabel = isRemovingApp
+    ? $localize`liveapp.remove.pending:Removing...`
+    : $localize`remove:Remove`;
+  const removeLiveAppCancelLabel = $localize`cancel:Cancel`;
+
   return (
     <div className={styles.shell} data-dt-shell>
       <ConnectionOverlay status={connectionStatus} retryInSeconds={retryInSeconds} />
 
       <div className={styles.actionsBar}>
-        <ActionsBar apps={launcherApps} onLaunch={handleLaunch} />
+        <ActionsBar
+          apps={launcherApps}
+          onLaunch={handleLaunch}
+          onRequestRemove={handleRequestRemove}
+        />
       </div>
 
       <div className={styles.content} style={shellLayoutStyle}>
@@ -326,6 +349,21 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
 
         {fullscreenWindow && <CompactInfoPanel socket={socket} wsReady={wsReady} />}
       </div>
+
+      {appToRemove && (
+        <ConfirmDialog
+          title={removeLiveAppTitle}
+          message={removeLiveAppMessage}
+          confirmLabel={removeLiveAppConfirmLabel}
+          cancelLabel={removeLiveAppCancelLabel}
+          danger
+          isPending={isRemovingApp}
+          onConfirm={() => {
+            void handleConfirmRemove();
+          }}
+          onCancel={handleCancelRemove}
+        />
+      )}
     </div>
   );
 }

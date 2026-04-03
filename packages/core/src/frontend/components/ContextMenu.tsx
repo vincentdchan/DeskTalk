@@ -26,7 +26,7 @@ export function ContextMenu({ children, items, onSelect, onOpen }: ContextMenuPr
   const [isVisible, setIsVisible] = useState(false);
   const [position, setPosition] = useState({ left: 0, top: 0 });
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
-  const triggerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLSpanElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -119,6 +119,7 @@ export function ContextMenu({ children, items, onSelect, onOpen }: ContextMenuPr
         left: position.left,
         top: position.top,
       }}
+      onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
       {items.map((item) => (
@@ -137,9 +138,9 @@ export function ContextMenu({ children, items, onSelect, onOpen }: ContextMenuPr
   ) : null;
 
   return (
-    <div ref={triggerRef} className={styles.contextMenuTrigger} onContextMenu={handleContextMenu}>
+    <span ref={triggerRef} className={styles.contextMenuTrigger} onContextMenu={handleContextMenu}>
       {children}
       {container && createPortal(menu, container)}
-    </div>
+    </span>
   );
 }

@@ -1,0 +1,128 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in oklab, var(--dt-bg) 30%, transparent);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  animation: overlay-fade-in 0.12s ease-out;
+}
+
+.dialog {
+  width: min(100%, 360px);
+  animation: dialog-fade-in 0.12s ease-out;
+}
+
+.modal {
+  gap: 18px;
+}
+
+.copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.title {
+  margin: 0;
+  color: var(--dt-text);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.message {
+  margin: 0;
+  color: var(--dt-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.button {
+  min-width: 88px;
+  padding: 8px 14px;
+  border: 1px solid var(--dt-border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--dt-surface) 78%, transparent);
+  color: var(--dt-text);
+  cursor: pointer;
+  font: inherit;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease,
+    opacity 0.12s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--dt-accent-ghost);
+    border-color: var(--dt-accent);
+    color: var(--dt-accent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+}
+
+.confirmButton {
+  border-color: color-mix(in oklab, var(--dt-accent) 38%, var(--dt-border));
+  color: var(--dt-accent);
+}
+
+.dangerButton {
+  border-color: color-mix(in oklab, var(--dt-danger) 42%, var(--dt-border));
+  background: var(--dt-danger-subtle);
+  color: var(--dt-danger);
+
+  &:hover:not(:disabled) {
+    background: var(--dt-danger);
+    border-color: var(--dt-danger);
+    color: var(--dt-text-on-accent);
+  }
+}
+
+@keyframes overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 640px) {
+  .overlay {
+    padding: 16px;
+  }
+
+  .actions {
+    flex-direction: column-reverse;
+  }
+
+  .button {
+    width: 100%;
+  }
+}

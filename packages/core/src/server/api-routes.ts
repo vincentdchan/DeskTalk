@@ -12,7 +12,8 @@ import {
   LIVEAPP_ICON_SIZES,
   parseLiveAppIconSize,
 } from '../services/liveapp-icon';
-import { listLiveApps } from '../services/liveapps';
+import { listLiveApps, removeLiveApp } from '../services/liveapps';
+import { broadcastEvent } from '../services/messaging';
 import {
   MINIAPP_ICON_CACHE_CONTROL,
   MINIAPP_ICON_SIZES,
@@ -77,6 +78,28 @@ export async function apiRoutes(app: FastifyInstance, options: ApiRoutesOptions)
   app.get('/api/liveapps', async (req) => {
     const username = req.user!.username;
     return listLiveApps(getUserHomeDir(username));
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/liveapps/:id', async (req, reply) => {
+    const username = req.user!.username;
+
+    try {
+      await removeLiveApp(getUserHomeDir(username), req.params.id);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === 'EINVAL') {
+        reply.code(400);
+        return { error: 'Invalid LiveApp id' };
+      }
+      if (code === 'ENOENT') {
+        reply.code(404);
+        return { error: 'LiveApp not found' };
+      }
+      throw error;
+    }
+
+    broadcastEvent('preview', 'liveapps.changed', { id: req.params.id, removed: true });
+    return { id: req.params.id, removed: true };
   });
 
   app.get<{ Params: { id: string }; Querystring: { size?: string } }>(

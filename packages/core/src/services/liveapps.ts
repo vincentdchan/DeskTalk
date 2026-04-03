@@ -1,5 +1,6 @@
 import type { MiniAppManifest } from '@desktalk/sdk';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { buildLiveAppIconUrl } from './liveapp-icon';
 
@@ -12,6 +13,18 @@ export interface LiveAppEntry {
   path: string;
   icon: string;
   iconPng?: string;
+}
+
+function createLiveAppError(message: string, code: 'EINVAL' | 'ENOENT'): NodeJS.ErrnoException {
+  const error = new Error(message) as NodeJS.ErrnoException;
+  error.code = code;
+  return error;
+}
+
+function assertValidLiveAppId(id: string): void {
+  if (!id || id.includes('/') || id.includes('\\') || id.includes('..') || id.includes('\0')) {
+    throw createLiveAppError('Invalid LiveApp id', 'EINVAL');
+  }
 }
 
 function decodeHtmlEntities(value: string): string {
@@ -87,6 +100,28 @@ export function listLiveApps(userHomeDir: string): LiveAppEntry[] {
     })
     .filter((entry): entry is LiveAppEntry => entry !== null)
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function removeLiveApp(userHomeDir: string, id: string): Promise<void> {
+  assertValidLiveAppId(id);
+
+  const liveAppDir = join(userHomeDir, '.data', 'liveapps', id);
+
+  let stats;
+  try {
+    stats = await stat(liveAppDir);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw createLiveAppError('LiveApp not found', 'ENOENT');
+    }
+    throw error;
+  }
+
+  if (!stats.isDirectory()) {
+    throw createLiveAppError('LiveApp not found', 'ENOENT');
+  }
+
+  await rm(liveAppDir, { recursive: true, force: true });
 }
 
 export function toLiveAppManifest(entry: LiveAppEntry): MiniAppManifest {

@@ -16,9 +16,10 @@ const SPLIT_LABELS: Record<string, string> = {
 interface ActionsBarProps {
   apps: LauncherApp[];
   onLaunch: (app: LauncherApp) => void;
+  onRequestRemove: (app: LauncherApp) => void;
 }
 
-export function ActionsBar({ apps, onLaunch }: ActionsBarProps) {
+export function ActionsBar({ apps, onLaunch, onRequestRemove }: ActionsBarProps) {
   const focusedWindowId = useWindowManager((s) => s.focusedWindowId);
   const fullscreenWindowId = useWindowManager((s) => s.fullscreenWindowId);
   const focusedWindow = useWindowManager((s) => s.windows.find((w) => w.id === s.focusedWindowId));
@@ -65,6 +66,7 @@ export function ActionsBar({ apps, onLaunch }: ActionsBarProps) {
           isOpen={launcherOpen}
           onClose={() => setLauncherOpen(false)}
           onLaunch={onLaunch}
+          onRequestRemove={onRequestRemove}
           anchorRef={buttonRef}
         />
       </div>
