@@ -1,27 +1,30 @@
-import type React from 'react';
 import type { WindowState } from '@desktalk/sdk';
-import { WindowChrome } from './WindowChrome';
-import { SplitResizer } from './SplitResizer';
 import { MiniAppWindow } from './MiniAppWindow';
-import type { TilingNode, TreePath } from '../tiling-tree';
+import { SplitResizer } from './SplitResizer';
+import { WindowChrome } from './WindowChrome';
+import { useWindowManager } from '../stores/window-manager';
 import type { ThemePreferences } from '../theme';
-import styles from './TilingTreeView.module.scss';
-
-const TILE_GAP = 4;
 
 function WindowTile({
   win,
+  tileRect,
   themePreferences,
   isOverlayMaximized = false,
   draggable = false,
 }: {
   win: WindowState;
+  tileRect: { x: number; y: number; width: number; height: number };
   themePreferences: ThemePreferences;
   isOverlayMaximized?: boolean;
   draggable?: boolean;
 }) {
   return (
-    <WindowChrome window={win} isOverlayMaximized={isOverlayMaximized} draggable={draggable}>
+    <WindowChrome
+      window={win}
+      tileRect={tileRect}
+      isOverlayMaximized={isOverlayMaximized}
+      draggable={draggable}
+    >
       <MiniAppWindow
         miniAppId={win.miniAppId}
         windowId={win.id}
@@ -33,74 +36,50 @@ function WindowTile({
 }
 
 export function TilingTreeView({
-  node,
   windowsById,
   themePreferences,
-  path = [],
   canDrag = false,
 }: {
-  node: TilingNode;
   windowsById: Map<string, WindowState>;
   themePreferences: ThemePreferences;
-  path?: TreePath;
   canDrag?: boolean;
 }) {
-  if (node.type === 'leaf') {
-    const win = windowsById.get(node.windowId);
-    if (!win) {
-      return null;
-    }
-
-    return (
-      <div className={styles.tileLeaf}>
-        <WindowTile
-          win={win}
-          themePreferences={themePreferences}
-          isOverlayMaximized={win.maximized}
-          draggable={canDrag}
-        />
-      </div>
-    );
-  }
-
-  const [first, second] = node.children;
-  const containerStyle: React.CSSProperties =
-    node.split === 'horizontal'
-      ? {
-          gridTemplateColumns: `minmax(0, ${node.ratio}fr) ${TILE_GAP}px minmax(0, ${1 - node.ratio}fr)`,
-        }
-      : {
-          gridTemplateRows: `minmax(0, ${node.ratio}fr) ${TILE_GAP}px minmax(0, ${1 - node.ratio}fr)`,
-        };
-
-  const splitClassName = [
-    styles.tileSplit,
-    node.split === 'horizontal' ? styles.tileSplitHorizontal : styles.tileSplitVertical,
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const tileRects = useWindowManager((state) => state.tileRects);
+  const splitBars = useWindowManager((state) => state.splitBars);
 
   return (
-    <div className={splitClassName} style={containerStyle}>
-      <div className={styles.tilePane}>
-        <TilingTreeView
-          node={first}
-          windowsById={windowsById}
-          themePreferences={themePreferences}
-          path={[...path, 0]}
-          canDrag={canDrag}
-        />
-      </div>
-      <SplitResizer path={path} split={node.split} ratio={node.ratio} />
-      <div className={styles.tilePane}>
-        <TilingTreeView
-          node={second}
-          windowsById={windowsById}
-          themePreferences={themePreferences}
-          path={[...path, 1]}
-          canDrag={canDrag}
-        />
-      </div>
-    </div>
+    <>
+      {tileRects.map((tileRect) => {
+        const win = windowsById.get(tileRect.windowId);
+        if (!win) {
+          return null;
+        }
+
+        return (
+          <WindowTile
+            key={win.id}
+            win={win}
+            tileRect={tileRect}
+            themePreferences={themePreferences}
+            isOverlayMaximized={win.maximized}
+            draggable={canDrag}
+          />
+        );
+      })}
+      {splitBars.map((bar) => {
+        const barKey = bar.path.length > 0 ? bar.path.join('-') : 'root';
+
+        return (
+          <SplitResizer
+            key={barKey}
+            path={bar.path}
+            split={bar.split}
+            ratio={bar.ratio}
+            rect={{ x: bar.x, y: bar.y, width: bar.width, height: bar.height }}
+            containerSize={{ width: bar.containerWidth, height: bar.containerHeight }}
+          />
+        );
+      })}
+    </>
   );
 }

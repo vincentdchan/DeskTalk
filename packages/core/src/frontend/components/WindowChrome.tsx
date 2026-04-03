@@ -174,10 +174,10 @@ export function WindowChrome({
     : tileRect
       ? {
           position: 'absolute',
-          left: tileRect.x,
-          top: tileRect.y,
           width: tileRect.width,
           height: tileRect.height,
+          transform: `translate(${tileRect.x}px, ${tileRect.y}px)`,
+          willChange: 'transform',
         }
       : {};
 

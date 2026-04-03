@@ -534,6 +534,9 @@ export interface SplitBar {
   split: 'horizontal' | 'vertical';
   /** Current ratio of the container. */
   ratio: number;
+  /** Size of the container that owns this split. */
+  containerWidth: number;
+  containerHeight: number;
   /** Pixel position & size of the resizer hit-area. */
   x: number;
   y: number;
@@ -564,6 +567,8 @@ export function computeSplitBars(
       path,
       split,
       ratio,
+      containerWidth: bounds.width,
+      containerHeight: bounds.height,
       x: splitX - halfGap,
       y: bounds.y,
       width: gap,
@@ -590,6 +595,8 @@ export function computeSplitBars(
       path,
       split,
       ratio,
+      containerWidth: bounds.width,
+      containerHeight: bounds.height,
       x: bounds.x,
       y: splitY - halfGap,
       width: bounds.width,

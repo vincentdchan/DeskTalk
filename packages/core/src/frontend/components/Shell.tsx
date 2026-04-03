@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useEventListener } from 'ahooks';
 import type { MiniAppManifest, WindowState } from '@desktalk/sdk';
 import type { ActionDefinition } from '@desktalk/sdk';
@@ -129,7 +129,7 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
     });
   });
 
-  const windowsById = new Map(windows.map((win) => [win.id, win]));
+  const windowsById = useMemo(() => new Map(windows.map((win) => [win.id, win])), [windows]);
   const fullscreenWindow = fullscreenWindowId ? windowsById.get(fullscreenWindowId) : undefined;
   const desktopRatio = 1 - assistantRatio;
   const shellLayoutStyle: React.CSSProperties = {
@@ -293,7 +293,6 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
           {wsReady
             ? tree && (
                 <TilingTreeView
-                  node={tree}
                   windowsById={windowsById}
                   themePreferences={themePreferences}
                   canDrag={tree.type === 'container'}

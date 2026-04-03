@@ -200,7 +200,7 @@ export const HtmlViewport = forwardRef<HtmlViewportHandle, HtmlViewportProps>(fu
       <iframe
         ref={iframeRef}
         className={styles.htmlViewport}
-        sandbox={streaming ? 'allow-same-origin' : 'allow-scripts allow-same-origin'}
+        sandbox="allow-scripts allow-same-origin"
         title="HTML Preview"
         src={src}
         onLoad={() => {
