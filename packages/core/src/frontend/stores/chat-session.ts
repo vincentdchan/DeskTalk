@@ -181,6 +181,7 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
       !sessionId ||
       socket.readyState !== WebSocket.OPEN ||
       state.isAiRunning ||
+      state.pendingQuestion ||
       state.currentSessionId === sessionId
     ) {
       return false;
@@ -207,7 +208,7 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
 
   createSession(socket: WebSocket) {
     const state = get();
-    if (socket.readyState !== WebSocket.OPEN || state.isAiRunning) {
+    if (socket.readyState !== WebSocket.OPEN || state.isAiRunning || state.pendingQuestion) {
       return false;
     }
 
@@ -249,21 +250,34 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
     const state = get();
     if (
       socket.readyState !== WebSocket.OPEN ||
+      state.isAiRunning ||
       !state.pendingQuestion ||
       state.pendingQuestion.questionId !== questionId
     ) {
       return false;
     }
 
+    const requestId = `ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
     socket.send(
       JSON.stringify({
         type: 'ai:answer',
+        requestId,
         questionId,
         answer,
       }),
     );
 
-    set({ pendingQuestion: null });
+    set((prev) => ({
+      pendingQuestion: null,
+      isAiRunning: true,
+      activeRequestId: requestId,
+      tokenCount: 0,
+      messages: [
+        ...prev.messages,
+        { id: `assistant-${requestId}`, role: 'assistant' as const, content: '' },
+      ],
+    }));
     return true;
   },
 
@@ -320,7 +334,10 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
     if (event.type === 'history_sync') {
       set((prev) => ({
         messages: event.messages ?? [],
+        isAiRunning: false,
+        activeRequestId: null,
         currentSessionId: event.sessionId ?? prev.currentSessionId,
+        pendingQuestion: null,
       }));
       return;
     }
@@ -427,7 +444,6 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
           messages,
           isAiRunning: false,
           activeRequestId: null,
-          pendingQuestion: null,
           tokenCount: event.usage?.totalTokens ?? 0,
           modelLabel: selectedProvider
             ? getProviderStatusLabel(selectedProvider, providerOptions)

@@ -20,11 +20,18 @@ function getAgentQuestionPreview(question: AgentQuestionData): string {
   return `${question.question}: ${question.answer}`;
 }
 
+function getAskUserToolSummary(question: AgentQuestionData): string {
+  return question.question ? `Asked user: ${question.question}` : 'Ask user';
+}
+
 function getCompactPreview(message: ChatMessage, isThinking: boolean): string {
   if (message.toolCall) {
     if (message.toolCall.toolName === 'ask_user') {
+      const question = message.toolCall.params as unknown as AgentQuestionData;
       return toSingleLine(
-        getAgentQuestionPreview(message.toolCall.params as unknown as AgentQuestionData),
+        question.answer === undefined
+          ? getAskUserToolSummary(question)
+          : getAgentQuestionPreview(question),
       );
     }
 
@@ -96,7 +103,14 @@ export function ChatMessageItem({
   // Tool call messages render as compact one-liners
   if (message.toolCall) {
     if (message.toolCall.toolName === 'ask_user') {
-      return <AgentQuestion question={message.toolCall.params as unknown as AgentQuestionData} />;
+      const question = message.toolCall.params as unknown as AgentQuestionData;
+      if (question.answer !== undefined) {
+        return <AgentQuestion question={question} />;
+      }
+
+      return (
+        <ToolCallMessage toolName={message.toolCall.toolName} params={message.toolCall.params} />
+      );
     }
 
     return (

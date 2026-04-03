@@ -9,6 +9,7 @@ export interface CommandInputProps {
   onSubmit: () => void;
   onCancelAi: () => boolean;
   isAiRunning: boolean;
+  hasPendingQuestion?: boolean;
   queuedCount: number;
   isVoiceActive: boolean;
   onVoiceToggle: () => void;
@@ -23,6 +24,7 @@ export function CommandInput({
   onSubmit,
   onCancelAi,
   isAiRunning,
+  hasPendingQuestion = false,
   queuedCount,
   isVoiceActive,
   onVoiceToggle,
@@ -195,11 +197,13 @@ export function CommandInput({
           placeholder={
             isCancelling
               ? 'Cancelling AI...'
-              : isAiRunning
-                ? isCancelArmed
-                  ? 'Press Esc again to cancel AI, or Enter to queue the next message'
-                  : 'AI is thinking... press Esc twice to cancel or Enter to queue the next message'
-                : 'Ask the AI...'
+              : hasPendingQuestion
+                ? 'Answer the pending question above, or press Esc twice to cancel'
+                : isAiRunning
+                  ? isCancelArmed
+                    ? 'Press Esc again to cancel AI, or Enter to queue the next message'
+                    : 'AI is thinking... press Esc twice to cancel or Enter to queue the next message'
+                  : 'Ask the AI...'
           }
           disabled={!wsReady}
         />

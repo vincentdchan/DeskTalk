@@ -151,7 +151,7 @@ describe('getToolCallSummary', () => {
   });
 
   it('formats ask_user tool calls', () => {
-    expect(getToolCallSummary('ask_user', { question: 'Continue?' })).toBe('Ask user');
+    expect(getToolCallSummary('ask_user', { question: 'Continue?' })).toBe('Asked user: Continue?');
   });
 
   it('falls back to tool name for unknown tools', () => {

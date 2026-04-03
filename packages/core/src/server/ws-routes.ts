@@ -58,6 +58,10 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
     const cancelledAiRequestIds = new Set<string>();
 
     function sendAiEvent(event: Record<string, unknown>): void {
+      if (socket.readyState !== socket.OPEN) {
+        return;
+      }
+
       socket.send(
         JSON.stringify({
           type: 'ai:event',
@@ -86,6 +90,16 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
           sessionId: piSessionService.getSessionId(),
           sessions: await piSessionService.listSessions(),
         });
+        const pendingQuestion = piSessionService.getPendingQuestion();
+        if (pendingQuestion) {
+          sendAiEvent({
+            type: 'agent_question',
+            questionId: pendingQuestion.questionId,
+            question: pendingQuestion.question,
+            questionType: pendingQuestion.questionType,
+            ...(pendingQuestion.options ? { options: pendingQuestion.options } : {}),
+          });
+        }
 
         const persisted = windowManager.getPersistedState();
         socket.send(
@@ -108,6 +122,23 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
         socket.close(1011, 'Failed to restore desktop state');
       }
     })();
+
+    socket.on('close', () => {
+      const requestId = activeAiRequestId;
+      activeAiRequestId = null;
+
+      if (!requestId) {
+        return;
+      }
+
+      cancelledAiRequestIds.add(requestId);
+      void piSessionService.abort().catch((err) => {
+        logger.warn(
+          { requestId, err: err instanceof Error ? err.message : String(err) },
+          'failed to abort AI request after websocket disconnect',
+        );
+      });
+    });
 
     socket.on('message', async (raw: Buffer | ArrayBuffer | Buffer[]) => {
       try {
@@ -192,15 +223,24 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
             sessions: await piSessionService.listSessions(),
           });
         } else if (msg.type === 'ai:sessions:create') {
-          if (activeAiRequestId) {
+          if (activeAiRequestId || piSessionService.hasPendingQuestion()) {
             sendAiEvent({
               type: 'error',
-              message: 'Cannot create a new session while the AI is responding.',
+              message: 'Answer or cancel the pending AI work before creating a new session.',
             });
             return;
           }
 
-          await piSessionService.createNewSession();
+          try {
+            await piSessionService.createNewSession();
+          } catch (err) {
+            sendAiEvent({
+              type: 'error',
+              message: (err as Error).message,
+            });
+            return;
+          }
+
           sendAiEvent({
             type: 'history_sync',
             sessionId: piSessionService.getSessionId(),
@@ -213,10 +253,10 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
           });
         } else if (msg.type === 'ai:sessions:switch') {
           const sessionId = typeof msg.sessionId === 'string' ? msg.sessionId : '';
-          if (activeAiRequestId) {
+          if (activeAiRequestId || piSessionService.hasPendingQuestion()) {
             sendAiEvent({
               type: 'error',
-              message: 'Wait for the current AI response to finish before switching sessions.',
+              message: 'Answer or cancel the pending AI work before switching sessions.',
             });
             return;
           }
@@ -229,7 +269,17 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
             return;
           }
 
-          const switched = await piSessionService.switchSession(sessionId);
+          let switched = false;
+          try {
+            switched = await piSessionService.switchSession(sessionId);
+          } catch (err) {
+            sendAiEvent({
+              type: 'error',
+              message: (err as Error).message,
+            });
+            return;
+          }
+
           if (!switched) {
             sendAiEvent({
               type: 'error',
@@ -310,18 +360,95 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
             });
           }
         } else if (msg.type === 'ai:answer') {
+          const requestId = typeof msg.requestId === 'string' ? msg.requestId : `ai-${Date.now()}`;
           const questionId = typeof msg.questionId === 'string' ? msg.questionId : '';
-          const answer = typeof msg.answer === 'string' ? msg.answer : '';
+          const answer = typeof msg.answer === 'string' ? msg.answer.trim() : '';
 
           if (!questionId) {
             sendAiEvent({
               type: 'error',
+              requestId,
               message: 'A question ID is required to answer an agent question.',
             });
             return;
           }
 
-          piSessionService.resolveQuestion(questionId, answer);
+          if (!answer) {
+            sendAiEvent({
+              type: 'error',
+              requestId,
+              message: 'A non-empty answer is required.',
+            });
+            return;
+          }
+
+          if (activeAiRequestId) {
+            sendAiEvent({
+              type: 'error',
+              requestId,
+              message: 'Another AI request is already running. Wait for it to finish.',
+            });
+            return;
+          }
+
+          activeAiRequestId = requestId;
+
+          try {
+            const result = await piSessionService.resumeWithAnswer({
+              questionId,
+              answer,
+              callbacks: {
+                onEvent: (event) =>
+                  sendAiEvent({
+                    requestId,
+                    ...event,
+                  }),
+              },
+            });
+
+            if (cancelledAiRequestIds.has(requestId)) {
+              sendAiEvent({
+                type: 'message_end',
+                requestId,
+                cancelled: true,
+              });
+              return;
+            }
+
+            if (result.status === 'completed') {
+              sendAiEvent({
+                type: 'history_sync',
+                sessionId: piSessionService.getSessionId(),
+                messages: piSessionService.getHistory(),
+              });
+            }
+
+            sendAiEvent({
+              type: 'sessions_sync',
+              sessionId: piSessionService.getSessionId(),
+              sessions: await piSessionService.listSessions(),
+            });
+          } catch (err) {
+            if (cancelledAiRequestIds.has(requestId)) {
+              sendAiEvent({
+                type: 'message_end',
+                requestId,
+                cancelled: true,
+              });
+              return;
+            }
+
+            sendAiEvent({
+              type: 'error',
+              requestId,
+              message: (err as Error).message,
+            });
+          } finally {
+            cancelledAiRequestIds.delete(requestId);
+            if (activeAiRequestId === requestId) {
+              activeAiRequestId = null;
+            }
+          }
         } else if (msg.type === 'ai:prompt') {
           const requestId = typeof msg.requestId === 'string' ? msg.requestId : `ai-${Date.now()}`;
           const text = typeof msg.text === 'string' ? msg.text.trim() : '';
@@ -349,7 +476,7 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
           activeAiRequestId = requestId;
 
           try {
-            await piSessionService.prompt(
+            const result = await piSessionService.prompt(
               {
                 text,
                 source,
@@ -373,11 +500,13 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
               return;
             }
 
-            sendAiEvent({
-              type: 'history_sync',
-              sessionId: piSessionService.getSessionId(),
-              messages: piSessionService.getHistory(),
-            });
+            if (result.status === 'completed') {
+              sendAiEvent({
+                type: 'history_sync',
+                sessionId: piSessionService.getSessionId(),
+                messages: piSessionService.getHistory(),
+              });
+            }
             sendAiEvent({
               type: 'sessions_sync',
               sessionId: piSessionService.getSessionId(),

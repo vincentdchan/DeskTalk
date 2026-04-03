@@ -45,7 +45,13 @@ import type { WorkspacePaths } from '../workspace';
 import { getUserHomeDir } from '../workspace';
 import { DESKTALK_SYSTEM_PROMPT } from './system-prompt';
 import { listLiveApps } from '../liveapps';
-import { createAskUserTool, type AskUserQuestionType } from './ask-user-tool';
+import {
+  createAskUserTool,
+  formatAskUserWaitingMessage,
+  isAskUserWaitingMessage,
+  type AskUserQuestionType,
+} from './ask-user-tool';
+import { PendingQuestionStore, type PendingQuestionCheckpoint } from './pending-question-store';
 
 export type ChatSource = 'text' | 'voice';
 
@@ -101,13 +107,16 @@ interface MessageMetadataStore {
   byKey: Record<string, MessageMetadata>;
 }
 
-interface PendingQuestionRecord {
-  resolve: (answer: string) => void;
-  reject: (error: Error) => void;
-}
-
 interface PromptEventSinkRef {
   current: ((event: Record<string, unknown>) => void) | null;
+}
+
+interface SessionRef {
+  current: AgentSession | null;
+}
+
+export interface PromptResult {
+  status: 'completed' | 'suspended';
 }
 
 type BasicUserMessage = {
@@ -315,6 +324,71 @@ function formatToolCallParams(
   return params;
 }
 
+const AGENT_QUESTION_ANSWER_PREFIX = '[Agent Question Answer]';
+const AGENT_QUESTION_ANSWER_SUFFIX = '[/Agent Question Answer]';
+
+function formatPendingQuestionAnswerMessage(
+  checkpoint: PendingQuestionCheckpoint,
+  answer: string,
+): string {
+  return [
+    AGENT_QUESTION_ANSWER_PREFIX,
+    JSON.stringify({
+      questionId: checkpoint.questionId,
+      question: checkpoint.question,
+      answer,
+    }),
+    AGENT_QUESTION_ANSWER_SUFFIX,
+  ].join('\n');
+}
+
+function parsePendingQuestionAnswerMessage(
+  text: string,
+): { questionId: string; question: string; answer: string } | null {
+  const trimmed = text.trim();
+  if (
+    !trimmed.startsWith(AGENT_QUESTION_ANSWER_PREFIX) ||
+    !trimmed.endsWith(AGENT_QUESTION_ANSWER_SUFFIX)
+  ) {
+    return null;
+  }
+
+  const jsonStart = AGENT_QUESTION_ANSWER_PREFIX.length;
+  const jsonEnd = trimmed.length - AGENT_QUESTION_ANSWER_SUFFIX.length;
+  const rawJson = trimmed.slice(jsonStart, jsonEnd).trim();
+  if (!rawJson) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(rawJson) as {
+      questionId?: string;
+      question?: string;
+      answer?: string;
+    };
+    if (
+      typeof parsed.questionId !== 'string' ||
+      typeof parsed.question !== 'string' ||
+      typeof parsed.answer !== 'string'
+    ) {
+      return null;
+    }
+
+    return parsed as { questionId: string; question: string; answer: string };
+  } catch {
+    return null;
+  }
+}
+
+function normalizeAskUserAnswer(answer: string): string | undefined {
+  const trimmed = answer.trim();
+  if (!trimmed || isAskUserWaitingMessage(trimmed)) {
+    return undefined;
+  }
+
+  return trimmed;
+}
+
 function readMetadata(filePath: string): MessageMetadataStore {
   if (!existsSync(filePath)) {
     return { byKey: {} };
@@ -402,8 +476,11 @@ export class PiSessionService {
   private readonly log: pino.Logger;
   private readonly customTools: ToolDefinition[];
   private readonly getCurrentUsername: () => string;
-  private readonly pendingQuestions: Map<string, PendingQuestionRecord>;
+  private readonly pendingQuestionStore: PendingQuestionStore;
   private readonly promptEventSinkRef: PromptEventSinkRef;
+  private readonly sessionRef: SessionRef;
+  private isPrompting = false;
+  private abortPromise: Promise<void> | null = null;
 
   private constructor(options: {
     session: AgentSession;
@@ -419,8 +496,9 @@ export class PiSessionService {
     logger: pino.Logger;
     customTools: ToolDefinition[];
     getCurrentUsername: () => string;
-    pendingQuestions: Map<string, PendingQuestionRecord>;
+    pendingQuestionStore: PendingQuestionStore;
     promptEventSinkRef: PromptEventSinkRef;
+    sessionRef: SessionRef;
   }) {
     this.session = options.session;
     this.authStorage = options.authStorage;
@@ -435,8 +513,9 @@ export class PiSessionService {
     this.log = options.logger;
     this.customTools = options.customTools;
     this.getCurrentUsername = options.getCurrentUsername;
-    this.pendingQuestions = options.pendingQuestions;
+    this.pendingQuestionStore = options.pendingQuestionStore;
     this.promptEventSinkRef = options.promptEventSinkRef;
+    this.sessionRef = options.sessionRef;
   }
 
   static async create(
@@ -509,8 +588,11 @@ export class PiSessionService {
       getPreference,
       logger: logger.child({ scope: 'image-generation' }),
     });
-    const pendingQuestions = new Map<string, PendingQuestionRecord>();
+    const pendingQuestionStore = new PendingQuestionStore(
+      join(workspacePaths.data, 'storage', 'ai-pending-questions.json'),
+    );
     const promptEventSinkRef: PromptEventSinkRef = { current: null };
+    const sessionRef: SessionRef = { current: null };
 
     const customTools = [
       createDesktopTool({
@@ -560,50 +642,50 @@ export class PiSessionService {
       }),
       createReadManualTool(),
       createAskUserTool({
-        sendQuestion: async ({ question, questionType, options, signal }) => {
+        sendQuestion: async ({ toolCallId, question, questionType, options, signal }) => {
           if (!promptEventSinkRef.current) {
             throw new Error('ask_user is only available while a prompt is running.');
           }
 
+          if (signal?.aborted) {
+            throw new Error('Question cancelled before the user answered.');
+          }
+
+          if (pendingQuestionStore.getPending()) {
+            throw new Error(
+              'A user question is already pending. Wait for that answer before asking another one.',
+            );
+          }
+
+          const activeSession = sessionRef.current;
+          if (!activeSession) {
+            throw new Error('No active AI session is available for ask_user.');
+          }
+
           const questionId = randomUUID();
-
-          return new Promise<string>((resolve, reject) => {
-            const cleanup = () => {
-              pendingQuestions.delete(questionId);
-              signal?.removeEventListener('abort', handleAbort);
-            };
-
-            const handleAbort = () => {
-              cleanup();
-              reject(new Error('Question cancelled before the user answered.'));
-            };
-
-            pendingQuestions.set(questionId, {
-              resolve: (answer) => {
-                cleanup();
-                resolve(answer);
-              },
-              reject: (error) => {
-                cleanup();
-                reject(error);
-              },
-            });
-
-            promptEventSinkRef.current?.({
-              type: 'agent_question',
-              questionId,
-              question,
-              questionType,
-              ...(options ? { options } : {}),
-            });
-
-            if (signal?.aborted) {
-              handleAbort();
-              return;
-            }
-
-            signal?.addEventListener('abort', handleAbort, { once: true });
+          pendingQuestionStore.save({
+            questionId,
+            sessionId: activeSession.sessionId,
+            toolCallId,
+            question,
+            questionType,
+            ...(options ? { options } : {}),
+            status: 'pending',
+            createdAt: Date.now(),
           });
+
+          promptEventSinkRef.current?.({
+            type: 'agent_question',
+            questionId,
+            question,
+            questionType,
+            ...(options ? { options } : {}),
+          });
+
+          return {
+            questionId,
+            waitingMessage: formatAskUserWaitingMessage(questionId),
+          };
         },
       }),
     ];
@@ -618,6 +700,8 @@ export class PiSessionService {
       customTools,
       resourceLoader,
     });
+    sessionRef.current = session;
+    pendingQuestionStore.cleanupStale(session.sessionId);
 
     return new PiSessionService({
       session,
@@ -633,8 +717,9 @@ export class PiSessionService {
       logger,
       customTools,
       getCurrentUsername,
-      pendingQuestions,
+      pendingQuestionStore,
       promptEventSinkRef,
+      sessionRef,
     });
   }
 
@@ -653,8 +738,28 @@ export class PiSessionService {
     return session;
   }
 
+  private async waitForAbortCompletion(): Promise<void> {
+    if (!this.abortPromise) {
+      return;
+    }
+
+    await this.abortPromise;
+  }
+
+  private getCurrentSessionPendingQuestion(): PendingQuestionCheckpoint | null {
+    return this.pendingQuestionStore.getPending(this.getSessionId());
+  }
+
   getSessionId(): string {
     return this.session.sessionId;
+  }
+
+  hasPendingQuestion(): boolean {
+    return Boolean(this.getCurrentSessionPendingQuestion());
+  }
+
+  getPendingQuestion(): PendingQuestionCheckpoint | null {
+    return this.getCurrentSessionPendingQuestion();
   }
 
   async listSessions(): Promise<ChatSessionSummary[]> {
@@ -665,9 +770,16 @@ export class PiSessionService {
   }
 
   async createNewSession(): Promise<ChatSessionSummary> {
+    await this.waitForAbortCompletion();
+    if (this.isPrompting || this.hasPendingQuestion()) {
+      throw new Error('Answer or cancel the pending AI work before creating a new session.');
+    }
+
     this.session = await this.createSessionWithManager(
       SessionManager.create(this.cwd, this.sessionDir),
     );
+    this.sessionRef.current = this.session;
+    this.pendingQuestionStore.cleanupStale(this.session.sessionId);
     const summary = (await this.listSessions()).find(
       (session) => session.id === this.getSessionId(),
     );
@@ -682,6 +794,11 @@ export class PiSessionService {
   }
 
   async switchSession(sessionId: string): Promise<boolean> {
+    await this.waitForAbortCompletion();
+    if (this.isPrompting || this.hasPendingQuestion()) {
+      throw new Error('Answer or cancel the pending AI work before switching sessions.');
+    }
+
     const sessions = await SessionManager.list(this.cwd, this.sessionDir);
     const target = sessions.find((entry) => entry.id === sessionId);
     if (!target) {
@@ -691,6 +808,8 @@ export class PiSessionService {
     this.session = await this.createSessionWithManager(
       SessionManager.open(target.path, this.sessionDir),
     );
+    this.sessionRef.current = this.session;
+    this.pendingQuestionStore.cleanupStale(this.session.sessionId);
     return true;
   }
 
@@ -713,21 +832,60 @@ export class PiSessionService {
   }
 
   async abort(): Promise<void> {
-    for (const pending of this.pendingQuestions.values()) {
-      pending.reject(new Error('AI request cancelled while waiting for user input.'));
+    const pending = this.getCurrentSessionPendingQuestion();
+    if (pending) {
+      this.pendingQuestionStore.markCancelled(pending.questionId);
     }
 
-    await this.session.abort();
+    if (!this.isPrompting) {
+      return;
+    }
+
+    if (this.abortPromise) {
+      await this.abortPromise;
+      return;
+    }
+
+    const abortPromise = this.session.abort().finally(() => {
+      if (this.abortPromise === abortPromise) {
+        this.abortPromise = null;
+      }
+    });
+    this.abortPromise = abortPromise;
+    await abortPromise;
   }
 
-  resolveQuestion(questionId: string, answer: string): boolean {
-    const pending = this.pendingQuestions.get(questionId);
-    if (!pending) {
-      return false;
+  async resumeWithAnswer(input: {
+    questionId: string;
+    answer: string;
+    callbacks: PromptCallbacks;
+  }): Promise<PromptResult> {
+    await this.waitForAbortCompletion();
+    if (this.isPrompting) {
+      throw new Error('Another AI request is already running. Wait for it to finish.');
     }
 
-    pending.resolve(answer);
-    return true;
+    const checkpoint = this.pendingQuestionStore.get(input.questionId);
+    if (!checkpoint || checkpoint.status !== 'pending') {
+      throw new Error('The pending question could not be found.');
+    }
+    if (checkpoint.sessionId !== this.getSessionId()) {
+      throw new Error('That pending question belongs to a different session.');
+    }
+
+    const nextAnswer = input.answer.trim();
+    if (!nextAnswer) {
+      throw new Error('A non-empty answer is required.');
+    }
+
+    this.pendingQuestionStore.markAnswered(input.questionId, nextAnswer);
+    return this.prompt(
+      {
+        text: formatPendingQuestionAnswerMessage(checkpoint, nextAnswer),
+        source: 'text',
+      },
+      input.callbacks,
+    );
   }
 
   private maybeAssignSessionTitle(inputText: string): void {
@@ -843,6 +1001,15 @@ export class PiSessionService {
   getHistory(): HistoryMessage[] {
     const result: HistoryMessage[] = [];
     const toolResults = new Map<string, string>();
+    const answeredQuestions = new Map<string, string>();
+
+    for (const checkpoint of this.pendingQuestionStore.list(this.getSessionId())) {
+      if (checkpoint.status !== 'answered' || typeof checkpoint.answer !== 'string') {
+        continue;
+      }
+
+      answeredQuestions.set(checkpoint.toolCallId, checkpoint.answer);
+    }
 
     for (const message of this.session.messages) {
       const typedMessage = message as BasicAgentMessage;
@@ -850,7 +1017,10 @@ export class PiSessionService {
         continue;
       }
 
-      toolResults.set(typedMessage.toolCallId, getToolResultText(typedMessage));
+      const answer = normalizeAskUserAnswer(getToolResultText(typedMessage));
+      if (answer) {
+        toolResults.set(typedMessage.toolCallId, answer);
+      }
     }
 
     for (const message of this.session.messages) {
@@ -864,6 +1034,10 @@ export class PiSessionService {
 
       if (isUserMessage(typedMessage)) {
         const content = stripDesktopContext(getMessageText(typedMessage));
+        if (parsePendingQuestionAnswerMessage(content)) {
+          continue;
+        }
+
         result.push({
           id: getMessageKey(role, typedMessage.timestamp),
           role,
@@ -931,7 +1105,7 @@ export class PiSessionService {
                 params: formatToolCallParams(
                   toolBlock.name,
                   toolBlock.arguments ?? {},
-                  toolResults.get(toolBlock.id),
+                  toolResults.get(toolBlock.id) ?? answeredQuestions.get(toolBlock.id),
                 ),
               },
             });
@@ -968,11 +1142,20 @@ export class PiSessionService {
     return result;
   }
 
-  async prompt(input: PromptInput, callbacks: PromptCallbacks): Promise<void> {
+  async prompt(input: PromptInput, callbacks: PromptCallbacks): Promise<PromptResult> {
+    await this.waitForAbortCompletion();
+    if (this.isPrompting) {
+      throw new Error('Another AI request is already running. Wait for it to finish.');
+    }
+    if (this.hasPendingQuestion()) {
+      throw new Error('Answer the pending question before sending another message.');
+    }
+
     await this.syncPreferences(input.provider);
     this.maybeAssignSessionTitle(input.text);
 
     const { onEvent } = callbacks;
+    this.isPrompting = true;
     this.promptEventSinkRef.current = onEvent;
     let pendingUserSource: ChatSource | null = input.source;
     let currentAssistantText = '';
@@ -1125,7 +1308,11 @@ export class PiSessionService {
       );
       const augmentedText = `${desktopContext}\n\n${input.text}`;
       await this.session.prompt(augmentedText);
+      return this.getCurrentSessionPendingQuestion()
+        ? { status: 'suspended' }
+        : { status: 'completed' };
     } finally {
+      this.isPrompting = false;
       this.promptEventSinkRef.current = null;
       unsubscribe();
     }

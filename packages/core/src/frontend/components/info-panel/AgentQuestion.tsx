@@ -14,6 +14,7 @@ export interface AgentQuestionData {
 interface AgentQuestionProps {
   question: AgentQuestionData;
   onAnswer?: (questionId: string, answer: string) => void;
+  disabled?: boolean;
 }
 
 function formatAnswer(question: AgentQuestionData): string {
@@ -37,7 +38,7 @@ function formatAnswer(question: AgentQuestionData): string {
   return question.answer;
 }
 
-export function AgentQuestion({ question, onAnswer }: AgentQuestionProps) {
+export function AgentQuestion({ question, onAnswer, disabled = false }: AgentQuestionProps) {
   const [textValue, setTextValue] = useState('');
   const [selectedValue, setSelectedValue] = useState('');
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
@@ -96,8 +97,13 @@ export function AgentQuestion({ question, onAnswer }: AgentQuestionProps) {
             value={textValue}
             onChange={(event) => setTextValue(event.target.value)}
             placeholder="Type your answer"
+            disabled={disabled}
           />
-          <button type="submit" className={styles.submitButton} disabled={!textValue.trim()}>
+          <button
+            type="submit"
+            className={styles.submitButton}
+            disabled={disabled || !textValue.trim()}
+          >
             Submit
           </button>
         </div>
@@ -114,12 +120,17 @@ export function AgentQuestion({ question, onAnswer }: AgentQuestionProps) {
                   value={option}
                   checked={selectedValue === option}
                   onChange={() => setSelectedValue(option)}
+                  disabled={disabled}
                 />
                 <span>{option}</span>
               </label>
             ))}
           </div>
-          <button type="submit" className={styles.submitButton} disabled={!selectedValue}>
+          <button
+            type="submit"
+            className={styles.submitButton}
+            disabled={disabled || !selectedValue}
+          >
             Submit
           </button>
         </>
@@ -134,6 +145,7 @@ export function AgentQuestion({ question, onAnswer }: AgentQuestionProps) {
                   type="checkbox"
                   value={option}
                   checked={selectedValues.includes(option)}
+                  disabled={disabled}
                   onChange={(event) => {
                     setSelectedValues((current) =>
                       event.target.checked
@@ -149,7 +161,7 @@ export function AgentQuestion({ question, onAnswer }: AgentQuestionProps) {
           <button
             type="submit"
             className={styles.submitButton}
-            disabled={selectedValues.length === 0}
+            disabled={disabled || selectedValues.length === 0}
           >
             Submit
           </button>
@@ -158,13 +170,19 @@ export function AgentQuestion({ question, onAnswer }: AgentQuestionProps) {
 
       {question.questionType === 'confirm' && (
         <div className={styles.controlsRow}>
-          <button type="button" className={styles.submitButton} onClick={() => submitAnswer('yes')}>
+          <button
+            type="button"
+            className={styles.submitButton}
+            onClick={() => submitAnswer('yes')}
+            disabled={disabled}
+          >
             Yes
           </button>
           <button
             type="button"
             className={styles.secondaryButton}
             onClick={() => submitAnswer('no')}
+            disabled={disabled}
           >
             No
           </button>

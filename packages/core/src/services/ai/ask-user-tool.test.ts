@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createAskUserTool } from './ask-user-tool';
+import { createAskUserTool, formatAskUserWaitingMessage } from './ask-user-tool';
 
 describe('createAskUserTool', () => {
   it('returns an error result when select options are missing', async () => {
@@ -22,17 +22,14 @@ describe('createAskUserTool', () => {
     });
   });
 
-  it('waits for the user answer and returns it as plain text', async () => {
-    let resolveAnswer: ((value: string) => void) | undefined;
-    const sendQuestion = vi.fn().mockImplementation(
-      () =>
-        new Promise<string>((resolve) => {
-          resolveAnswer = resolve;
-        }),
-    );
+  it('returns a waiting result after dispatching the question', async () => {
+    const sendQuestion = vi.fn().mockResolvedValue({
+      questionId: 'question-1',
+      waitingMessage: formatAskUserWaitingMessage('question-1'),
+    });
     const tool = createAskUserTool({ sendQuestion });
 
-    const resultPromise = tool.execute(
+    const result = await tool.execute(
       'tool-2',
       {
         question: 'Which theme?',
@@ -45,16 +42,21 @@ describe('createAskUserTool', () => {
     );
 
     expect(sendQuestion).toHaveBeenCalledWith({
+      toolCallId: 'tool-2',
       question: 'Which theme?',
       questionType: 'multi_select',
       options: ['Light', 'Dark'],
       signal: undefined,
     });
 
-    resolveAnswer?.('["Dark"]');
-    const result = await resultPromise;
-
-    expect(result.details).toMatchObject({ ok: true, answer: '["Dark"]' });
-    expect(result.content[0]).toMatchObject({ type: 'text', text: '["Dark"]' });
+    expect(result.details).toMatchObject({
+      ok: true,
+      status: 'pending',
+      questionId: 'question-1',
+    });
+    expect(result.content[0]).toMatchObject({
+      type: 'text',
+      text: formatAskUserWaitingMessage('question-1'),
+    });
   });
 });

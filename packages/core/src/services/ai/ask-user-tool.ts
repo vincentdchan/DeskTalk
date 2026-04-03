@@ -4,15 +4,24 @@ import { Type } from '@sinclair/typebox';
 export type AskUserQuestionType = 'text' | 'select' | 'multi_select' | 'confirm';
 
 export interface AskUserQuestionPayload {
+  toolCallId: string;
   question: string;
   questionType: AskUserQuestionType;
   options?: string[];
   signal?: AbortSignal;
 }
 
-interface AskUserToolOptions {
-  sendQuestion: (payload: AskUserQuestionPayload) => Promise<string>;
+export interface AskUserQuestionDispatchResult {
+  questionId: string;
+  waitingMessage: string;
 }
+
+interface AskUserToolOptions {
+  sendQuestion: (payload: AskUserQuestionPayload) => Promise<AskUserQuestionDispatchResult>;
+}
+
+const ASK_USER_WAITING_PREFIX = '[Waiting for user response. Question ID: ';
+const ASK_USER_WAITING_SUFFIX = ']';
 
 const askUserSchema = Type.Object({
   question: Type.String({ description: 'The question to display to the user' }),
@@ -40,6 +49,14 @@ function requiresOptions(questionType: AskUserQuestionType): boolean {
   return questionType === 'select' || questionType === 'multi_select';
 }
 
+export function formatAskUserWaitingMessage(questionId: string): string {
+  return `${ASK_USER_WAITING_PREFIX}${questionId}${ASK_USER_WAITING_SUFFIX}`;
+}
+
+export function isAskUserWaitingMessage(value: string): boolean {
+  return value.startsWith(ASK_USER_WAITING_PREFIX) && value.endsWith(ASK_USER_WAITING_SUFFIX);
+}
+
 export function createAskUserTool(options: AskUserToolOptions): ToolDefinition {
   const { sendQuestion } = options;
 
@@ -47,15 +64,16 @@ export function createAskUserTool(options: AskUserToolOptions): ToolDefinition {
     name: 'ask_user',
     label: 'Ask User',
     description:
-      'Ask the user a clarifying question and wait for their response. Use this when you need more information, confirmation, or a choice from the user before proceeding.',
-    promptSnippet: 'Ask the user a question and wait for an answer before continuing.',
+      'Ask the user a clarifying question. When this tool returns a waiting message, stop taking further actions and end your turn. The user response will arrive in a follow-up message.',
+    promptSnippet: 'Ask the user a question, then stop and wait for a follow-up message.',
     promptGuidelines: [
       'Use this only when you truly need user input before you can continue safely.',
       'Use type "confirm" for yes/no questions.',
       'Provide options for "select" and "multi_select" questions.',
+      'After calling ask_user, do not call more tools or continue the task until the user response arrives.',
     ],
     parameters: askUserSchema,
-    async execute(_toolCallId, params, signal) {
+    async execute(toolCallId, params, signal) {
       const input = params as AskUserParams;
 
       if (
@@ -76,7 +94,8 @@ export function createAskUserTool(options: AskUserToolOptions): ToolDefinition {
         };
       }
 
-      const answer = await sendQuestion({
+      const dispatched = await sendQuestion({
+        toolCallId,
         question: input.question,
         questionType: input.type,
         options: input.options,
@@ -84,10 +103,11 @@ export function createAskUserTool(options: AskUserToolOptions): ToolDefinition {
       });
 
       return {
-        content: [{ type: 'text', text: answer }],
+        content: [{ type: 'text', text: dispatched.waitingMessage }],
         details: {
           ok: true,
-          answer,
+          status: 'pending',
+          questionId: dispatched.questionId,
         },
       };
     },

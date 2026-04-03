@@ -94,7 +94,8 @@ function getToolCallSummary(toolName: string, params: Record<string, unknown>): 
   }
 
   if (name === 'ask_user') {
-    return 'Ask user';
+    const question = typeof params.question === 'string' ? params.question.trim() : '';
+    return question ? `Asked user: ${question}` : 'Ask user';
   }
 
   return toolName;

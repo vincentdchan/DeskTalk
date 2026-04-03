@@ -95,7 +95,79 @@ describe('scrubHtmlToolCallArgs', () => {
 });
 
 describe('PiSessionService.getHistory', () => {
-  it('hydrates ask_user tool calls with question metadata and the saved answer', () => {
+  it('hydrates ask_user tool calls with checkpoint answers when the tool result is still waiting', () => {
+    const history = PiSessionService.prototype.getHistory.call({
+      session: {
+        messages: [
+          {
+            role: 'assistant',
+            provider: 'openai',
+            model: 'gpt',
+            usage: { total: 12 },
+            timestamp: 100,
+            content: [
+              {
+                type: 'toolCall',
+                id: 'tool-ask-1',
+                name: 'ask_user',
+                arguments: {
+                  question: 'Which theme would you prefer?',
+                  type: 'select',
+                  options: ['Light', 'Dark'],
+                },
+              },
+            ],
+          },
+          {
+            role: 'toolResult',
+            toolCallId: 'tool-ask-1',
+            toolName: 'ask_user',
+            timestamp: 101,
+            content: [
+              { type: 'text', text: '[Waiting for user response. Question ID: question-1]' },
+            ],
+          },
+          {
+            role: 'user',
+            timestamp: 102,
+            content:
+              '[Agent Question Answer]\n{"questionId":"question-1","question":"Which theme would you prefer?","answer":"Dark"}\n[/Agent Question Answer]',
+          },
+        ],
+      },
+      getMessageMetadata: () => undefined,
+      getSessionId: () => 'session-1',
+      pendingQuestionStore: {
+        list: () => [
+          {
+            questionId: 'question-1',
+            sessionId: 'session-1',
+            toolCallId: 'tool-ask-1',
+            question: 'Which theme would you prefer?',
+            questionType: 'select',
+            options: ['Light', 'Dark'],
+            status: 'answered',
+            answer: 'Dark',
+            createdAt: 100,
+            answeredAt: 102,
+          },
+        ],
+      },
+    }) as ReturnType<PiSessionService['getHistory']>;
+
+    expect(history).toHaveLength(1);
+    expect(history[0]?.toolCall).toEqual({
+      toolName: 'ask_user',
+      params: {
+        question: 'Which theme would you prefer?',
+        questionType: 'select',
+        options: ['Light', 'Dark'],
+        answer: 'Dark',
+      },
+    });
+  });
+
+  it('preserves historical tool-result answers for pre-checkpoint sessions', () => {
     const history = PiSessionService.prototype.getHistory.call({
       session: {
         messages: [
@@ -128,17 +200,11 @@ describe('PiSessionService.getHistory', () => {
         ],
       },
       getMessageMetadata: () => undefined,
+      getSessionId: () => 'session-1',
+      pendingQuestionStore: { list: () => [] },
     }) as ReturnType<PiSessionService['getHistory']>;
 
     expect(history).toHaveLength(1);
-    expect(history[0]?.toolCall).toEqual({
-      toolName: 'ask_user',
-      params: {
-        question: 'Which theme would you prefer?',
-        questionType: 'select',
-        options: ['Light', 'Dark'],
-        answer: 'Dark',
-      },
-    });
+    expect(history[0]?.toolCall?.params).toMatchObject({ answer: 'Dark' });
   });
 });

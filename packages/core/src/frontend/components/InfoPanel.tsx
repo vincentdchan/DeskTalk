@@ -53,7 +53,11 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const isVoiceActive = voiceStatus !== 'idle' && voiceStatus !== 'error';
   const activeAssistantMessageId = activeRequestId ? `assistant-${activeRequestId}` : null;
   const isSessionInteractionDisabled =
-    isAiRunning || !socket || socket.readyState !== WebSocket.OPEN || !wsReady;
+    isAiRunning ||
+    Boolean(pendingQuestion) ||
+    !socket ||
+    socket.readyState !== WebSocket.OPEN ||
+    !wsReady;
 
   // Load the current provider preference when the panel mounts or reconnects.
   useEffect(() => {
@@ -165,6 +169,13 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
       }
     }
 
+    if (pendingQuestion) {
+      addSystemMessage(
+        'Answer the pending question above or cancel the current AI request before sending another message.',
+      );
+      return;
+    }
+
     if (isAiRunning) {
       setQueuedPrompts((prev) => [
         ...prev,
@@ -195,7 +206,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   // Auto-scroll messages area when new content arrives
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, queuedPrompts, transcripts, partialText]);
+  }, [messages, pendingQuestion, queuedPrompts, transcripts, partialText]);
 
   const handleCreateSession = useCallback(() => {
     if (!socket) {
@@ -289,8 +300,13 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
             {pendingQuestion && socket && (
               <AgentQuestion
                 question={pendingQuestion}
+                disabled={isAiRunning}
                 onAnswer={(questionId, answer) => {
-                  answerQuestion(questionId, answer, socket);
+                  if (!answerQuestion(questionId, answer, socket)) {
+                    addSystemMessage(
+                      'Unable to submit the pending answer. Reconnect or cancel the current AI request and try again.',
+                    );
+                  }
                 }}
               />
             )}
@@ -334,6 +350,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
         onSubmit={handleSend}
         onCancelAi={handleCancelAi}
         isAiRunning={isAiRunning}
+        hasPendingQuestion={Boolean(pendingQuestion)}
         queuedCount={queuedPrompts.length}
         isVoiceActive={isVoiceActive}
         onVoiceToggle={handleVoiceToggle}
