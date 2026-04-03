@@ -1,12 +1,20 @@
 .panel {
+  --launcher-item-width: 100px;
+  --launcher-item-height: 96px;
+
   position: fixed;
   z-index: 10050;
   display: grid;
-  grid-template-columns: repeat(auto-fill, 100px);
+  grid-template-columns: repeat(auto-fill, var(--launcher-item-width));
+  align-content: start;
   gap: 8px;
   min-width: 340px;
   max-width: 580px;
+  max-height: calc(var(--launcher-item-height) * 2 + 8px + 32px);
   padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   border: 1px solid var(--dt-glass-border);
   border-radius: 8px;
   background: var(--dt-dock-bg);
@@ -30,7 +38,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--launcher-item-height);
   padding: 12px 8px;
   border: 0;
   border-radius: 8px;
@@ -55,7 +68,9 @@
 }
 
 .label {
+  display: block;
   width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

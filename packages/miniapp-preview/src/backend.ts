@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type {
   PreviewFile,
+  PreviewHistoryEntry,
   SiblingList,
   SiblingEntry,
   PreviewBridgeConfirmPayload,
@@ -27,6 +28,8 @@ import {
   parentDir,
   parseImageDimensions,
   saveStreamedHtml,
+  getCommitHistory,
+  restoreToCommit,
 } from './backend-helpers';
 
 // ─── Manifest ────────────────────────────────────────────────────────────────
@@ -131,6 +134,37 @@ export function activate(ctx: MiniAppContext): MiniAppBackendActivation {
 
   ctx.messaging.onCommand<{ path: string }, PreviewFile>('preview.open', async (req) =>
     buildPreviewFile(req.path),
+  );
+
+  ctx.messaging.onCommand<{ path: string }, PreviewHistoryEntry[]>(
+    'preview.history.list',
+    async (req) => {
+      if (!req?.path) {
+        throw new Error('path is required to load preview history.');
+      }
+
+      return getCommitHistory(ctx.paths.home, req.path);
+    },
+  );
+
+  ctx.messaging.onCommand<{ path: string; commitHash: string }, { content: string }>(
+    'preview.history.restore',
+    async (req) => {
+      if (!req?.path || !req?.commitHash) {
+        throw new Error('path and commitHash are required to restore preview history.');
+      }
+
+      const restored = await restoreToCommit(ctx.paths.home, req.path, req.commitHash);
+      ctx.messaging.emit('preview.file-changed', {
+        filePath: restored.path,
+        content: restored.content,
+      });
+      ctx.messaging.emit('liveapps.changed', {
+        path: restored.path,
+        reason: 'restored',
+      });
+      return { content: restored.content };
+    },
   );
 
   ctx.messaging.onCommand<{ streamId: string; title: string }, StreamedHtmlSnapshot | null>(

@@ -1,6 +1,10 @@
 {
   "applications": "应用程序",
+  "cancel": "取消",
   "close": "关闭",
+  "liveapp.remove.confirm": "你确定要移除“{removeLiveAppName}”吗？这将关闭所有正在运行的实例，并将其从磁盘中永久删除。",
+  "liveapp.remove.pending": "正在移除...",
+  "liveapp.remove.title": "移除 LiveApp",
   "miniapp.loading": "正在加载 MiniApp...",
   "onboard.account.confirmPassword": "确认密码",
   "onboard.account.confirmPasswordPlaceholder": "再次输入你的密码",
@@ -55,6 +59,7 @@
   "onboard.welcome.languageLabel": "语言",
   "onboard.welcome.subtitle": "在创建管理员账户前先选择语言和主题色",
   "onboard.welcome.title": "欢迎使用 DeskTalk",
+  "remove": "移除",
   "window.maximize": "最大化",
   "window.restore": "还原"
 }

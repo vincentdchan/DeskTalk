@@ -15,6 +15,12 @@ export interface StreamedHtmlSnapshot {
   content: string;
 }
 
+export interface PreviewHistoryEntry {
+  hash: string;
+  message: string;
+  date: string;
+}
+
 export interface SiblingList {
   files: SiblingEntry[];
   currentIndex: number; // Index of the current file in the list

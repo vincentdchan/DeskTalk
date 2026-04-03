@@ -15,8 +15,10 @@ import type {
   PreviewBridgeResponseMessage,
   PreviewBridgeStoragePayload,
   PreviewBridgeStorageResult,
+  PreviewHistoryEntry,
 } from '../types';
 import { HtmlViewport, type HtmlViewportHandle } from './HtmlViewport';
+import { HistoryDialog } from './HistoryDialog';
 import { PreviewToolbar } from './PreviewToolbar';
 import type { PreviewThemeRuntime } from '../html-injections';
 import {
@@ -105,6 +107,9 @@ export function HtmlPreviewPane({
     >
   >(new Map());
   const [reloadKey, setReloadKey] = useState(0);
+  const [historyEntries, setHistoryEntries] = useState<PreviewHistoryEntry[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [restoringHistoryHash, setRestoringHistoryHash] = useState<string | null>(null);
   const [pendingBridgeConfirm, setPendingBridgeConfirm] = useState<{
     confirmationRequestId: string;
     bridgeRequestId: string;
@@ -128,11 +133,16 @@ export function HtmlPreviewPane({
   const requestBridgeCommand = useCommand<PreviewBridgeRequestPayload, PreviewBridgeRequestResult>(
     'preview.bridge.request',
   );
+  const listHistory = useCommand<{ path: string }, PreviewHistoryEntry[]>('preview.history.list');
+  const restoreHistory = useCommand<{ path: string; commitHash: string }, { content: string }>(
+    'preview.history.restore',
+  );
 
   const normalizedPath = normalizePreviewPath(initialPath);
   const fileName = useMemo(() => getFileName(initialPath), [initialPath]);
   const shouldInjectRuntime = Boolean(liveAppId && bridgeToken && isLiveAppPath(initialPath));
   const canEditLiveAppSource = Boolean(shouldInjectRuntime && normalizedPath);
+  const hasHistory = historyEntries.length > 0;
 
   const publishLiveAppActions = useCallback(() => {
     onLiveAppActionsChange(Array.from(liveAppActionsRef.current.values()));
@@ -150,6 +160,29 @@ export function HtmlPreviewPane({
     liveAppActionsRef.current.clear();
     publishLiveAppActions();
   }, [publishLiveAppActions]);
+
+  const refreshHistory = useCallback((): Promise<PreviewHistoryEntry[]> => {
+    if (!normalizedPath || !canEditLiveAppSource) {
+      setHistoryEntries([]);
+      setHistoryOpen(false);
+      return Promise.resolve([]);
+    }
+
+    return listHistory({ path: normalizedPath })
+      .then((entries) => {
+        setHistoryEntries(entries);
+        if (entries.length === 0) {
+          setHistoryOpen(false);
+        }
+        return entries;
+      })
+      .catch((historyError) => {
+        setHistoryEntries([]);
+        setHistoryOpen(false);
+        console.error('Failed to load preview history:', historyError);
+        return [];
+      });
+  }, [canEditLiveAppSource, listHistory, normalizedPath]);
 
   const iframeSrc = useMemo(() => {
     if (!normalizedPath) {
@@ -173,7 +206,12 @@ export function HtmlPreviewPane({
     clearLiveAppActions();
     rejectPendingActionInvocations('LiveApp reloaded before the action completed.');
     setReloadKey(Date.now());
+    void refreshHistory();
   });
+
+  useEffect(() => {
+    void refreshHistory();
+  }, [refreshHistory]);
 
   useEffect(() => {
     if (!shouldInjectRuntime || !liveAppId || !bridgeToken) {
@@ -186,6 +224,15 @@ export function HtmlPreviewPane({
       },
     );
   }, [bridgeToken, liveAppId, registerBridgeSession, shouldInjectRuntime]);
+
+  useEffect(() => {
+    if (!shouldInjectRuntime) {
+      return;
+    }
+
+    clearLiveAppActions();
+    rejectPendingActionInvocations('LiveApp reloaded before the action completed.');
+  }, [clearLiveAppActions, iframeSrc, rejectPendingActionInvocations, shouldInjectRuntime]);
 
   const resolveBridgeState = useCallback(
     (payload: PreviewBridgeGetStatePayload): unknown => {
@@ -291,15 +338,6 @@ export function HtmlPreviewPane({
     },
     [bridgeToken, liveAppId, shouldInjectRuntime],
   );
-
-  const handleViewportLoad = useCallback(() => {
-    if (!shouldInjectRuntime) {
-      return;
-    }
-
-    clearLiveAppActions();
-    rejectPendingActionInvocations('LiveApp reloaded before the action completed.');
-  }, [clearLiveAppActions, rejectPendingActionInvocations, shouldInjectRuntime]);
 
   const respondToBridgeRequest = useCallback(
     (
@@ -503,6 +541,47 @@ export function HtmlPreviewPane({
     openMiniApp('text-edit', { path: normalizedPath });
   }, [normalizedPath, openMiniApp, shouldInjectRuntime]);
 
+  const handleShowHistory = useCallback(() => {
+    if (!normalizedPath || !canEditLiveAppSource) {
+      return;
+    }
+
+    void refreshHistory().then((entries) => {
+      if (entries && entries.length > 0) {
+        setHistoryOpen(true);
+      }
+    });
+  }, [canEditLiveAppSource, normalizedPath, refreshHistory]);
+
+  const handleRestoreHistory = useCallback(
+    (entry: PreviewHistoryEntry) => {
+      if (!normalizedPath || !fileName) {
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Restore ${fileName} to this version?\n\n${entry.message}\n${new Date(entry.date).toLocaleString()}`,
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      setRestoringHistoryHash(entry.hash);
+      void restoreHistory({ path: normalizedPath, commitHash: entry.hash })
+        .then(() => {
+          setHistoryOpen(false);
+          return refreshHistory();
+        })
+        .catch((historyError) => {
+          console.error('Failed to restore preview history:', historyError);
+        })
+        .finally(() => {
+          setRestoringHistoryHash(null);
+        });
+    },
+    [fileName, normalizedPath, refreshHistory, restoreHistory],
+  );
+
   useEffect(() => {
     onActionStateChange({
       mode: 'html',
@@ -525,6 +604,7 @@ export function HtmlPreviewPane({
           filename={fileName}
           filepath={normalizedPath ?? undefined}
           mode="html"
+          onShowHistory={canEditLiveAppSource && hasHistory ? handleShowHistory : undefined}
           onEditSource={canEditLiveAppSource ? handleEditSource : undefined}
         />
         <HtmlViewport
@@ -533,8 +613,19 @@ export function HtmlPreviewPane({
           theme={theme}
           onBridgeRequest={shouldInjectRuntime ? respondToBridgeRequest : undefined}
           onInvokeActionResult={shouldInjectRuntime ? handleInvokeActionResult : undefined}
-          onLoad={shouldInjectRuntime ? handleViewportLoad : undefined}
         />
+        {historyOpen ? (
+          <HistoryDialog
+            entries={historyEntries}
+            restoringHash={restoringHistoryHash}
+            onRestore={handleRestoreHistory}
+            onClose={() => {
+              if (!restoringHistoryHash) {
+                setHistoryOpen(false);
+              }
+            }}
+          />
+        ) : null}
         {pendingBridgeConfirm ? (
           <BridgeConfirmDialog
             command={pendingBridgeConfirm.commandPreview}

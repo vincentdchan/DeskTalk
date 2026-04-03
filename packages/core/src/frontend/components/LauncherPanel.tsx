@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { ContextMenu } from './ContextMenu';
 import { DockIcon } from './DockIcon';
 import { useClickOutside } from './useClickOutside';
 import type { LauncherApp } from './launcher-types';
@@ -10,10 +11,18 @@ interface LauncherPanelProps {
   isOpen: boolean;
   onClose: () => void;
   onLaunch: (app: LauncherApp) => void;
+  onRequestRemove: (app: LauncherApp) => void;
   anchorRef: React.RefObject<HTMLElement | null>;
 }
 
-export function LauncherPanel({ apps, isOpen, onClose, onLaunch, anchorRef }: LauncherPanelProps) {
+export function LauncherPanel({
+  apps,
+  isOpen,
+  onClose,
+  onLaunch,
+  onRequestRemove,
+  anchorRef,
+}: LauncherPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
@@ -69,19 +78,40 @@ export function LauncherPanel({ apps, isOpen, onClose, onLaunch, anchorRef }: La
   return createPortal(
     <div ref={panelRef} className={styles.panel} style={position}>
       {apps.length === 0 && <div className={styles.empty}>No applications available</div>}
-      {apps.map((app) => (
-        <button
-          key={app.id}
-          className={styles.item}
-          onClick={() => {
-            onLaunch(app);
-            onClose();
-          }}
-        >
-          <DockIcon icon={app.icon} iconPng={app.iconPng} className={styles.icon} />
-          <span className={styles.label}>{app.name}</span>
-        </button>
-      ))}
+      {apps.map((app) => {
+        const item = (
+          <button
+            key={app.id}
+            className={styles.item}
+            onClick={() => {
+              onLaunch(app);
+              onClose();
+            }}
+          >
+            <DockIcon icon={app.icon} iconPng={app.iconPng} className={styles.icon} />
+            <span className={styles.label}>{app.name}</span>
+          </button>
+        );
+
+        if (app.kind !== 'liveapp') {
+          return item;
+        }
+
+        return (
+          <ContextMenu
+            key={app.id}
+            items={[{ id: 'remove', label: 'Remove' }]}
+            onSelect={(itemId) => {
+              if (itemId === 'remove') {
+                onClose();
+                onRequestRemove(app);
+              }
+            }}
+          >
+            {item}
+          </ContextMenu>
+        );
+      })}
     </div>,
     document.body,
   );
