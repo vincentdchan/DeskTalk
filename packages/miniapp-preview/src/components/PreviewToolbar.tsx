@@ -1,5 +1,6 @@
 import React from 'react';
 import { simplifyPath } from '@desktalk/sdk';
+import { FaHistory } from 'react-icons/fa';
 import type { PreviewMode } from '../types';
 import styles from './PreviewToolbar.module.css';
 
@@ -128,7 +129,7 @@ export function PreviewToolbar({
               title="History"
               aria-label="History"
             >
-              History
+              <FaHistory aria-hidden="true" />
             </button>
           ) : null}
           {onEditSource && !streaming ? (
