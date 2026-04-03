@@ -1057,13 +1057,21 @@ export class PiSessionService {
             // Reset accumulated text — the text before this tool call is already sent;
             // any text after will start fresh.
             currentAssistantText = '';
-            onEvent({
-              type: 'tool_call',
-              toolCall: {
-                toolName: toolCall.name,
-                params: formatToolCallParams(toolCall.name, toolCall.arguments ?? {}),
-              },
-            });
+
+            // Skip emitting tool_call for ask_user — it has its own dedicated
+            // agent_question event and pendingQuestion UI path.  Emitting
+            // tool_call here would create a duplicate question in the frontend
+            // because toolcall_end fires before execute() runs (i.e. before
+            // the agent_question event is sent).
+            if (toolCall.name !== 'ask_user') {
+              onEvent({
+                type: 'tool_call',
+                toolCall: {
+                  toolName: toolCall.name,
+                  params: formatToolCallParams(toolCall.name, toolCall.arguments ?? {}),
+                },
+              });
+            }
           }
         }
 
