@@ -363,6 +363,15 @@ export function StreamPreviewPane({
   }, [bridgeToken, invokeLiveAppAction, onLiveAppActionInvokerChange]);
 
   useEffect(() => {
+    if (!bridgeToken) {
+      return;
+    }
+
+    clearLiveAppActions();
+    rejectPendingActionInvocations('LiveApp reloaded before the action completed.');
+  }, [bridgeToken, clearLiveAppActions, rejectPendingActionInvocations, streamId]);
+
+  useEffect(() => {
     return () => {
       rejectPendingActionInvocations('LiveApp action invocation was interrupted.');
       clearLiveAppActions();
@@ -393,15 +402,6 @@ export function StreamPreviewPane({
     },
     [bridgeToken, streamId],
   );
-
-  const handleViewportLoad = useCallback(() => {
-    if (!bridgeToken) {
-      return;
-    }
-
-    clearLiveAppActions();
-    rejectPendingActionInvocations('LiveApp reloaded before the action completed.');
-  }, [bridgeToken, clearLiveAppActions, rejectPendingActionInvocations]);
 
   const respondToBridgeRequest = useCallback(
     (
@@ -639,7 +639,6 @@ export function StreamPreviewPane({
         theme={theme}
         onBridgeRequest={respondToBridgeRequest}
         onInvokeActionResult={handleInvokeActionResult}
-        onLoad={handleViewportLoad}
       />
       {pendingBridgeConfirm ? (
         <BridgeConfirmDialog

@@ -225,6 +225,15 @@ export function HtmlPreviewPane({
     );
   }, [bridgeToken, liveAppId, registerBridgeSession, shouldInjectRuntime]);
 
+  useEffect(() => {
+    if (!shouldInjectRuntime) {
+      return;
+    }
+
+    clearLiveAppActions();
+    rejectPendingActionInvocations('LiveApp reloaded before the action completed.');
+  }, [clearLiveAppActions, iframeSrc, rejectPendingActionInvocations, shouldInjectRuntime]);
+
   const resolveBridgeState = useCallback(
     (payload: PreviewBridgeGetStatePayload): unknown => {
       switch (payload.selector) {
@@ -329,15 +338,6 @@ export function HtmlPreviewPane({
     },
     [bridgeToken, liveAppId, shouldInjectRuntime],
   );
-
-  const handleViewportLoad = useCallback(() => {
-    if (!shouldInjectRuntime) {
-      return;
-    }
-
-    clearLiveAppActions();
-    rejectPendingActionInvocations('LiveApp reloaded before the action completed.');
-  }, [clearLiveAppActions, rejectPendingActionInvocations, shouldInjectRuntime]);
 
   const respondToBridgeRequest = useCallback(
     (
@@ -613,7 +613,6 @@ export function HtmlPreviewPane({
           theme={theme}
           onBridgeRequest={shouldInjectRuntime ? respondToBridgeRequest : undefined}
           onInvokeActionResult={shouldInjectRuntime ? handleInvokeActionResult : undefined}
-          onLoad={shouldInjectRuntime ? handleViewportLoad : undefined}
         />
         {historyOpen ? (
           <HistoryDialog
