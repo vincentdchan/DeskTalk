@@ -18,7 +18,7 @@ import {
 } from '../tiling-tree';
 import type { TileRect, Direction, SplitBar, TreePath, DropEdge } from '../tiling-tree';
 
-const TILE_GAP = 4;
+const TILE_GAP = 2;
 
 /**
  * Snapshot sent to backend for persistence and AI context.

@@ -3,6 +3,13 @@ import type { TreePath } from '../tiling-tree';
 import { useWindowManager } from '../stores/window-manager';
 import styles from './SplitResizer.module.scss';
 
+interface SplitResizerRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface SplitResizerProps {
   /** Path to the container node this resizer controls. */
   path: TreePath;
@@ -11,6 +18,8 @@ interface SplitResizerProps {
   /** Current ratio of the container. */
   ratio: number;
   onRatioChange?: (ratio: number) => void;
+  rect?: SplitResizerRect;
+  containerSize?: { width: number; height: number };
 }
 
 /**
@@ -22,7 +31,14 @@ interface SplitResizerProps {
  * On drag, the component converts the pixel delta into a ratio delta
  * and calls `setNodeRatio` on the store.
  */
-export function SplitResizer({ path, split, ratio, onRatioChange }: SplitResizerProps) {
+export function SplitResizer({
+  path,
+  split,
+  ratio,
+  onRatioChange,
+  rect,
+  containerSize,
+}: SplitResizerProps) {
   const startRef = useRef<{ clientX: number; clientY: number; startRatio: number } | null>(null);
   const resizerRef = useRef<HTMLDivElement | null>(null);
 
@@ -35,11 +51,11 @@ export function SplitResizer({ path, split, ratio, onRatioChange }: SplitResizer
       const startY = e.clientY;
       startRef.current = { clientX: startX, clientY: startY, startRatio: ratio };
 
-      const container = resizerRef.current?.parentElement;
-      const containerBounds = container?.getBoundingClientRect();
-      if (!containerBounds) {
-        return;
-      }
+      const fallbackBounds = resizerRef.current?.parentElement?.getBoundingClientRect();
+      const containerBounds = containerSize
+        ? { width: containerSize.width, height: containerSize.height }
+        : fallbackBounds;
+      if (!containerBounds) return;
 
       // Iframes swallow mouse events; disable their pointer events while resizing.
       const iframeBlocker = document.createElement('style');
@@ -81,7 +97,7 @@ export function SplitResizer({ path, split, ratio, onRatioChange }: SplitResizer
       document.body.style.cursor = split === 'horizontal' ? 'col-resize' : 'row-resize';
       document.body.style.userSelect = 'none';
     },
-    [onRatioChange, path, split, ratio],
+    [containerSize, onRatioChange, path, split, ratio],
   );
 
   const isHorizontal = split === 'horizontal';
@@ -90,8 +106,23 @@ export function SplitResizer({ path, split, ratio, onRatioChange }: SplitResizer
     .filter(Boolean)
     .join(' ');
 
+  const resizerStyle: React.CSSProperties | undefined = rect
+    ? {
+        position: 'absolute',
+        width: rect.width,
+        height: rect.height,
+        transform: `translate(${rect.x}px, ${rect.y}px)`,
+        willChange: 'transform',
+      }
+    : undefined;
+
   return (
-    <div ref={resizerRef} className={resizerClasses} onMouseDown={handleMouseDown}>
+    <div
+      ref={resizerRef}
+      className={resizerClasses}
+      style={resizerStyle}
+      onMouseDown={handleMouseDown}
+    >
       <div className={styles.bar} />
     </div>
   );

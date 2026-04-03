@@ -99,10 +99,10 @@ export function DropZoneOverlay({ desktopRef }: DropZoneOverlayProps) {
             key={rect.windowId}
             className={styles.tileZone}
             style={{
-              left: rect.x,
-              top: rect.y,
               width: rect.width,
               height: rect.height,
+              transform: `translate(${rect.x}px, ${rect.y}px)`,
+              willChange: 'transform',
             }}
             onMouseMove={(e) => handleMouseMove(e, rect)}
             onMouseLeave={handleMouseLeave}
