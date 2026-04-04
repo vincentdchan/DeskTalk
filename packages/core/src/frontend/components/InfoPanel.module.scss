@@ -47,35 +47,57 @@
   }
 }
 
-.newSessionButton {
+.sessionActionButton {
   border: 1px solid var(--dt-border-subtle);
   background: color-mix(in oklab, var(--dt-surface) 88%, transparent);
   color: var(--dt-text);
-  transition:
-    border-color 140ms ease,
-    background-color 140ms ease,
-    color 140ms ease;
-
-  &:hover:not(:disabled) {
-    border-color: color-mix(in oklab, var(--dt-accent) 35%, var(--dt-border-subtle));
-    background: color-mix(in oklab, var(--dt-surface) 94%, var(--dt-accent-ghost));
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-}
-
-.newSessionButton {
   display: inline-flex;
   width: 30px;
   height: 30px;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: 4px;
   font-size: 16px;
   line-height: 1;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  &:hover:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+.newSessionButton {
+  &:hover:not(:disabled) {
+    border-color: color-mix(in oklab, var(--dt-accent) 35%, var(--dt-border-subtle));
+    background: color-mix(in oklab, var(--dt-surface) 94%, var(--dt-accent-ghost));
+  }
+}
+
+.deleteSessionButton {
+  font-size: 14px;
+  line-height: 1;
+  border-color: transparent;
+  background: transparent;
+  color: var(--dt-danger);
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: var(--dt-danger);
+    background: color-mix(in oklab, var(--dt-danger-subtle) 88%, var(--dt-surface));
+    color: var(--dt-danger);
+  }
 }
 
 .headerControls {

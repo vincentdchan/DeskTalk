@@ -110,6 +110,7 @@ export interface ChatSessionState {
   loadSessions: (socket: WebSocket) => boolean;
   switchSession: (sessionId: string, socket: WebSocket) => boolean;
   createSession: (socket: WebSocket) => boolean;
+  deleteSession: (sessionId: string, socket: WebSocket) => boolean;
   cancelAiRequest: (socket: WebSocket) => boolean;
   dismissQuestion: (socket: WebSocket) => boolean;
   answerQuestion: (questionId: string, answer: string, socket: WebSocket) => boolean;
@@ -226,6 +227,27 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
     socket.send(
       JSON.stringify({
         type: 'ai:sessions:create',
+      }),
+    );
+
+    return true;
+  },
+
+  deleteSession(sessionId: string, socket: WebSocket) {
+    const state = get();
+    if (
+      !sessionId ||
+      socket.readyState !== WebSocket.OPEN ||
+      state.isAiRunning ||
+      state.pendingQuestion
+    ) {
+      return false;
+    }
+
+    socket.send(
+      JSON.stringify({
+        type: 'ai:sessions:delete',
+        sessionId,
       }),
     );
 

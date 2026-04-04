@@ -322,6 +322,53 @@ export async function wsRoutes(app: FastifyInstance, options: WsRoutesOptions): 
             sessionId: piSessionService.getSessionId(),
             sessions: await piSessionService.listSessions(),
           });
+        } else if (msg.type === 'ai:sessions:delete') {
+          const sessionId = typeof msg.sessionId === 'string' ? msg.sessionId : '';
+          if (activeAiRequestId || piSessionService.hasPendingQuestion()) {
+            sendAiEvent({
+              type: 'error',
+              message: 'Answer or cancel the pending AI work before deleting sessions.',
+            });
+            return;
+          }
+
+          if (!sessionId) {
+            sendAiEvent({
+              type: 'error',
+              message: 'A session ID is required to delete a session.',
+            });
+            return;
+          }
+
+          let deleted = false;
+          try {
+            deleted = await piSessionService.deleteSession(sessionId);
+          } catch (err) {
+            sendAiEvent({
+              type: 'error',
+              message: (err as Error).message,
+            });
+            return;
+          }
+
+          if (!deleted) {
+            sendAiEvent({
+              type: 'error',
+              message: 'The selected session could not be found.',
+            });
+            return;
+          }
+
+          sendAiEvent({
+            type: 'history_sync',
+            sessionId: piSessionService.getSessionId(),
+            messages: piSessionService.getHistory(),
+          });
+          sendAiEvent({
+            type: 'sessions_sync',
+            sessionId: piSessionService.getSessionId(),
+            sessions: await piSessionService.listSessions(),
+          });
         } else if (msg.type === 'ai:cancel') {
           const requestId = typeof msg.requestId === 'string' ? msg.requestId : '';
 

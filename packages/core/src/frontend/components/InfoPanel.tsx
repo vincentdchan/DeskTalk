@@ -1,11 +1,13 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useMemoizedFn } from 'ahooks';
+import { FaRegTrashAlt } from 'react-icons/fa';
 import 'streamdown/styles.css';
 import { useVoiceSession } from '../stores/voice-session';
 import { useChatSession, type AiEventMessage } from '../stores/chat-session';
 import { tryExecuteSlashCommand } from '../utils/slash-commands';
 import { ChatMessageItem } from './ChatMessageItem';
 import { CommandInput } from './CommandInput';
+import { ConfirmDialog } from './ConfirmDialog';
 import styles from './InfoPanel.module.scss';
 
 interface QueuedPrompt {
@@ -33,6 +35,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const loadSessions = useChatSession((s) => s.loadSessions);
   const switchSession = useChatSession((s) => s.switchSession);
   const createSession = useChatSession((s) => s.createSession);
+  const deleteSession = useChatSession((s) => s.deleteSession);
   const cancelAiRequest = useChatSession((s) => s.cancelAiRequest);
   const submitPrompt = useChatSession((s) => s.submitPrompt);
   const answerQuestion = useChatSession((s) => s.answerQuestion);
@@ -41,6 +44,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const handleAiEvent = useChatSession((s) => s.handleAiEvent);
   const clearMessages = useChatSession((s) => s.clearMessages);
   const addSystemMessage = useChatSession((s) => s.addSystemMessage);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   // Voice session state
   const voiceStatus = useVoiceSession((s) => s.status);
@@ -58,6 +62,11 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     !socket ||
     socket.readyState !== WebSocket.OPEN ||
     !wsReady;
+  const shouldShowDeleteButton = sessions.length > 1 && messages.length > 0;
+  const currentSessionLabel = useMemo(
+    () => sessions.find((session) => session.id === currentSessionId)?.label ?? 'this session',
+    [currentSessionId, sessions],
+  );
 
   // Load the current provider preference when the panel mounts or reconnects.
   useEffect(() => {
@@ -219,6 +228,23 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
     return cancelAiRequest(socket);
   }, [cancelAiRequest, socket]);
 
+  const handleConfirmDeleteSession = useCallback(() => {
+    if (!socket || !currentSessionId) {
+      setIsDeleteConfirmOpen(false);
+      return;
+    }
+
+    const didDelete = deleteSession(currentSessionId, socket);
+    if (!didDelete) {
+      addSystemMessage(
+        'Unable to delete the current session. Finish or cancel the active AI work and try again.',
+      );
+      return;
+    }
+
+    setIsDeleteConfirmOpen(false);
+  }, [addSystemMessage, currentSessionId, deleteSession, socket]);
+
   return (
     <div className={styles.infoPanel}>
       <div className={styles.header}>
@@ -238,16 +264,30 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
                 void switchSession(event.detail.value, socket);
               }}
             />
-            <button
-              type="button"
-              className={styles.newSessionButton}
-              onClick={handleCreateSession}
-              disabled={isSessionInteractionDisabled}
-              aria-label="Create new session"
-              title="Create new session"
-            >
-              +
-            </button>
+            <dt-tooltip content="Create new session">
+              <button
+                type="button"
+                className={`${styles.sessionActionButton} ${styles.newSessionButton}`}
+                onClick={handleCreateSession}
+                disabled={isSessionInteractionDisabled}
+                aria-label="Create new session"
+              >
+                +
+              </button>
+            </dt-tooltip>
+            {shouldShowDeleteButton ? (
+              <dt-tooltip content="Delete current session">
+                <button
+                  type="button"
+                  className={`${styles.sessionActionButton} ${styles.deleteSessionButton}`}
+                  onClick={() => setIsDeleteConfirmOpen(true)}
+                  disabled={isSessionInteractionDisabled || !currentSessionId}
+                  aria-label="Delete current session"
+                >
+                  <FaRegTrashAlt aria-hidden="true" />
+                </button>
+              </dt-tooltip>
+            ) : null}
           </div>
         </div>
         <div className={styles.headerControls}>
@@ -349,6 +389,17 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
         modelLabel={modelLabel}
         wsReady={wsReady}
       />
+      {isDeleteConfirmOpen && shouldShowDeleteButton ? (
+        <ConfirmDialog
+          title="Delete session"
+          message={`Delete \"${currentSessionLabel}\"? This cannot be undone.`}
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          danger
+          onConfirm={handleConfirmDeleteSession}
+          onCancel={() => setIsDeleteConfirmOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

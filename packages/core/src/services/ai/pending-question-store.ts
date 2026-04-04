@@ -114,6 +114,16 @@ export class PendingQuestionStore {
     return updated;
   }
 
+  removeSession(sessionId: string): void {
+    const store = readStore(this.filePath);
+    const checkpoints = store.checkpoints.filter(
+      (checkpoint) => checkpoint.sessionId !== sessionId,
+    );
+    if (checkpoints.length !== store.checkpoints.length) {
+      writeStore(this.filePath, { checkpoints });
+    }
+  }
+
   cleanupStale(currentSessionId: string): void {
     const store = readStore(this.filePath);
     let changed = false;

@@ -90,4 +90,34 @@ describe('PendingQuestionStore', () => {
     expect(store.getPending()).toBeNull();
     expect(store.get('question-1')).toMatchObject({ status: 'cancelled' });
   });
+
+  it('removes all checkpoints for a deleted session', () => {
+    const { dir, store } = createStore();
+    tempDirs.push(dir);
+
+    store.save({
+      questionId: 'question-1',
+      sessionId: 'session-delete',
+      toolCallId: 'tool-1',
+      question: 'Continue?',
+      questionType: 'confirm',
+      status: 'pending',
+      createdAt: 1,
+    });
+    store.markCancelled('question-1');
+    store.save({
+      questionId: 'question-2',
+      sessionId: 'session-keep',
+      toolCallId: 'tool-2',
+      question: 'Keep?',
+      questionType: 'confirm',
+      status: 'pending',
+      createdAt: 2,
+    });
+
+    store.removeSession('session-delete');
+
+    expect(store.get('question-1')).toBeNull();
+    expect(store.get('question-2')).toMatchObject({ sessionId: 'session-keep' });
+  });
 });

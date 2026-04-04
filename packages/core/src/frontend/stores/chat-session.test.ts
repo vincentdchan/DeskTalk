@@ -116,3 +116,43 @@ describe('useChatSession.answerQuestion', () => {
     });
   });
 });
+
+describe('useChatSession.deleteSession', () => {
+  beforeEach(() => {
+    resetChatSession();
+  });
+
+  it('sends a delete-session request when the current session can be removed', () => {
+    const socket = {
+      readyState: WebSocket.OPEN,
+      send: vi.fn(),
+    } as unknown as WebSocket;
+
+    const didSend = useChatSession.getState().deleteSession('session-1', socket);
+
+    expect(didSend).toBe(true);
+    expect(socket.send).toHaveBeenCalledWith(
+      JSON.stringify({ type: 'ai:sessions:delete', sessionId: 'session-1' }),
+    );
+  });
+
+  it('refuses to delete while a pending question is blocking the session', () => {
+    const socket = {
+      readyState: WebSocket.OPEN,
+      send: vi.fn(),
+    } as unknown as WebSocket;
+
+    useChatSession.setState({
+      pendingQuestion: {
+        questionId: 'question-1',
+        question: 'Continue?',
+        questionType: 'confirm',
+      },
+    });
+
+    const didSend = useChatSession.getState().deleteSession('session-1', socket);
+
+    expect(didSend).toBe(false);
+    expect(socket.send).not.toHaveBeenCalled();
+  });
+});

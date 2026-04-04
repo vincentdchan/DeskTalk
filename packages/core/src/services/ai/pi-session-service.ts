@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import {
   AuthStorage,
@@ -810,6 +810,41 @@ export class PiSessionService {
     );
     this.sessionRef.current = this.session;
     this.pendingQuestionStore.cleanupStale(this.session.sessionId);
+    return true;
+  }
+
+  async deleteSession(sessionId: string): Promise<boolean> {
+    await this.waitForAbortCompletion();
+    if (this.isPrompting) {
+      throw new Error('Wait for the current AI response to finish before deleting sessions.');
+    }
+
+    if (this.pendingQuestionStore.getPending(sessionId)) {
+      throw new Error('Answer or cancel the pending AI work before deleting this session.');
+    }
+
+    const sessions = await SessionManager.list(this.cwd, this.sessionDir);
+    const target = sessions.find((entry) => entry.id === sessionId);
+    if (!target) {
+      return false;
+    }
+
+    if (sessionId === this.getSessionId()) {
+      const nextSession = sessions
+        .filter((entry) => entry.id !== sessionId)
+        .sort((left, right) => right.modified.getTime() - left.modified.getTime())[0];
+
+      this.session = await this.createSessionWithManager(
+        nextSession
+          ? SessionManager.open(nextSession.path, this.sessionDir)
+          : SessionManager.create(this.cwd, this.sessionDir),
+      );
+      this.sessionRef.current = this.session;
+      this.pendingQuestionStore.cleanupStale(this.session.sessionId);
+    }
+
+    unlinkSync(target.path);
+    this.pendingQuestionStore.removeSession(sessionId);
     return true;
   }
 
