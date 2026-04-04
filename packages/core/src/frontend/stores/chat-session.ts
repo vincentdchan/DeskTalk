@@ -122,6 +122,8 @@ export interface ChatSessionState {
   clearMessages: () => void;
   /** Inject a local-only system message into the chat history. */
   addSystemMessage: (text: string) => void;
+  /** Select a provider for the next AI request. */
+  setSelectedProvider: (providerId: string) => void;
 }
 
 function getProviderStatusLabel(providerId: string, providers: AiProviderOption[]): string {
@@ -352,6 +354,7 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
         requestId,
         text,
         source,
+        ...(state.selectedProvider ? { provider: state.selectedProvider } : {}),
       }),
     );
 
@@ -541,5 +544,18 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
         },
       ],
     }));
+  },
+
+  setSelectedProvider(providerId: string) {
+    const state = get();
+    const provider = state.providerOptions.find((p) => p.id === providerId);
+    if (!provider) {
+      return;
+    }
+
+    set({
+      selectedProvider: providerId,
+      modelLabel: getProviderStatusLabel(providerId, state.providerOptions),
+    });
   },
 }));

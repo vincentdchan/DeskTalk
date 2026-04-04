@@ -31,6 +31,8 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const currentSessionId = useChatSession((s) => s.currentSessionId);
   const sessions = useChatSession((s) => s.sessions);
   const pendingQuestion = useChatSession((s) => s.pendingQuestion);
+  const providerOptions = useChatSession((s) => s.providerOptions);
+  const selectedProvider = useChatSession((s) => s.selectedProvider);
   const loadProviders = useChatSession((s) => s.loadProviders);
   const loadSessions = useChatSession((s) => s.loadSessions);
   const switchSession = useChatSession((s) => s.switchSession);
@@ -44,6 +46,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const handleAiEvent = useChatSession((s) => s.handleAiEvent);
   const clearMessages = useChatSession((s) => s.clearMessages);
   const addSystemMessage = useChatSession((s) => s.addSystemMessage);
+  const setSelectedProvider = useChatSession((s) => s.setSelectedProvider);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   // Voice session state
@@ -388,6 +391,9 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
         onDismissVoiceError={clearVoiceError}
         modelLabel={modelLabel}
         wsReady={wsReady}
+        providerOptions={providerOptions}
+        selectedProvider={selectedProvider}
+        onSelectProvider={setSelectedProvider}
       />
       {isDeleteConfirmOpen && shouldShowDeleteButton ? (
         <ConfirmDialog
