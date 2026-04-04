@@ -224,6 +224,7 @@ export class DtSelect extends HTMLElement {
     requestAnimationFrame(() => {
       document.addEventListener('mousedown', this._onOutsideClick);
       document.addEventListener('keydown', this._onKeyDown);
+      window.addEventListener('blur', this._onWindowBlur);
     });
   }
 
@@ -232,6 +233,7 @@ export class DtSelect extends HTMLElement {
 
     document.removeEventListener('mousedown', this._onOutsideClick);
     document.removeEventListener('keydown', this._onKeyDown);
+    window.removeEventListener('blur', this._onWindowBlur);
 
     if (this._menu) {
       this._menu.removeAttribute('data-open');
@@ -250,6 +252,14 @@ export class DtSelect extends HTMLElement {
     // Click inside the menu or on the trigger — ignore
     if (this._menu?.contains(target) || this.contains(target)) return;
     this._close();
+  };
+
+  private _onWindowBlur = (): void => {
+    requestAnimationFrame(() => {
+      if (document.activeElement?.tagName === 'IFRAME') {
+        this._close();
+      }
+    });
   };
 
   private _onKeyDown = (e: KeyboardEvent): void => {
