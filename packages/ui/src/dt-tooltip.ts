@@ -3,6 +3,7 @@ import tooltipCss from './styles/tooltip.css?raw';
 const CLS = 'dt-tooltip-popup';
 
 type Placement = 'top' | 'bottom' | 'left' | 'right';
+type Align = 'left' | 'center' | 'right';
 
 const ARROW_GAP = 8; // px gap between trigger and tooltip
 
@@ -26,6 +27,8 @@ function ensureStyles(): void {
  * ## Attributes
  * - `content`   — tooltip text (required)
  * - `placement` — preferred side: top | bottom | left | right (default "top")
+ * - `align`     — cross-axis alignment for top/bottom placements: left | center | right
+ *                 (default "center")
  * - `delay`     — show delay in milliseconds (default 0)
  * - `disabled`  — when present, tooltip is suppressed
  *
@@ -45,7 +48,7 @@ export class DtTooltip extends HTMLElement {
 
   // ── Observed attributes ─────────────────────────────────────────────────
   static get observedAttributes(): string[] {
-    return ['content', 'placement', 'delay', 'disabled'];
+    return ['content', 'placement', 'align', 'delay', 'disabled'];
   }
 
   // ── Attribute helpers (getters + setters so frameworks can set props) ───
@@ -63,6 +66,15 @@ export class DtTooltip extends HTMLElement {
   }
   set placement(val: Placement) {
     this.setAttribute('placement', val);
+  }
+
+  get align(): Align {
+    const val = this.getAttribute('align');
+    if (val === 'left' || val === 'right') return val;
+    return 'center';
+  }
+  set align(val: Align) {
+    this.setAttribute('align', val);
   }
 
   get delay(): number {
@@ -200,6 +212,7 @@ export class DtTooltip extends HTMLElement {
 
     const vw = window.innerWidth;
     const vh = window.innerHeight;
+    const viewportPadding = 8;
 
     let actual = this.placement;
 
@@ -218,24 +231,66 @@ export class DtTooltip extends HTMLElement {
 
     let top: number;
     let left: number;
+    let anchorX = triggerRect.left + triggerRect.width / 2;
+    let anchorY = triggerRect.top + triggerRect.height / 2;
 
     switch (actual) {
       case 'top':
-        left = triggerRect.left + triggerRect.width / 2;
+        anchorX =
+          this.align === 'left'
+            ? triggerRect.left
+            : this.align === 'right'
+              ? triggerRect.right
+              : triggerRect.left + triggerRect.width / 2;
+        left =
+          this.align === 'left'
+            ? triggerRect.left
+            : this.align === 'right'
+              ? triggerRect.right - popupRect.width
+              : triggerRect.left + triggerRect.width / 2 - popupRect.width / 2;
         top = triggerRect.top - popupRect.height - ARROW_GAP;
         break;
       case 'bottom':
-        left = triggerRect.left + triggerRect.width / 2;
+        anchorX =
+          this.align === 'left'
+            ? triggerRect.left
+            : this.align === 'right'
+              ? triggerRect.right
+              : triggerRect.left + triggerRect.width / 2;
+        left =
+          this.align === 'left'
+            ? triggerRect.left
+            : this.align === 'right'
+              ? triggerRect.right - popupRect.width
+              : triggerRect.left + triggerRect.width / 2 - popupRect.width / 2;
         top = triggerRect.bottom + ARROW_GAP;
         break;
       case 'left':
         left = triggerRect.left - popupRect.width - ARROW_GAP;
-        top = triggerRect.top + triggerRect.height / 2;
+        top = triggerRect.top + triggerRect.height / 2 - popupRect.height / 2;
+        anchorY = triggerRect.top + triggerRect.height / 2;
         break;
       case 'right':
         left = triggerRect.right + ARROW_GAP;
-        top = triggerRect.top + triggerRect.height / 2;
+        top = triggerRect.top + triggerRect.height / 2 - popupRect.height / 2;
+        anchorY = triggerRect.top + triggerRect.height / 2;
         break;
+    }
+
+    if (actual === 'top' || actual === 'bottom') {
+      left = Math.max(viewportPadding, Math.min(left, vw - popupRect.width - viewportPadding));
+      popup.style.setProperty(
+        '--dt-tooltip-arrow-left',
+        `${Math.max(8, Math.min(anchorX - left, popupRect.width - 8))}px`,
+      );
+      popup.style.removeProperty('--dt-tooltip-arrow-top');
+    } else {
+      top = Math.max(viewportPadding, Math.min(top, vh - popupRect.height - viewportPadding));
+      popup.style.setProperty(
+        '--dt-tooltip-arrow-top',
+        `${Math.max(8, Math.min(anchorY - top, popupRect.height - 8))}px`,
+      );
+      popup.style.removeProperty('--dt-tooltip-arrow-left');
     }
 
     popup.style.left = `${left}px`;

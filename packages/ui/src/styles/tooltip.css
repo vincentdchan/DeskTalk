@@ -41,13 +41,13 @@
 
 /* Arrow styling - tech/minimal */
 .dt-tooltip-popup[data-actual-placement='top'] {
-  transform: translateX(-50%);
+  transform: none;
 }
 
 .dt-tooltip-popup[data-actual-placement='top']::before {
   top: auto;
   bottom: -4px;
-  left: 50%;
+  left: var(--dt-tooltip-arrow-left, 50%);
   transform: translateX(-50%);
   width: 0;
   height: 0;
@@ -58,13 +58,13 @@
 }
 
 .dt-tooltip-popup[data-actual-placement='bottom'] {
-  transform: translateX(-50%);
+  transform: none;
 }
 
 .dt-tooltip-popup[data-actual-placement='bottom']::before {
   bottom: auto;
   top: -4px;
-  left: 50%;
+  left: var(--dt-tooltip-arrow-left, 50%);
   transform: translateX(-50%);
   width: 0;
   height: 0;
@@ -75,12 +75,12 @@
 }
 
 .dt-tooltip-popup[data-actual-placement='left'] {
-  transform: translateY(-50%);
+  transform: none;
 }
 
 .dt-tooltip-popup[data-actual-placement='left']::before {
   left: auto;
-  top: 50%;
+  top: var(--dt-tooltip-arrow-top, 50%);
   right: -4px;
   transform: translateY(-50%);
   width: 0;
@@ -92,12 +92,12 @@
 }
 
 .dt-tooltip-popup[data-actual-placement='right'] {
-  transform: translateY(-50%);
+  transform: none;
 }
 
 .dt-tooltip-popup[data-actual-placement='right']::before {
   right: auto;
-  top: 50%;
+  top: var(--dt-tooltip-arrow-top, 50%);
   left: -4px;
   transform: translateY(-50%);
   width: 0;

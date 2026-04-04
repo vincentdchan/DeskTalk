@@ -5,6 +5,7 @@ export {};
 type DtTooltipAttributes = Partial<{
   content: string;
   placement: 'top' | 'bottom' | 'left' | 'right';
+  align: 'left' | 'center' | 'right';
   delay: number | string;
   disabled: boolean;
   class: string;

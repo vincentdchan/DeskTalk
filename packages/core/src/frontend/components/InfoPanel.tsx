@@ -264,7 +264,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
                 void switchSession(event.detail.value, socket);
               }}
             />
-            <dt-tooltip content="Create new session">
+            <dt-tooltip content="Create new session" align="right">
               <button
                 type="button"
                 className={`${styles.sessionActionButton} ${styles.newSessionButton}`}
@@ -276,7 +276,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
               </button>
             </dt-tooltip>
             {shouldShowDeleteButton ? (
-              <dt-tooltip content="Delete current session">
+              <dt-tooltip content="Delete current session" align="right">
                 <button
                   type="button"
                   className={`${styles.sessionActionButton} ${styles.deleteSessionButton}`}
