@@ -3,6 +3,7 @@ import { useMemoizedFn } from 'ahooks';
 import { useChatSession, type AiProviderOption } from '../stores/chat-session';
 import type { AgentQuestionData } from './info-panel/AgentQuestion';
 import { MicIcon } from './MicIcon';
+import { StatusRow } from './StatusRow';
 import { VoiceErrorBanner } from './VoiceErrorBanner';
 import { matchCommands, getAllCommands } from '../utils/slash-commands';
 import styles from './CommandInput.module.scss';
@@ -53,13 +54,11 @@ export function CommandInput({
   const clearDraftInput = useChatSession((state) => state.clearDraftInput);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const cancelResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const modelSelectorRef = useRef<HTMLDivElement>(null);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [isCancelArmed, setIsCancelArmed] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [selectedQuestionValue, setSelectedQuestionValue] = useState('');
   const [selectedQuestionValues, setSelectedQuestionValues] = useState<string[]>([]);
-  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
 
   const isAnsweringQuestion = pendingQuestion !== null;
   const isQuestionControlsDisabled = !wsReady || isAiRunning;
@@ -277,20 +276,6 @@ export function CommandInput({
     el.style.overflowY = el.scrollHeight > MAX_TEXTAREA_HEIGHT ? 'auto' : 'hidden';
   }, [value]);
 
-  // Close model dropdown when clicking outside
-  useEffect(() => {
-    if (!isModelDropdownOpen) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (modelSelectorRef.current && !modelSelectorRef.current.contains(e.target as Node)) {
-        setIsModelDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isModelDropdownOpen]);
-
   return (
     <div className={`${styles.controlFrame} ${compact ? styles.controlFrameCompact : ''}`}>
       {pendingQuestion && (
@@ -440,70 +425,16 @@ export function CommandInput({
           </dt-tooltip>
         </div>
       )}
-      {!compact && (
-        <div className={styles.statusRow}>
-          <div ref={modelSelectorRef} className={styles.modelSelector}>
-            <button
-              type="button"
-              className={styles.statusItem}
-              onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: 'inherit',
-                fontFamily: 'inherit',
-                color: 'inherit',
-              }}
-            >
-              {wsReady ? modelLabel : 'offline'}
-              {providerOptions.length > 0 && <span className={styles.modelSelectorChevron}>▾</span>}
-            </button>
-            {isModelDropdownOpen && providerOptions.length > 0 && (
-              <ul className={styles.modelDropdown}>
-                {providerOptions
-                  .filter((p) => p.configured)
-                  .map((provider) => (
-                    <li key={provider.id}>
-                      <button
-                        type="button"
-                        className={`${styles.modelDropdownItem} ${
-                          selectedProvider === provider.id ? styles.modelDropdownItemActive : ''
-                        }`}
-                        onClick={() => {
-                          if (onSelectProvider) {
-                            onSelectProvider(provider.id);
-                          }
-                          setIsModelDropdownOpen(false);
-                        }}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          padding: 'inherit',
-                          cursor: 'inherit',
-                          font: 'inherit',
-                          color: 'inherit',
-                          width: '100%',
-                          textAlign: 'left',
-                        }}
-                      >
-                        <span className={styles.modelLabel}>{provider.id}</span>
-                        {provider.model && (
-                          <span className={styles.modelProvider}>{provider.model}</span>
-                        )}
-                      </button>
-                    </li>
-                  ))}
-              </ul>
-            )}
-          </div>
-          {queuedCount > 0 && <span className={styles.statusItem}>{queuedCount} queued</span>}
-        </div>
-      )}
+      {!compact ? (
+        <StatusRow
+          modelLabel={modelLabel}
+          queuedCount={queuedCount}
+          wsReady={wsReady}
+          providerOptions={providerOptions}
+          selectedProvider={selectedProvider}
+          onSelectProvider={onSelectProvider}
+        />
+      ) : null}
     </div>
   );
 }

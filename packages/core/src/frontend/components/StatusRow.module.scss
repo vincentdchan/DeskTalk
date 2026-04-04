@@ -1,0 +1,111 @@
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px 8px;
+  border-top: 1px solid var(--dt-border-subtle);
+  background: var(--dt-bg-subtle);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.statusItem {
+  color: var(--dt-text-muted);
+}
+
+.modelSelector {
+  position: relative;
+}
+
+.modelTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--dt-text-muted);
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: color-mix(in oklab, var(--dt-accent) 8%, transparent);
+  }
+
+  &:active {
+    background: color-mix(in oklab, var(--dt-accent) 12%, transparent);
+  }
+}
+
+.modelSelectorChevron {
+  display: inline-block;
+  margin-left: 2px;
+  font-size: 9px;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.modelDropdown {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  min-width: 200px;
+  margin: 0 0 4px;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+  background: var(--dt-surface);
+  box-shadow: 0 -4px 16px rgb(0 0 0 / 16%);
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 1000;
+}
+
+.modelDropdownItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dt-text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.1s,
+    color 0.1s;
+
+  &:hover {
+    background: var(--dt-accent-ghost);
+    color: var(--dt-accent);
+  }
+}
+
+.modelDropdownItemActive {
+  background: color-mix(in oklab, var(--dt-accent) 15%, var(--dt-surface));
+  color: var(--dt-accent);
+  font-weight: 600;
+
+  &:hover {
+    background: color-mix(in oklab, var(--dt-accent) 18%, var(--dt-surface));
+  }
+}
+
+.modelLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+}
+
+.modelProvider {
+  color: var(--dt-text-muted);
+  font-size: 10px;
+  opacity: 0.75;
+}
