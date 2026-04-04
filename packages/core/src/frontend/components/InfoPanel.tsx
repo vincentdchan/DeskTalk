@@ -53,6 +53,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
   const transcripts = useVoiceSession((s) => s.transcripts);
   const startVoice = useVoiceSession((s) => s.startVoice);
   const stopVoice = useVoiceSession((s) => s.stopVoice);
+  const clearVoiceError = useVoiceSession((s) => s.clearError);
 
   const isVoiceActive = voiceStatus !== 'idle' && voiceStatus !== 'error';
   const activeAssistantMessageId = activeRequestId ? `assistant-${activeRequestId}` : null;
@@ -360,9 +361,6 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
           <div className={styles.voiceProcessing}>Transcribing...</div>
         )}
 
-        {/* Error display */}
-        {voiceError && <div className={styles.voiceError}>{voiceError}</div>}
-
         <div ref={messagesEndRef} />
       </div>
 
@@ -386,6 +384,8 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
         queuedCount={queuedPrompts.length}
         isVoiceActive={isVoiceActive}
         onVoiceToggle={handleVoiceToggle}
+        voiceError={voiceError}
+        onDismissVoiceError={clearVoiceError}
         modelLabel={modelLabel}
         wsReady={wsReady}
       />

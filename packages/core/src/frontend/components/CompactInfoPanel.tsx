@@ -29,9 +29,11 @@ export function CompactInfoPanel({ socket, wsReady }: CompactInfoPanelProps) {
   const addSystemMessage = useChatSession((s) => s.addSystemMessage);
 
   const voiceStatus = useVoiceSession((s) => s.status);
+  const voiceError = useVoiceSession((s) => s.errorMessage);
   const partialText = useVoiceSession((s) => s.partialText);
   const startVoice = useVoiceSession((s) => s.startVoice);
   const stopVoice = useVoiceSession((s) => s.stopVoice);
+  const clearVoiceError = useVoiceSession((s) => s.clearError);
 
   const isVoiceActive = voiceStatus !== 'idle' && voiceStatus !== 'error';
   const activeAssistantMessageId = activeRequestId ? `assistant-${activeRequestId}` : null;
@@ -193,6 +195,8 @@ export function CompactInfoPanel({ socket, wsReady }: CompactInfoPanelProps) {
           queuedCount={0}
           isVoiceActive={isVoiceActive}
           onVoiceToggle={handleVoiceToggle}
+          voiceError={voiceError}
+          onDismissVoiceError={clearVoiceError}
           modelLabel={modelLabel}
           wsReady={wsReady}
           compact

@@ -3,6 +3,7 @@ import { useMemoizedFn } from 'ahooks';
 import { useChatSession } from '../stores/chat-session';
 import type { AgentQuestionData } from './info-panel/AgentQuestion';
 import { MicIcon } from './MicIcon';
+import { VoiceErrorBanner } from './VoiceErrorBanner';
 import { matchCommands, getAllCommands } from '../utils/slash-commands';
 import styles from './CommandInput.module.scss';
 
@@ -16,6 +17,8 @@ export interface CommandInputProps {
   queuedCount: number;
   isVoiceActive: boolean;
   onVoiceToggle: () => void;
+  voiceError?: string | null;
+  onDismissVoiceError?: () => void;
   modelLabel: string;
   wsReady: boolean;
   compact?: boolean;
@@ -33,6 +36,8 @@ export function CommandInput({
   queuedCount,
   isVoiceActive,
   onVoiceToggle,
+  voiceError = null,
+  onDismissVoiceError,
   modelLabel,
   wsReady,
   compact = false,
@@ -345,6 +350,9 @@ export function CommandInput({
             })}
           </div>
         )}
+      {voiceError && onDismissVoiceError && (
+        <VoiceErrorBanner message={voiceError} onClose={onDismissVoiceError} />
+      )}
       {pendingQuestion?.questionType === 'confirm' ? (
         <div className={`${styles.confirmButtons} ${compact ? styles.confirmButtonsCompact : ''}`}>
           <button

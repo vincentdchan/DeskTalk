@@ -36,6 +36,7 @@ export interface VoiceSessionState {
   // Actions
   startVoice: () => Promise<void>;
   stopVoice: () => void;
+  clearError: () => void;
   clearTranscripts: () => void;
 }
 
@@ -109,6 +110,13 @@ export const useVoiceSession = create<VoiceSessionState>((set, get) => ({
       partialText: '',
       sessionId: null,
     });
+  },
+
+  clearError() {
+    const state = get();
+    if (state.status === 'error') {
+      set({ status: 'idle', errorMessage: null });
+    }
   },
 
   clearTranscripts() {
