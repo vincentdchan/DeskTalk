@@ -262,16 +262,32 @@ export async function apiRoutes(app: FastifyInstance, options: ApiRoutesOptions)
   // ── Subscription provider auth routes ────────────────────────────────
 
   /**
-   * Start an OAuth device-code login flow for a subscription provider.
+   * Pending manual-code resolvers keyed by provider id.
+   *
+   * When a redirect-based OAuth provider starts its login flow, the backend
+   * creates a deferred promise and sends a `prompt` SSE event to the
+   * frontend. The frontend can then POST to `/api/ai/providers/:id/login/code`
+   * which resolves the promise, racing against the local callback server.
+   */
+  const pendingCodeResolvers = new Map<
+    string,
+    { resolve: (code: string) => void; reject: (err: Error) => void }
+  >();
+
+  /**
+   * Start an OAuth login flow for a subscription provider.
    *
    * Streams Server-Sent Events back to the caller:
-   *   event: auth     – { url, instructions? }  (verification URL + user code)
+   *   event: auth     – { url, instructions?, usesCallbackServer? }
+   *   event: prompt   – { type, message, placeholder? }  (manual code input request)
    *   event: progress – { message }
    *   event: done     – {}                        (login succeeded)
    *   event: error    – { message }
    */
   app.post<{ Params: { id: string } }>('/api/ai/providers/:id/login', async (req, reply) => {
     const providerId = req.params.id;
+    const usesCallbackServer =
+      options.piSessionService.getProviderUsesCallbackServer(providerId);
 
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -283,16 +299,71 @@ export async function apiRoutes(app: FastifyInstance, options: ApiRoutesOptions)
       reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     };
 
+    // Clean up any stale resolver for this provider
+    const stale = pendingCodeResolvers.get(providerId);
+    if (stale) {
+      stale.reject(new Error('Superseded by new login'));
+      pendingCodeResolvers.delete(providerId);
+    }
+
     try {
       await options.piSessionService.loginProvider(providerId, {
         onAuth(info) {
-          send('auth', { url: info.url, instructions: info.instructions });
+          send('auth', {
+            url: info.url,
+            instructions: info.instructions,
+            usesCallbackServer,
+          });
         },
-        onPrompt() {
-          // Device-code flows handled by the UI don't need interactive
-          // prompts — return empty string so the flow continues.
-          return Promise.resolve('');
+
+        onPrompt(prompt) {
+          if (providerId === 'github-copilot' && prompt.allowEmpty) {
+            return Promise.resolve('');
+          }
+
+          // For providers that call onPrompt (e.g. GitHub Copilot asking for
+          // enterprise domain, or redirect-based providers as a last-resort
+          // fallback), send a prompt SSE event and wait for the user to respond.
+          send('prompt', {
+            type: 'prompt',
+            message: prompt.message,
+            placeholder: prompt.placeholder,
+            allowEmpty: prompt.allowEmpty === true,
+          });
+          return new Promise<string>((resolve, reject) => {
+            pendingCodeResolvers.set(providerId, { resolve, reject });
+            // If the request is aborted, clean up
+            req.raw.once('close', () => {
+              if (pendingCodeResolvers.get(providerId)?.resolve === resolve) {
+                pendingCodeResolvers.delete(providerId);
+                reject(new Error('Client disconnected'));
+              }
+            });
+          });
         },
+
+        onManualCodeInput: usesCallbackServer
+          ? () => {
+              // Send a prompt SSE event asking the user to paste the redirect
+              // URL or authorization code. This races against the local
+              // callback server — whichever resolves first wins.
+              send('prompt', {
+                type: 'manual_code',
+                message: 'Paste the authorization code or full redirect URL',
+                placeholder: 'https://localhost:.../callback?code=...',
+              });
+              return new Promise<string>((resolve, reject) => {
+                pendingCodeResolvers.set(providerId, { resolve, reject });
+                req.raw.once('close', () => {
+                  if (pendingCodeResolvers.get(providerId)?.resolve === resolve) {
+                    pendingCodeResolvers.delete(providerId);
+                    reject(new Error('Client disconnected'));
+                  }
+                });
+              });
+            }
+          : undefined,
+
         onProgress(message) {
           send('progress', { message });
         },
@@ -303,9 +374,35 @@ export async function apiRoutes(app: FastifyInstance, options: ApiRoutesOptions)
       const message = err instanceof Error ? err.message : String(err);
       send('error', { message });
     } finally {
+      pendingCodeResolvers.delete(providerId);
       reply.raw.end();
     }
   });
+
+  /**
+   * Submit a manual code / URL for an in-progress OAuth login flow.
+   *
+   * Called by the frontend when the user manually pastes the authorization
+   * code or redirect URL (for providers where the local callback server
+   * cannot be reached).
+   */
+  app.post<{ Params: { id: string }; Body: { code: string } }>(
+    '/api/ai/providers/:id/login/code',
+    async (req, reply) => {
+      const providerId = req.params.id;
+      const code = String(req.body?.code ?? '');
+      const resolver = pendingCodeResolvers.get(providerId);
+
+      if (!resolver) {
+        reply.code(404);
+        return { error: 'No pending login for this provider' };
+      }
+
+      resolver.resolve(code);
+      pendingCodeResolvers.delete(providerId);
+      return { ok: true };
+    },
+  );
 
   app.post<{ Params: { id: string } }>('/api/ai/providers/:id/logout', async (req) => {
     options.piSessionService.logoutProvider(req.params.id);

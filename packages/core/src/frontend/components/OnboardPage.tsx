@@ -30,7 +30,7 @@ const LANGUAGE_OPTIONS = [
 const AI_PROVIDERS = [
   // Subscription (OAuth) providers
   {
-    id: 'copilot',
+    id: 'github-copilot',
     label: 'GitHub Copilot',
     authType: 'subscription' as const,
     supportsBaseUrl: false,
@@ -896,7 +896,14 @@ function OnboardSelect({ id, value, options, disabled = false, onChange }: Onboa
 
 type OnboardSubscriptionState =
   | { phase: 'idle' }
-  | { phase: 'pending'; url: string; instructions?: string; progress?: string }
+  | {
+      phase: 'pending';
+      url: string;
+      instructions?: string;
+      progress?: string;
+      usesCallbackServer?: boolean;
+      manualCodePrompt?: { message: string; placeholder?: string; allowEmpty?: boolean };
+    }
   | { phase: 'authenticated' }
   | { phase: 'error'; message: string };
 
@@ -914,6 +921,7 @@ function OnboardSubscriptionAuth({
   const [state, setState] = useState<OnboardSubscriptionState>(
     authenticated ? { phase: 'authenticated' } : { phase: 'idle' },
   );
+  const [manualCode, setManualCode] = useState('');
   const abortRef = useRef<AbortController | null>(null);
 
   // Sync external authenticated prop
@@ -928,6 +936,7 @@ function OnboardSubscriptionAuth({
     abortRef.current = controller;
 
     setState({ phase: 'pending', url: '', instructions: undefined });
+    setManualCode('');
 
     fetch(`/api/ai/providers/${providerId}/login`, {
       method: 'POST',
@@ -966,8 +975,24 @@ function OnboardSubscriptionAuth({
                     phase: 'pending',
                     url: String(data.url ?? ''),
                     instructions: data.instructions ? String(data.instructions) : undefined,
+                    usesCallbackServer: Boolean(data.usesCallbackServer),
                     progress: prev.phase === 'pending' ? prev.progress : undefined,
+                    manualCodePrompt:
+                      prev.phase === 'pending' ? prev.manualCodePrompt : undefined,
                   }));
+                } else if (eventType === 'prompt') {
+                  setState((prev) =>
+                    prev.phase === 'pending'
+                      ? {
+                          ...prev,
+                          manualCodePrompt: {
+                            message: String(data.message ?? ''),
+                            placeholder: data.placeholder ? String(data.placeholder) : undefined,
+                            allowEmpty: Boolean(data.allowEmpty),
+                          },
+                        }
+                      : prev,
+                  );
                 } else if (eventType === 'progress') {
                   setState((prev) =>
                     prev.phase === 'pending'
@@ -1023,6 +1048,22 @@ function OnboardSubscriptionAuth({
     window.open(url, '_blank', 'noopener,noreferrer');
   }, []);
 
+  const handleSubmitCode = useCallback(
+    (code: string) => {
+      if (!code.trim()) return;
+      fetch(`/api/ai/providers/${providerId}/login/code`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code.trim() }),
+      }).catch(() => {
+        // Submission failure is not critical — the SSE stream will
+        // report errors if the login flow itself fails.
+      });
+    },
+    [providerId],
+  );
+
   if (state.phase === 'authenticated') {
     return (
       <div className={styles.subscriptionAuthConnected}>
@@ -1057,13 +1098,38 @@ function OnboardSubscriptionAuth({
               variant="primary"
               size="sm"
             >
-              Copy Code &amp; Open
+              {state.instructions ? 'Copy Code & Open' : 'Open in Browser'}
             </dt-button>
           )}
           <dt-button onClick={handleLogout} variant="secondary" size="sm">
             Cancel
           </dt-button>
         </div>
+        {state.manualCodePrompt && (
+          <div className={styles.manualCodeInput}>
+            <div className={styles.manualCodeHint}>{state.manualCodePrompt.message}</div>
+            <div className={styles.manualCodeRow}>
+              <input
+                className={styles.input}
+                type="text"
+                placeholder={state.manualCodePrompt.placeholder ?? 'Paste code or URL'}
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSubmitCode(manualCode);
+                }}
+              />
+              <dt-button
+                onClick={() => handleSubmitCode(manualCode)}
+                variant="primary"
+                size="sm"
+                disabled={!state.manualCodePrompt.allowEmpty && !manualCode.trim()}
+              >
+                Submit
+              </dt-button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
