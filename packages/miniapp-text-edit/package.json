@@ -1,6 +1,6 @@
 {
   "name": "@desktalk/miniapp-text-edit",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Text editor MiniApp for DeskTalk.",
   "type": "module",
   "license": "MIT",
