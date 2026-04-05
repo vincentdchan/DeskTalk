@@ -138,6 +138,26 @@ function getProviderStatusLabel(providerId: string, providers: AiProviderOption[
   return `${provider.id}/${provider.model}`;
 }
 
+function cancelActiveSessionWork(state: ChatSessionState, socket: WebSocket): void {
+  if (state.isAiRunning && state.activeRequestId) {
+    socket.send(
+      JSON.stringify({
+        type: 'ai:cancel',
+        requestId: state.activeRequestId,
+      }),
+    );
+  }
+
+  if (state.pendingQuestion?.questionId) {
+    socket.send(
+      JSON.stringify({
+        type: 'ai:dismiss-question',
+        questionId: state.pendingQuestion.questionId,
+      }),
+    );
+  }
+}
+
 export const useChatSession = create<ChatSessionState>((set, get) => ({
   messages: [],
   draftInput: '',
@@ -188,12 +208,12 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
     if (
       !sessionId ||
       socket.readyState !== WebSocket.OPEN ||
-      state.isAiRunning ||
-      state.pendingQuestion ||
       state.currentSessionId === sessionId
     ) {
       return false;
     }
+
+    cancelActiveSessionWork(state, socket);
 
     set({
       messages: [],
@@ -216,9 +236,11 @@ export const useChatSession = create<ChatSessionState>((set, get) => ({
 
   createSession(socket: WebSocket) {
     const state = get();
-    if (socket.readyState !== WebSocket.OPEN || state.isAiRunning || state.pendingQuestion) {
+    if (socket.readyState !== WebSocket.OPEN) {
       return false;
     }
+
+    cancelActiveSessionWork(state, socket);
 
     set({
       messages: [],
