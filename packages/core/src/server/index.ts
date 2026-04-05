@@ -159,6 +159,7 @@ export async function createServer(options: ServerOptions) {
     '/api/auth/me',
     '/api/setup/status',
     '/api/setup',
+    '/api/ai/providers',
     '/api/i18n/catalog',
     '/api/preferences/public',
     '/api/ui/desktalk-theme.css',
