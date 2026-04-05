@@ -1,6 +1,6 @@
 {
   "name": "@desktalk/miniapp-note",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Note-taking MiniApp for DeskTalk.",
   "type": "module",
   "license": "MIT",

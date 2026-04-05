@@ -1,7 +1,7 @@
 {
   "name": "desktalk",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "DeskTalk monorepo for the browser-based desktop environment and MiniApps.",
   "type": "module",
   "license": "MIT",
