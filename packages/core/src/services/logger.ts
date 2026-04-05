@@ -14,8 +14,8 @@ export interface LoggerConfig {
 /**
  * Creates the root pino logger.
  *
- * - Dev mode:  pretty-printed to stdout via pino-pretty.
- * - Prod mode: structured JSON written to <logDir>/desktalk.log.
+ * - Dev mode:  pretty-printed to stdout via pino-pretty (debug level).
+ * - Prod mode: pretty-printed to stdout + structured JSON to <logDir>/desktalk.log (info level).
  */
 export function createRootLogger(opts: { dev: boolean; logDir: string }): pino.Logger {
   if (opts.dev) {
@@ -38,14 +38,32 @@ export function createRootLogger(opts: { dev: boolean; logDir: string }): pino.L
     mkdirSync(opts.logDir, { recursive: true });
   }
 
-  return pino(
-    { level: 'info' },
-    pino.destination({
-      dest: join(opts.logDir, 'desktalk.log'),
-      mkdir: true,
-      sync: false,
-    }),
-  );
+  return pino({
+    level: 'info',
+    transport: {
+      targets: [
+        {
+          target: 'pino-pretty',
+          level: 'info',
+          options: {
+            colorize: true,
+            translateTime: 'HH:MM:ss.l',
+            ignore: 'pid,hostname',
+            singleLine: true,
+            destination: 1, // stdout
+          },
+        },
+        {
+          target: 'pino/file',
+          level: 'info',
+          options: {
+            destination: join(opts.logDir, 'desktalk.log'),
+            mkdir: true,
+          },
+        },
+      ],
+    },
+  });
 }
 
 /**
@@ -74,14 +92,33 @@ export function createChildLogger(config: LoggerConfig, scope: string): pino.Log
     mkdirSync(config.logDir, { recursive: true });
   }
 
-  return pino(
-    { level: config.level, base: { scope } },
-    pino.destination({
-      dest: join(config.logDir, 'desktalk.log'),
-      mkdir: true,
-      sync: false,
-    }),
-  );
+  return pino({
+    level: config.level,
+    base: { scope },
+    transport: {
+      targets: [
+        {
+          target: 'pino-pretty',
+          level: 'info',
+          options: {
+            colorize: true,
+            translateTime: 'HH:MM:ss.l',
+            ignore: 'pid,hostname',
+            singleLine: true,
+            destination: 1, // stdout
+          },
+        },
+        {
+          target: 'pino/file',
+          level: config.level,
+          options: {
+            destination: join(config.logDir, 'desktalk.log'),
+            mkdir: true,
+          },
+        },
+      ],
+    },
+  });
 }
 
 /**
