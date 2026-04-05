@@ -1,6 +1,6 @@
 {
   "name": "@desktalk/core",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "DeskTalk application shell, CLI, and backend server.",
   "type": "module",
   "license": "MIT",
