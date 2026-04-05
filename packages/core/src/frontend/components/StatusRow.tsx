@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { AiProviderOption } from '../stores/chat-session';
 import styles from './StatusRow.module.scss';
 
@@ -19,13 +20,29 @@ export function StatusRow({
   selectedProvider,
   onSelectProvider,
 }: StatusRowProps) {
-  const selectorRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLUListElement>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState<{ bottom: number; right: number } | null>(null);
 
   const configuredProviders = useMemo(
     () => providerOptions.filter((provider) => provider.configured),
     [providerOptions],
   );
+
+  // Position the portal-rendered dropdown above the trigger button
+  useLayoutEffect(() => {
+    if (!isOpen || !triggerRef.current) {
+      setDropdownPos(null);
+      return;
+    }
+
+    const rect = triggerRef.current.getBoundingClientRect();
+    setDropdownPos({
+      bottom: window.innerHeight - rect.top,
+      right: window.innerWidth - rect.right,
+    });
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -33,7 +50,8 @@ export function StatusRow({
     }
 
     const handlePointerDown = (event: MouseEvent) => {
-      if (selectorRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target) || dropdownRef.current?.contains(target)) {
         return;
       }
 
@@ -54,22 +72,14 @@ export function StatusRow({
     };
   }, [isOpen]);
 
-  return (
-    <div className={styles.statusRow}>
-      <div ref={selectorRef} className={styles.modelSelector}>
-        <button
-          type="button"
-          className={styles.modelTrigger}
-          onClick={() => setIsOpen((open) => !open)}
-          disabled={!wsReady || configuredProviders.length === 0}
-        >
-          {wsReady ? modelLabel : 'offline'}
-          {wsReady && configuredProviders.length > 0 ? (
-            <span className={styles.modelSelectorChevron}>▾</span>
-          ) : null}
-        </button>
-        {isOpen ? (
-          <ul className={styles.modelDropdown}>
+  const dropdown =
+    isOpen && dropdownPos
+      ? createPortal(
+          <ul
+            ref={dropdownRef}
+            className={styles.modelDropdown}
+            style={{ bottom: dropdownPos.bottom, right: dropdownPos.right }}
+          >
             {configuredProviders.map((provider) => (
               <li key={provider.id}>
                 <button
@@ -92,8 +102,27 @@ export function StatusRow({
                 </button>
               </li>
             ))}
-          </ul>
-        ) : null}
+          </ul>,
+          document.body,
+        )
+      : null;
+
+  return (
+    <div className={styles.statusRow}>
+      <div className={styles.modelSelector}>
+        <button
+          ref={triggerRef}
+          type="button"
+          className={styles.modelTrigger}
+          onClick={() => setIsOpen((open) => !open)}
+          disabled={!wsReady || configuredProviders.length === 0}
+        >
+          {wsReady ? modelLabel : 'offline'}
+          {wsReady && configuredProviders.length > 0 ? (
+            <span className={styles.modelSelectorChevron}>▾</span>
+          ) : null}
+        </button>
+        {dropdown}
       </div>
       {queuedCount > 0 ? <span className={styles.statusItem}>{queuedCount} queued</span> : null}
     </div>

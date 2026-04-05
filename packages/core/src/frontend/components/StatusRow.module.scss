@@ -48,9 +48,7 @@
 }
 
 .modelDropdown {
-  position: absolute;
-  right: 0;
-  bottom: 100%;
+  position: fixed;
   min-width: 200px;
   margin: 0 0 4px;
   padding: 4px;
@@ -61,7 +59,7 @@
   box-shadow: 0 -4px 16px rgb(0 0 0 / 16%);
   font-size: 12px;
   white-space: nowrap;
-  z-index: 1000;
+  z-index: 10000;
 }
 
 .modelDropdownItem {
