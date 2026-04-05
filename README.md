@@ -79,7 +79,7 @@ The mounted volumes persist DeskTalk state across container restarts:
 If you want to use a different port on the host:
 
 ```bash
-docker run -p 8080:3000 \
+docker run -p 3000:3000 \
   -v desktalk-data:/home/node/.local/share/desktalk \
   -v desktalk-config:/home/node/.config/desktalk \
   ghcr.io/vincentdchan/desktalk:latest

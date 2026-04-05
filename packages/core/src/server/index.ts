@@ -175,6 +175,8 @@ export async function createServer(options: ServerOptions) {
 
     if (requestPath.startsWith('/api/ui/fonts/')) return;
 
+    if (requestPath.startsWith('/api/ai/providers/')) return;
+
     if (requestPath.startsWith('/api/miniapps/text-edit/monaco/')) return;
 
     // Skip auth for static file requests (non-API, non-WS, non-dtfs)
