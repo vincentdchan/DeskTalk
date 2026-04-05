@@ -32,7 +32,7 @@ program
 
     const host = opts.host;
     const port = parseInt(opts.port, 10);
-    const dev = opts.dev || process.env.NODE_ENV !== 'production';
+    const dev = opts.dev;
 
     const paths = initWorkspace();
 
