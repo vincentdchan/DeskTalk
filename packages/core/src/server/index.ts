@@ -159,6 +159,7 @@ export async function createServer(options: ServerOptions) {
     '/api/auth/me',
     '/api/setup/status',
     '/api/setup',
+    '/api/ai/providers',
     '/api/i18n/catalog',
     '/api/preferences/public',
     '/api/ui/desktalk-theme.css',
@@ -173,6 +174,8 @@ export async function createServer(options: ServerOptions) {
     if (requestPath.startsWith('/api/ui/') && requestPath.endsWith('.js')) return;
 
     if (requestPath.startsWith('/api/ui/fonts/')) return;
+
+    if (requestPath.startsWith('/api/ai/providers/')) return;
 
     if (requestPath.startsWith('/api/miniapps/text-edit/monaco/')) return;
 

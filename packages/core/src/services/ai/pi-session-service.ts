@@ -18,6 +18,7 @@ import {
   type ToolDefinition,
 } from '@mariozechner/pi-coding-agent';
 import type { OAuthLoginCallbacks } from '@mariozechner/pi-ai';
+import { getOAuthProvider } from '@mariozechner/pi-ai/oauth';
 import { createDesktopTool, type SendAiCommand } from './desktop-tool';
 import { createLayoutTool } from './layout-tool';
 import { createActionTool } from './action-tool';
@@ -1022,6 +1023,16 @@ export class PiSessionService {
    */
   getProviderAuthStatus(providerId: string): boolean {
     return this.authStorage.hasAuth(providerId);
+  }
+
+  /**
+   * Check whether a subscription provider uses a local callback server for
+   * OAuth login (as opposed to a device-code flow). Providers that use a
+   * callback server support manual code input as a fallback when the redirect
+   * cannot reach the backend (e.g. when running remotely).
+   */
+  getProviderUsesCallbackServer(providerId: string): boolean {
+    return getOAuthProvider(providerId)?.usesCallbackServer === true;
   }
 
   private async syncProviderCredentials(): Promise<void> {

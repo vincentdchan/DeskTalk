@@ -267,7 +267,8 @@
 
 .subscriptionAuth {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 12px;
   padding: 8px 12px;
   border: 1px solid var(--dt-border);
@@ -315,6 +316,55 @@
   color: var(--dt-text-muted);
   font-size: 12px;
   font-style: italic;
+}
+
+/* ── Manual code input (for redirect-based OAuth fallback) ──────────── */
+
+.manualCodeInput {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--dt-border);
+  width: 100%;
+}
+
+.manualCodeHint {
+  font-size: 12px;
+  color: var(--dt-text-muted);
+}
+
+.manualCodeRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.manualCodeRow .manualCodeTextInput {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+  background: var(--dt-surface);
+  color: var(--dt-text);
+  font-family: var(--font-ui, 'Work Sans', system-ui, -apple-system, sans-serif);
+  font-size: 13px;
+  outline: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background 0.15s;
+}
+
+.manualCodeRow .manualCodeTextInput:focus {
+  border-color: var(--dt-accent);
+  box-shadow: 0 0 0 3px var(--dt-accent-ghost);
+}
+
+.manualCodeRow .manualCodeTextInput::placeholder {
+  color: var(--dt-text-muted);
 }
 
 .selectWrap {

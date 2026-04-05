@@ -6,3 +6,4 @@ storybook-static/
 .env.local
 .DS_Store
 *.log
+packages/core/test-results/

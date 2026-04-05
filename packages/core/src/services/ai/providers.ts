@@ -16,11 +16,24 @@ export interface AiProviderPreferences {
 }
 
 export const AI_DEFAULT_PROVIDER = 'openai';
+const LEGACY_AI_PROVIDER_IDS: Record<string, string> = {
+  copilot: 'github-copilot',
+};
+
+function normalizeAiProviderId(provider: string): string {
+  return LEGACY_AI_PROVIDER_IDS[provider] ?? provider;
+}
+
+function getLegacyAiProviderIds(provider: string): string[] {
+  return Object.entries(LEGACY_AI_PROVIDER_IDS)
+    .filter(([, canonical]) => canonical === provider)
+    .map(([legacy]) => legacy);
+}
 
 export const AI_PROVIDER_DEFINITIONS: AiProviderDefinition[] = [
   // ─── Subscription (OAuth) providers ────────────────────────────────────
   {
-    id: 'copilot',
+    id: 'github-copilot',
     label: 'GitHub Copilot',
     authType: 'subscription',
     supportsApiKey: false,
@@ -171,15 +184,17 @@ export function getAiProviderPreferenceKey(
   provider: string,
   field: 'model' | 'apiKey' | 'baseUrl',
 ): string {
-  return `ai.providers.${provider}.${field}`;
+  return `ai.providers.${normalizeAiProviderId(provider)}.${field}`;
 }
 
 export function isKnownAiProvider(provider: string): boolean {
-  return AI_PROVIDER_DEFINITIONS.some((entry) => entry.id === provider);
+  const normalizedProvider = normalizeAiProviderId(provider);
+  return AI_PROVIDER_DEFINITIONS.some((entry) => entry.id === normalizedProvider);
 }
 
 export function getAiProviderDefinition(provider: string): AiProviderDefinition | undefined {
-  return AI_PROVIDER_DEFINITIONS.find((entry) => entry.id === provider);
+  const normalizedProvider = normalizeAiProviderId(provider);
+  return AI_PROVIDER_DEFINITIONS.find((entry) => entry.id === normalizedProvider);
 }
 
 export function isSubscriptionProvider(provider: string): boolean {
@@ -193,28 +208,43 @@ export async function getDefaultAiProvider(getPreference: PreferenceReader): Pro
     ((await getPreference('ai.provider')) as string) ??
     AI_DEFAULT_PROVIDER;
 
-  return isKnownAiProvider(configured) ? configured : AI_DEFAULT_PROVIDER;
+  const normalizedProvider = normalizeAiProviderId(configured);
+  return isKnownAiProvider(normalizedProvider) ? normalizedProvider : AI_DEFAULT_PROVIDER;
 }
 
 export async function getAiProviderPreferences(
   getPreference: PreferenceReader,
   provider: string,
 ): Promise<AiProviderPreferences> {
-  const legacyProvider = ((await getPreference('ai.provider')) as string) ?? AI_DEFAULT_PROVIDER;
-  const legacyMatches = legacyProvider === provider;
+  const normalizedProvider = normalizeAiProviderId(provider);
+  const legacyProvider = normalizeAiProviderId(
+    ((await getPreference('ai.provider')) as string) ?? AI_DEFAULT_PROVIDER,
+  );
+  const legacyMatches = legacyProvider === normalizedProvider;
+  const providerIds = [normalizedProvider, ...getLegacyAiProviderIds(normalizedProvider)];
 
-  const model =
-    ((await getPreference(getAiProviderPreferenceKey(provider, 'model'))) as string) ??
-    (legacyMatches ? (((await getPreference('ai.model')) as string) ?? '') : '');
-  const apiKey =
-    ((await getPreference(getAiProviderPreferenceKey(provider, 'apiKey'))) as string) ??
-    (legacyMatches ? (((await getPreference('ai.apiKey')) as string) ?? '') : '');
-  const baseUrl =
-    ((await getPreference(getAiProviderPreferenceKey(provider, 'baseUrl'))) as string) ??
-    (legacyMatches ? (((await getPreference('ai.baseUrl')) as string) ?? '') : '');
+  const readProviderField = async (field: 'model' | 'apiKey' | 'baseUrl'): Promise<string> => {
+    for (const providerId of providerIds) {
+      const value = (await getPreference(`ai.providers.${providerId}.${field}`)) as string | undefined;
+      if (value !== undefined) {
+        return value;
+      }
+    }
+
+    if (!legacyMatches) {
+      return '';
+    }
+
+    const legacyKey = field === 'model' ? 'ai.model' : field === 'apiKey' ? 'ai.apiKey' : 'ai.baseUrl';
+    return ((await getPreference(legacyKey)) as string) ?? '';
+  };
+
+  const model = await readProviderField('model');
+  const apiKey = await readProviderField('apiKey');
+  const baseUrl = await readProviderField('baseUrl');
 
   return {
-    provider,
+    provider: normalizedProvider,
     model,
     apiKey,
     baseUrl,

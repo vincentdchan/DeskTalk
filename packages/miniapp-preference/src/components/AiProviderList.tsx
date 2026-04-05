@@ -284,11 +284,19 @@ type SubscriptionState =
   | { phase: 'idle' }
   | { phase: 'checking' }
   | { phase: 'authenticated' }
-  | { phase: 'pending'; url: string; instructions?: string; progress?: string }
+  | {
+      phase: 'pending';
+      url: string;
+      instructions?: string;
+      progress?: string;
+      usesCallbackServer?: boolean;
+      manualCodePrompt?: { message: string; placeholder?: string; allowEmpty?: boolean };
+    }
   | { phase: 'error'; message: string };
 
 function SubscriptionAuth({ providerId }: { providerId: string }) {
   const [state, setState] = useState<SubscriptionState>({ phase: 'idle' });
+  const [manualCode, setManualCode] = useState('');
   const abortRef = useRef<AbortController | null>(null);
 
   // Check initial auth status on mount
@@ -319,6 +327,7 @@ function SubscriptionAuth({ providerId }: { providerId: string }) {
     abortRef.current = controller;
 
     setState({ phase: 'pending', url: '', instructions: undefined });
+    setManualCode('');
 
     fetch(`/api/ai/providers/${providerId}/login`, {
       method: 'POST',
@@ -358,8 +367,24 @@ function SubscriptionAuth({ providerId }: { providerId: string }) {
                     phase: 'pending',
                     url: String(data.url ?? ''),
                     instructions: data.instructions ? String(data.instructions) : undefined,
+                    usesCallbackServer: Boolean(data.usesCallbackServer),
                     progress: prev.phase === 'pending' ? prev.progress : undefined,
+                    manualCodePrompt:
+                      prev.phase === 'pending' ? prev.manualCodePrompt : undefined,
                   }));
+                } else if (eventType === 'prompt') {
+                  setState((prev) =>
+                    prev.phase === 'pending'
+                      ? {
+                          ...prev,
+                          manualCodePrompt: {
+                            message: String(data.message ?? ''),
+                            placeholder: data.placeholder ? String(data.placeholder) : undefined,
+                            allowEmpty: Boolean(data.allowEmpty),
+                          },
+                        }
+                      : prev,
+                  );
                 } else if (eventType === 'progress') {
                   setState((prev) =>
                     prev.phase === 'pending'
@@ -405,6 +430,22 @@ function SubscriptionAuth({ providerId }: { providerId: string }) {
     window.open(url, '_blank', 'noopener,noreferrer');
   }, []);
 
+  const handleSubmitCode = useCallback(
+    (code: string) => {
+      if (!code.trim()) return;
+      fetch(`/api/ai/providers/${providerId}/login/code`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code.trim() }),
+      }).catch(() => {
+        // Submission failure is not critical — the SSE stream will
+        // report errors if the login flow itself fails.
+      });
+    },
+    [providerId],
+  );
+
   if (state.phase === 'checking') {
     return (
       <div className={styles.subscriptionAuth}>
@@ -449,13 +490,38 @@ function SubscriptionAuth({ providerId }: { providerId: string }) {
               variant="primary"
               size="sm"
             >
-              Copy Code &amp; Open
+              {state.instructions ? 'Copy Code & Open' : 'Open in Browser'}
             </ProviderButton>
           )}
           <ProviderButton onPress={handleLogout} variant="secondary" size="sm">
             Cancel
           </ProviderButton>
         </div>
+        {state.manualCodePrompt && (
+          <div className={styles.manualCodeInput}>
+            <div className={styles.manualCodeHint}>{state.manualCodePrompt.message}</div>
+            <div className={styles.manualCodeRow}>
+              <input
+                className={styles.manualCodeTextInput}
+                type="text"
+                placeholder={state.manualCodePrompt.placeholder ?? 'Paste code or URL'}
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSubmitCode(manualCode);
+                }}
+              />
+              <ProviderButton
+                onPress={() => handleSubmitCode(manualCode)}
+                variant="primary"
+                size="sm"
+                disabled={!state.manualCodePrompt.allowEmpty && !manualCode.trim()}
+              >
+                Submit
+              </ProviderButton>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

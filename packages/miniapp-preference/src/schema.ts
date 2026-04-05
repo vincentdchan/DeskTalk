@@ -42,11 +42,18 @@ export interface VoiceProviderDefinition {
 }
 
 export const DEFAULT_AI_PROVIDER_ID = 'openai';
+const LEGACY_AI_PROVIDER_IDS: Record<string, string> = {
+  copilot: 'github-copilot',
+};
+
+function normalizeAiProviderId(providerId: string): string {
+  return LEGACY_AI_PROVIDER_IDS[providerId] ?? providerId;
+}
 
 export const AI_PROVIDER_DEFINITIONS: AiProviderDefinition[] = [
   // ─── Subscription (OAuth) providers ────────────────────────────────────
   {
-    id: 'copilot',
+    id: 'github-copilot',
     label: 'GitHub Copilot',
     authType: 'subscription',
     supportsApiKey: false,
@@ -218,7 +225,8 @@ const AI_PROVIDER_IDS = new Set(AI_PROVIDER_DEFINITIONS.map((provider) => provid
 const VOICE_PROVIDER_IDS = new Set(VOICE_PROVIDER_DEFINITIONS.map((provider) => provider.id));
 
 export function getAiProviderDefinition(providerId: string): AiProviderDefinition | undefined {
-  return AI_PROVIDER_DEFINITIONS.find((provider) => provider.id === providerId);
+  const normalizedProviderId = normalizeAiProviderId(providerId);
+  return AI_PROVIDER_DEFINITIONS.find((provider) => provider.id === normalizedProviderId);
 }
 
 export function getAiProviderConfigKeys(providerId: string): string[] {
@@ -244,7 +252,7 @@ export function parseAiEnabledProviders(value: unknown): string[] {
 
   const providers = value
     .split(',')
-    .map((item) => item.trim())
+    .map((item) => normalizeAiProviderId(item.trim()))
     .filter(
       (item, index, items) => item && items.indexOf(item) === index && AI_PROVIDER_IDS.has(item),
     );
