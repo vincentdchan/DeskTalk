@@ -60,6 +60,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
 
   const isVoiceActive = voiceStatus !== 'idle' && voiceStatus !== 'error';
   const activeAssistantMessageId = activeRequestId ? `assistant-${activeRequestId}` : null;
+  const isSessionNavigationDisabled = !socket || socket.readyState !== WebSocket.OPEN || !wsReady;
   const isSessionInteractionDisabled =
     isAiRunning ||
     Boolean(pendingQuestion) ||
@@ -259,7 +260,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
               options={sessions.map((session) => ({ value: session.id, label: session.label }))}
               placeholder="New session"
               align="right"
-              disabled={isSessionInteractionDisabled}
+              disabled={isSessionNavigationDisabled}
               ondt-change={(event) => {
                 if (!socket) {
                   return;
@@ -273,7 +274,7 @@ export function InfoPanel({ socket, wsReady }: { socket: WebSocket | null; wsRea
                 type="button"
                 className={`${styles.sessionActionButton} ${styles.newSessionButton}`}
                 onClick={handleCreateSession}
-                disabled={isSessionInteractionDisabled}
+                disabled={isSessionNavigationDisabled}
                 aria-label="Create new session"
               >
                 +
