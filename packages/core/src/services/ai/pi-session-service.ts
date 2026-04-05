@@ -93,6 +93,7 @@ export interface AiProviderOption {
   label: string;
   configured: boolean;
   model: string;
+  resolvedModel: string;
   models: string[];
   authType: AiProviderAuthType;
   authenticated?: boolean;
@@ -964,9 +965,8 @@ export class PiSessionService {
 
     const defaultProvider = await getDefaultAiProvider(this.getPreference);
     const modelsByProvider = new Map<string, string[]>();
-    const availableByProvider = new Set(
-      this.modelRegistry.getAvailable().map((model) => model.provider),
-    );
+    const availableModels = this.modelRegistry.getAvailable();
+    const availableByProvider = new Set(availableModels.map((model) => model.provider));
     for (const model of this.modelRegistry.getAll()) {
       const current = modelsByProvider.get(model.provider) ?? [];
       if (!current.includes(model.id)) {
@@ -980,8 +980,12 @@ export class PiSessionService {
       defaultProvider,
       providers: AI_PROVIDER_DEFINITIONS.map((provider) => {
         const config = configuredProviders.find((entry) => entry.provider === provider.id);
+        const configuredModel = config?.model.trim() ?? '';
         const isSubscription = provider.authType === 'subscription';
         const hasOAuth = isSubscription && this.authStorage.hasAuth(provider.id);
+        const resolvedModel = configuredModel
+          ? (this.modelRegistry.find(provider.id, configuredModel)?.id ?? '')
+          : (availableModels.find((model) => model.provider === provider.id)?.id ?? '');
 
         return {
           id: provider.id,
@@ -994,6 +998,7 @@ export class PiSessionService {
             Boolean(config?.apiKey.trim()) ||
             Boolean(config?.baseUrl.trim()),
           model: config?.model ?? '',
+          resolvedModel,
           models: modelsByProvider.get(provider.id) ?? [],
           ...(isSubscription ? { authenticated: hasOAuth } : {}),
         };

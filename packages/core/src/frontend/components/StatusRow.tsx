@@ -96,8 +96,10 @@ export function StatusRow({
                   {provider.authType === 'subscription' ? (
                     <span className={styles.subscriptionBadge}>sub</span>
                   ) : null}
-                  {provider.model ? (
-                    <span className={styles.modelProvider}>{provider.model}</span>
+                  {provider.resolvedModel || provider.model ? (
+                    <span className={styles.modelProvider}>
+                      {provider.resolvedModel || provider.model}
+                    </span>
                   ) : null}
                 </button>
               </li>

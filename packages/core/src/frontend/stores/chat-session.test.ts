@@ -79,6 +79,35 @@ describe('useChatSession.handleAiEvent', () => {
     expect(state.activeRequestId).toBeNull();
     expect(state.pendingQuestion).toMatchObject({ questionId: 'question-1' });
   });
+
+  it('restores the resolved model label after a request ends', () => {
+    useChatSession.setState({
+      messages: [{ id: 'assistant-req-1', role: 'assistant', content: 'Done' }],
+      isAiRunning: true,
+      activeRequestId: 'req-1',
+      selectedProvider: 'openai',
+      providerOptions: [
+        {
+          id: 'openai',
+          label: 'OpenAI',
+          configured: true,
+          model: '',
+          resolvedModel: 'gpt-4o',
+          models: ['gpt-4o'],
+          authType: 'api-key',
+        },
+      ],
+    });
+
+    useChatSession.getState().handleAiEvent({
+      type: 'message_end',
+      requestId: 'req-1',
+      usage: { totalTokens: 12 },
+    });
+
+    const state = useChatSession.getState();
+    expect(state.modelLabel).toBe('openai/gpt-4o');
+  });
 });
 
 describe('useChatSession.answerQuestion', () => {

@@ -208,3 +208,28 @@ describe('PiSessionService.getHistory', () => {
     expect(history[0]?.toolCall?.params).toMatchObject({ answer: 'Dark' });
   });
 });
+
+describe('PiSessionService.getProviderOptions', () => {
+  it('returns a resolved model when the provider is available but no model is explicitly saved', async () => {
+    const result = await PiSessionService.prototype.getProviderOptions.call({
+      syncProviderCredentials: async () => {},
+      getPreference: async (key: string) => (key === 'ai.defaultProvider' ? 'openai' : undefined),
+      modelRegistry: {
+        getAvailable: () => [{ provider: 'openai', id: 'gpt-4o' }],
+        getAll: () => [{ provider: 'openai', id: 'gpt-4o' }],
+        find: (provider: string, model: string) =>
+          provider === 'openai' && model === 'gpt-4o' ? { provider, id: model } : undefined,
+      },
+      authStorage: {
+        hasAuth: () => false,
+      },
+    } as unknown as PiSessionService);
+
+    expect(result.defaultProvider).toBe('openai');
+    expect(result.providers.find((provider) => provider.id === 'openai')).toMatchObject({
+      configured: true,
+      model: '',
+      resolvedModel: 'gpt-4o',
+    });
+  });
+});

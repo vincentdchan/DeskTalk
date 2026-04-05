@@ -35,6 +35,7 @@ export interface AiProviderOption {
   label: string;
   configured: boolean;
   model: string;
+  resolvedModel?: string;
   models: string[];
   authType: 'api-key' | 'subscription';
   authenticated?: boolean;
@@ -131,11 +132,12 @@ export interface ChatSessionState {
 
 function getProviderStatusLabel(providerId: string, providers: AiProviderOption[]): string {
   const provider = providers.find((entry) => entry.id === providerId);
-  if (!provider || !provider.model) {
+  const displayModel = provider?.resolvedModel || provider?.model;
+  if (!provider || !displayModel) {
     return 'not configured';
   }
 
-  return `${provider.id}/${provider.model}`;
+  return `${provider.id}/${displayModel}`;
 }
 
 function cancelActiveSessionWork(state: ChatSessionState, socket: WebSocket): void {
