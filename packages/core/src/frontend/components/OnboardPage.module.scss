@@ -125,6 +125,65 @@
   width: 100%;
 }
 
+// ── Subscription provider auth ──────────────────────────────────────────
+
+.subscriptionAuth {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--dt-border);
+  border-radius: 4px;
+  background: var(--dt-surface);
+  grid-column: 1 / -1;
+  font-size: 13px;
+}
+
+.subscriptionAuthConnected {
+  composes: subscriptionAuth;
+  border-color: color-mix(in oklab, var(--dt-success, #22c55e) 40%, var(--dt-border));
+  background: color-mix(in oklab, var(--dt-success, #22c55e) 6%, var(--dt-surface));
+}
+
+.subscriptionAuthPending {
+  composes: subscriptionAuth;
+  border-color: color-mix(in oklab, var(--dt-warning, #eab308) 40%, var(--dt-border));
+  background: color-mix(in oklab, var(--dt-warning, #eab308) 6%, var(--dt-surface));
+}
+
+.subscriptionAuthStatus {
+  flex: 1;
+  min-width: 0;
+}
+
+.subscriptionAuthStatusConnected {
+  color: var(--dt-success, #22c55e);
+  font-weight: 500;
+}
+
+.subscriptionAuthCode {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--dt-surface-hover, rgba(0, 0, 0, 0.06));
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  user-select: all;
+}
+
+.subscriptionAuthProgress {
+  color: var(--dt-text-secondary);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.subscriptionAuthError {
+  color: var(--dt-danger, #ef4444);
+  font-size: 12px;
+}
+
 .providerFieldGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

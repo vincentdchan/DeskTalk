@@ -83,6 +83,9 @@ export function StatusRow({
                   }}
                 >
                   <span className={styles.modelLabel}>{provider.id}</span>
+                  {provider.authType === 'subscription' ? (
+                    <span className={styles.subscriptionBadge}>sub</span>
+                  ) : null}
                   {provider.model ? (
                     <span className={styles.modelProvider}>{provider.model}</span>
                   ) : null}

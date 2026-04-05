@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Config } from '../schema';
 import {
   AI_PROVIDER_DEFINITIONS,
@@ -15,7 +15,40 @@ interface AiProviderListProps {
   onChange: (key: string, value: string | number | boolean) => Promise<void> | void;
 }
 
+interface AiProviderOption {
+  id: string;
+  models: string[];
+}
+
 export function AiProviderList({ config, onChange }: AiProviderListProps) {
+  const [providerOptions, setProviderOptions] = useState<AiProviderOption[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch('/api/ai/providers', { credentials: 'same-origin' })
+      .then((res) => res.json())
+      .then((data: { providers?: AiProviderOption[] }) => {
+        if (!cancelled) {
+          setProviderOptions(data.providers ?? []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProviderOptions([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const providerOptionsById = useMemo(
+    () => new Map(providerOptions.map((provider) => [provider.id, provider])),
+    [providerOptions],
+  );
+
   const enabledProviders = useMemo(() => {
     const providers = parseAiEnabledProviders(config['ai.enabledProviders']);
     const defaultProvider =
@@ -120,6 +153,7 @@ export function AiProviderList({ config, onChange }: AiProviderListProps) {
       <div className={styles.providerList}>
         {enabledProviders.map((providerId, index) => {
           const definition = getAiProviderDefinition(providerId);
+          const providerOption = providerOptionsById.get(providerId);
           if (!definition) {
             return null;
           }
@@ -127,6 +161,15 @@ export function AiProviderList({ config, onChange }: AiProviderListProps) {
           const availableOptions = AI_PROVIDER_DEFINITIONS.filter(
             (provider) => provider.id === providerId || !enabledProviders.includes(provider.id),
           );
+
+          const configuredModel = String(config[`ai.providers.${providerId}.model`] ?? '');
+          const modelOptions = [
+            { value: '', label: 'Select model' },
+            ...(providerOption?.models ?? []).map((model) => ({ value: model, label: model })),
+          ];
+          if (configuredModel && !modelOptions.some((option) => option.value === configuredModel)) {
+            modelOptions.push({ value: configuredModel, label: `${configuredModel} (custom)` });
+          }
 
           return (
             <div key={providerId} className={styles.providerCard}>
@@ -179,22 +222,42 @@ export function AiProviderList({ config, onChange }: AiProviderListProps) {
                       />
                     </div>
 
-                    {definition.supportsApiKey && (
-                      <ProviderTextField
-                        id={`ai-provider-key-${providerId}`}
-                        label="API Key"
-                        value={String(config[`ai.providers.${providerId}.apiKey`] ?? '')}
-                        sensitive
-                        onCommit={(value) => onChange(`ai.providers.${providerId}.apiKey`, value)}
-                      />
+                    {definition.authType === 'subscription' ? (
+                      <SubscriptionAuth providerId={providerId} />
+                    ) : (
+                      definition.supportsApiKey && (
+                        <ProviderTextField
+                          id={`ai-provider-key-${providerId}`}
+                          label="API Key"
+                          value={String(config[`ai.providers.${providerId}.apiKey`] ?? '')}
+                          sensitive
+                          onCommit={(value) => onChange(`ai.providers.${providerId}.apiKey`, value)}
+                        />
+                      )
                     )}
 
-                    <ProviderTextField
-                      id={`ai-provider-model-${providerId}`}
-                      label="Model"
-                      value={String(config[`ai.providers.${providerId}.model`] ?? '')}
-                      onCommit={(value) => onChange(`ai.providers.${providerId}.model`, value)}
-                    />
+                    {(providerOption?.models?.length ?? 0) > 0 ? (
+                      <div className={styles.providerField}>
+                        <label
+                          className={styles.providerFieldLabel}
+                          htmlFor={`ai-provider-model-${providerId}`}
+                        >
+                          Model
+                        </label>
+                        <ProviderSelect
+                          value={configuredModel}
+                          options={modelOptions}
+                          onChange={(value) => onChange(`ai.providers.${providerId}.model`, value)}
+                        />
+                      </div>
+                    ) : (
+                      <ProviderTextField
+                        id={`ai-provider-model-${providerId}`}
+                        label="Model"
+                        value={configuredModel}
+                        onCommit={(value) => onChange(`ai.providers.${providerId}.model`, value)}
+                      />
+                    )}
 
                     {definition.supportsBaseUrl && (
                       <ProviderTextField
@@ -211,6 +274,210 @@ export function AiProviderList({ config, onChange }: AiProviderListProps) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ── Subscription provider auth UI ──────────────────────────────────────
+
+type SubscriptionState =
+  | { phase: 'idle' }
+  | { phase: 'checking' }
+  | { phase: 'authenticated' }
+  | { phase: 'pending'; url: string; instructions?: string; progress?: string }
+  | { phase: 'error'; message: string };
+
+function SubscriptionAuth({ providerId }: { providerId: string }) {
+  const [state, setState] = useState<SubscriptionState>({ phase: 'idle' });
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Check initial auth status on mount
+  useEffect(() => {
+    let cancelled = false;
+    setState({ phase: 'checking' });
+
+    fetch(`/api/ai/providers/${providerId}/auth-status`, { credentials: 'same-origin' })
+      .then((res) => res.json())
+      .then((data: { authenticated: boolean }) => {
+        if (!cancelled) {
+          setState(data.authenticated ? { phase: 'authenticated' } : { phase: 'idle' });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setState({ phase: 'idle' });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [providerId]);
+
+  const handleLogin = useCallback(() => {
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setState({ phase: 'pending', url: '', instructions: undefined });
+
+    fetch(`/api/ai/providers/${providerId}/login`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        const reader = res.body?.getReader();
+        if (!reader) {
+          setState({ phase: 'error', message: 'No response stream' });
+          return;
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          // Parse SSE events from buffer
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+
+          let eventType = '';
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              eventType = line.slice(7);
+            } else if (line.startsWith('data: ') && eventType) {
+              try {
+                const data = JSON.parse(line.slice(6)) as Record<string, unknown>;
+
+                if (eventType === 'auth') {
+                  setState((prev) => ({
+                    phase: 'pending',
+                    url: String(data.url ?? ''),
+                    instructions: data.instructions ? String(data.instructions) : undefined,
+                    progress: prev.phase === 'pending' ? prev.progress : undefined,
+                  }));
+                } else if (eventType === 'progress') {
+                  setState((prev) =>
+                    prev.phase === 'pending'
+                      ? { ...prev, progress: String(data.message ?? '') }
+                      : prev,
+                  );
+                } else if (eventType === 'done') {
+                  setState({ phase: 'authenticated' });
+                } else if (eventType === 'error') {
+                  setState({ phase: 'error', message: String(data.message ?? 'Login failed') });
+                }
+              } catch {
+                // ignore malformed JSON
+              }
+              eventType = '';
+            }
+          }
+        }
+      })
+      .catch((err: unknown) => {
+        if ((err as DOMException)?.name === 'AbortError') return;
+        const message = err instanceof Error ? err.message : String(err);
+        setState({ phase: 'error', message });
+      });
+  }, [providerId]);
+
+  const handleLogout = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+
+    fetch(`/api/ai/providers/${providerId}/logout`, {
+      method: 'POST',
+      credentials: 'same-origin',
+    })
+      .then(() => setState({ phase: 'idle' }))
+      .catch(() => setState({ phase: 'idle' }));
+  }, [providerId]);
+
+  const handleCopyAndOpen = useCallback((url: string, code?: string) => {
+    if (code) {
+      void navigator.clipboard.writeText(code);
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, []);
+
+  if (state.phase === 'checking') {
+    return (
+      <div className={styles.subscriptionAuth}>
+        <div className={styles.subscriptionAuthStatus}>Checking...</div>
+      </div>
+    );
+  }
+
+  if (state.phase === 'authenticated') {
+    return (
+      <div className={styles.subscriptionAuthConnected}>
+        <div className={styles.subscriptionAuthStatus}>
+          <span className={styles.subscriptionAuthStatusConnected}>Connected</span>
+        </div>
+        <ProviderButton onPress={handleLogout} variant="danger" size="sm">
+          Logout
+        </ProviderButton>
+      </div>
+    );
+  }
+
+  if (state.phase === 'pending') {
+    return (
+      <div className={styles.subscriptionAuthPending}>
+        <div className={styles.subscriptionAuthStatus}>
+          {state.instructions && (
+            <div>
+              Code: <span className={styles.subscriptionAuthCode}>{state.instructions}</span>
+            </div>
+          )}
+          {state.progress && (
+            <div className={styles.subscriptionAuthProgress}>{state.progress}</div>
+          )}
+          {!state.progress && !state.instructions && (
+            <div className={styles.subscriptionAuthProgress}>Starting login...</div>
+          )}
+        </div>
+        <div className={styles.providerCardActions}>
+          {state.url && (
+            <ProviderButton
+              onPress={() => handleCopyAndOpen(state.url, state.instructions)}
+              variant="primary"
+              size="sm"
+            >
+              Copy Code &amp; Open
+            </ProviderButton>
+          )}
+          <ProviderButton onPress={handleLogout} variant="secondary" size="sm">
+            Cancel
+          </ProviderButton>
+        </div>
+      </div>
+    );
+  }
+
+  if (state.phase === 'error') {
+    return (
+      <div className={styles.subscriptionAuth}>
+        <div className={styles.subscriptionAuthStatus}>Error: {state.message}</div>
+        <ProviderButton onPress={handleLogin} variant="primary" size="sm">
+          Retry
+        </ProviderButton>
+      </div>
+    );
+  }
+
+  // idle
+  return (
+    <div className={styles.subscriptionAuth}>
+      <div className={styles.subscriptionAuthStatus}>Not connected</div>
+      <ProviderButton onPress={handleLogin} variant="primary" size="sm">
+        Login
+      </ProviderButton>
     </div>
   );
 }

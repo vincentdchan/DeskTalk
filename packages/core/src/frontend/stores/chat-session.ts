@@ -35,6 +35,9 @@ export interface AiProviderOption {
   label: string;
   configured: boolean;
   model: string;
+  models: string[];
+  authType: 'api-key' | 'subscription';
+  authenticated?: boolean;
 }
 
 export interface ChatSessionOption {

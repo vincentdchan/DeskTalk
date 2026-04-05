@@ -263,6 +263,60 @@
   width: 100%;
 }
 
+/* ── Subscription provider auth ──────────────────────────────────────── */
+
+.subscriptionAuth {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--dt-border);
+  border-radius: 8px;
+  background: var(--dt-surface);
+  grid-column: 1 / -1;
+}
+
+.subscriptionAuthConnected {
+  composes: subscriptionAuth;
+  border-color: color-mix(in oklab, var(--dt-success) 40%, var(--dt-border));
+  background: color-mix(in oklab, var(--dt-success) 6%, var(--dt-surface));
+}
+
+.subscriptionAuthPending {
+  composes: subscriptionAuth;
+  border-color: color-mix(in oklab, var(--dt-warning) 40%, var(--dt-border));
+  background: color-mix(in oklab, var(--dt-warning) 6%, var(--dt-surface));
+}
+
+.subscriptionAuthStatus {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.subscriptionAuthStatusConnected {
+  color: var(--dt-success);
+  font-weight: 500;
+}
+
+.subscriptionAuthCode {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--dt-surface-hover);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  user-select: all;
+}
+
+.subscriptionAuthProgress {
+  color: var(--dt-text-muted);
+  font-size: 12px;
+  font-style: italic;
+}
+
 .selectWrap {
   min-width: 120px;
 }

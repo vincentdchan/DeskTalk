@@ -32,6 +32,8 @@ export interface AiOnboardingProvider {
   apiKey: string;
   model: string;
   baseUrl: string;
+  /** Whether a subscription provider has been OAuth-authenticated. */
+  authenticated?: boolean;
 }
 
 export interface VoiceOnboardingProvider {
@@ -128,6 +130,7 @@ export interface OnboardingState {
   removeAiProvider: (provider: string) => void;
   setDefaultAiProvider: (provider: string) => void;
   updateAiProvider: (provider: string, field: keyof AiOnboardingProvider, value: string) => void;
+  setAiProviderAuthenticated: (provider: string, authenticated: boolean) => void;
   addVoiceProvider: (provider?: string) => void;
   removeVoiceProvider: (provider: string) => void;
   setDefaultVoiceProvider: (provider: string) => void;
@@ -222,6 +225,12 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
         item.provider === provider ? { ...item, [field]: value } : item,
       ),
     })),
+  setAiProviderAuthenticated: (provider, authenticated) =>
+    set((state) => ({
+      aiProviders: state.aiProviders.map((item) =>
+        item.provider === provider ? { ...item, authenticated } : item,
+      ),
+    })),
   addVoiceProvider: (provider = DEFAULT_VOICE_PROVIDER.provider) =>
     set((state) => {
       if (state.voiceProviders.some((item) => item.provider === provider)) {
@@ -308,10 +317,15 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
         apiKey: provider.apiKey.trim(),
         model: provider.model.trim(),
         baseUrl: provider.baseUrl.trim(),
+        authenticated: provider.authenticated,
       }));
       const hasAiConfig = trimmedAiProviders.some(
         (provider) =>
-          provider.apiKey || provider.model || provider.baseUrl || provider.provider !== 'openai',
+          provider.apiKey ||
+          provider.model ||
+          provider.baseUrl ||
+          provider.authenticated ||
+          provider.provider !== 'openai',
       );
 
       if (hasAiConfig) {

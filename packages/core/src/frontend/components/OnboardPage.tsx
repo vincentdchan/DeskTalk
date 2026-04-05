@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { httpClient } from '../http-client';
 import { DEFAULT_THEME_PREFERENCES } from '../theme';
 import styles from './OnboardPage.module.scss';
 import { useOnboarding, ONBOARD_STEPS, type OnboardStep } from '../stores/onboarding';
@@ -13,6 +14,11 @@ export interface OnboardPageProps {
   onAccentColorChange: (accentColor: string) => void;
 }
 
+interface AiProviderOption {
+  id: string;
+  models: string[];
+}
+
 const DEFAULT_LANGUAGE = 'en';
 
 const LANGUAGE_OPTIONS = [
@@ -22,15 +28,92 @@ const LANGUAGE_OPTIONS = [
 
 /** AI providers shown during onboarding. */
 const AI_PROVIDERS = [
-  { id: 'openai', label: 'OpenAI', supportsBaseUrl: true },
-  { id: 'anthropic', label: 'Anthropic', supportsBaseUrl: false },
-  { id: 'google', label: 'Google Gemini', supportsBaseUrl: false },
-  { id: 'azure-openai-responses', label: 'Azure OpenAI', supportsBaseUrl: true },
-  { id: 'mistral', label: 'Mistral', supportsBaseUrl: true },
-  { id: 'groq', label: 'Groq', supportsBaseUrl: true },
-  { id: 'xai', label: 'xAI', supportsBaseUrl: true },
-  { id: 'openrouter', label: 'OpenRouter', supportsBaseUrl: true },
-  { id: 'ollama', label: 'Ollama', supportsBaseUrl: true },
+  // Subscription (OAuth) providers
+  {
+    id: 'copilot',
+    label: 'GitHub Copilot',
+    authType: 'subscription' as const,
+    supportsBaseUrl: false,
+  },
+  {
+    id: 'openai-codex',
+    label: 'OpenAI Codex',
+    authType: 'subscription' as const,
+    supportsBaseUrl: false,
+  },
+  {
+    id: 'claude-pro',
+    label: 'Claude Pro/Max',
+    authType: 'subscription' as const,
+    supportsBaseUrl: false,
+  },
+  {
+    id: 'gemini-cli',
+    label: 'Google Gemini CLI',
+    authType: 'subscription' as const,
+    supportsBaseUrl: false,
+  },
+  {
+    id: 'google-antigravity',
+    label: 'Google Antigravity',
+    authType: 'subscription' as const,
+    supportsBaseUrl: false,
+  },
+  // API-key providers
+  {
+    id: 'openai',
+    label: 'OpenAI',
+    authType: 'api-key' as const,
+    supportsBaseUrl: true,
+  },
+  {
+    id: 'anthropic',
+    label: 'Anthropic',
+    authType: 'api-key' as const,
+    supportsBaseUrl: false,
+  },
+  {
+    id: 'google',
+    label: 'Google Gemini',
+    authType: 'api-key' as const,
+    supportsBaseUrl: false,
+  },
+  {
+    id: 'azure-openai-responses',
+    label: 'Azure OpenAI',
+    authType: 'api-key' as const,
+    supportsBaseUrl: true,
+  },
+  {
+    id: 'mistral',
+    label: 'Mistral',
+    authType: 'api-key' as const,
+    supportsBaseUrl: true,
+  },
+  {
+    id: 'groq',
+    label: 'Groq',
+    authType: 'api-key' as const,
+    supportsBaseUrl: true,
+  },
+  {
+    id: 'xai',
+    label: 'xAI',
+    authType: 'api-key' as const,
+    supportsBaseUrl: true,
+  },
+  {
+    id: 'openrouter',
+    label: 'OpenRouter',
+    authType: 'api-key' as const,
+    supportsBaseUrl: true,
+  },
+  {
+    id: 'ollama',
+    label: 'Ollama',
+    authType: 'api-key' as const,
+    supportsBaseUrl: true,
+  },
 ] as const;
 
 /** STT providers shown during onboarding. */
@@ -65,6 +148,7 @@ export function OnboardPage({
   onAccentColorChange,
 }: OnboardPageProps) {
   const store = useOnboarding();
+  const [providerOptions, setProviderOptions] = useState<AiProviderOption[]>([]);
   const backLabel = $localize`onboard.common.back:Back`;
   const nextLabel = $localize`onboard.common.next:Next`;
   const skipLabel = $localize`onboard.common.skip:Skip`;
@@ -76,6 +160,27 @@ export function OnboardPage({
   const addProviderLabel = $localize`onboard.common.addProvider:Add provider`;
   const modelOptionalLabel = $localize`onboard.common.modelOptional:Model (optional)`;
   const baseUrlOptionalLabel = $localize`onboard.common.baseUrlOptional:Base URL (optional)`;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void httpClient
+      .get<{ providers: AiProviderOption[] }>('/api/ai/providers')
+      .then(({ data }) => {
+        if (!cancelled) {
+          setProviderOptions(data.providers ?? []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProviderOptions([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (store.language === DEFAULT_LANGUAGE && locale !== store.language) {
@@ -286,6 +391,9 @@ export function OnboardPage({
               const selectedProvider = AI_PROVIDERS.find(
                 (provider) => provider.id === item.provider,
               );
+              const providerOption = providerOptions.find(
+                (provider) => provider.id === item.provider,
+              );
               const availableProviders = AI_PROVIDERS.filter(
                 (provider) =>
                   provider.id === item.provider ||
@@ -293,6 +401,14 @@ export function OnboardPage({
                     (configuredProvider) => configuredProvider.provider === provider.id,
                   ),
               );
+
+              const modelOptions = [
+                { value: '', label: 'Select model' },
+                ...(providerOption?.models ?? []).map((model) => ({ value: model, label: model })),
+              ];
+              if (item.model && !modelOptions.some((option) => option.value === item.model)) {
+                modelOptions.push({ value: item.model, label: `${item.model} (custom)` });
+              }
 
               return (
                 <div key={item.provider} className={styles.providerCard}>
@@ -347,43 +463,72 @@ export function OnboardPage({
                             }
                           />
                         </div>
-                        <div className={styles.field}>
-                          <label
-                            className={styles.label}
-                            htmlFor={`onboard-ai-apikey-${item.provider}`}
-                          >
-                            {apiKeyLabel}
-                          </label>
-                          <input
-                            id={`onboard-ai-apikey-${item.provider}`}
-                            className={styles.input}
-                            type="password"
-                            placeholder={$localize`onboard.ai.apiKeyPlaceholder:Enter your API key`}
-                            autoComplete="off"
-                            value={item.apiKey}
-                            onChange={(e) =>
-                              store.updateAiProvider(item.provider, 'apiKey', e.target.value)
+                        {selectedProvider?.authType === 'subscription' ? (
+                          <OnboardSubscriptionAuth
+                            providerId={item.provider}
+                            authenticated={item.authenticated ?? false}
+                            onAuthChange={(authenticated) =>
+                              store.setAiProviderAuthenticated(item.provider, authenticated)
                             }
                           />
-                        </div>
-                        <div className={styles.field}>
-                          <label
-                            className={styles.label}
-                            htmlFor={`onboard-ai-model-${item.provider}`}
-                          >
-                            {modelOptionalLabel}
-                          </label>
-                          <input
-                            id={`onboard-ai-model-${item.provider}`}
-                            className={styles.input}
-                            type="text"
-                            placeholder={$localize`onboard.ai.modelPlaceholder:e.g. gpt-4o`}
-                            value={item.model}
-                            onChange={(e) =>
-                              store.updateAiProvider(item.provider, 'model', e.target.value)
-                            }
-                          />
-                        </div>
+                        ) : (
+                          <div className={styles.field}>
+                            <label
+                              className={styles.label}
+                              htmlFor={`onboard-ai-apikey-${item.provider}`}
+                            >
+                              {apiKeyLabel}
+                            </label>
+                            <input
+                              id={`onboard-ai-apikey-${item.provider}`}
+                              className={styles.input}
+                              type="password"
+                              placeholder={$localize`onboard.ai.apiKeyPlaceholder:Enter your API key`}
+                              autoComplete="off"
+                              value={item.apiKey}
+                              onChange={(e) =>
+                                store.updateAiProvider(item.provider, 'apiKey', e.target.value)
+                              }
+                            />
+                          </div>
+                        )}
+                        {(providerOption?.models?.length ?? 0) > 0 ? (
+                          <div className={styles.field}>
+                            <label
+                              className={styles.label}
+                              htmlFor={`onboard-ai-model-${item.provider}`}
+                            >
+                              {modelOptionalLabel}
+                            </label>
+                            <OnboardSelect
+                              id={`onboard-ai-model-${item.provider}`}
+                              value={item.model}
+                              options={modelOptions}
+                              onChange={(nextValue) =>
+                                store.updateAiProvider(item.provider, 'model', nextValue)
+                              }
+                            />
+                          </div>
+                        ) : (
+                          <div className={styles.field}>
+                            <label
+                              className={styles.label}
+                              htmlFor={`onboard-ai-model-${item.provider}`}
+                            >
+                              {modelOptionalLabel}
+                            </label>
+                            <input
+                              id={`onboard-ai-model-${item.provider}`}
+                              className={styles.input}
+                              type="text"
+                              placeholder={$localize`onboard.ai.modelPlaceholder:e.g. gpt-4o`}
+                              value={item.model}
+                              onChange={(e) =>
+                                store.updateAiProvider(item.provider, 'model', e.target.value)
+                              }
+                            />
+                          </div>
+                        )}
                         {selectedProvider?.supportsBaseUrl && (
                           <div className={styles.field}>
                             <label
@@ -743,6 +888,204 @@ function OnboardSelect({ id, value, options, disabled = false, onChange }: Onboa
           void onChange(event.detail.value);
         }}
       />
+    </div>
+  );
+}
+
+// ── Subscription provider auth for onboarding ──────────────────────────
+
+type OnboardSubscriptionState =
+  | { phase: 'idle' }
+  | { phase: 'pending'; url: string; instructions?: string; progress?: string }
+  | { phase: 'authenticated' }
+  | { phase: 'error'; message: string };
+
+interface OnboardSubscriptionAuthProps {
+  providerId: string;
+  authenticated: boolean;
+  onAuthChange: (authenticated: boolean) => void;
+}
+
+function OnboardSubscriptionAuth({
+  providerId,
+  authenticated,
+  onAuthChange,
+}: OnboardSubscriptionAuthProps) {
+  const [state, setState] = useState<OnboardSubscriptionState>(
+    authenticated ? { phase: 'authenticated' } : { phase: 'idle' },
+  );
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Sync external authenticated prop
+  useEffect(() => {
+    if (authenticated && state.phase !== 'authenticated') {
+      setState({ phase: 'authenticated' });
+    }
+  }, [authenticated, state.phase]);
+
+  const handleLogin = useCallback(() => {
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setState({ phase: 'pending', url: '', instructions: undefined });
+
+    fetch(`/api/ai/providers/${providerId}/login`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        const reader = res.body?.getReader();
+        if (!reader) {
+          setState({ phase: 'error', message: 'No response stream' });
+          return;
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+
+          let eventType = '';
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              eventType = line.slice(7);
+            } else if (line.startsWith('data: ') && eventType) {
+              try {
+                const data = JSON.parse(line.slice(6)) as Record<string, unknown>;
+
+                if (eventType === 'auth') {
+                  setState((prev) => ({
+                    phase: 'pending',
+                    url: String(data.url ?? ''),
+                    instructions: data.instructions ? String(data.instructions) : undefined,
+                    progress: prev.phase === 'pending' ? prev.progress : undefined,
+                  }));
+                } else if (eventType === 'progress') {
+                  setState((prev) =>
+                    prev.phase === 'pending'
+                      ? { ...prev, progress: String(data.message ?? '') }
+                      : prev,
+                  );
+                } else if (eventType === 'done') {
+                  setState({ phase: 'authenticated' });
+                  onAuthChange(true);
+                } else if (eventType === 'error') {
+                  setState({
+                    phase: 'error',
+                    message: String(data.message ?? 'Login failed'),
+                  });
+                }
+              } catch {
+                // ignore malformed JSON
+              }
+              eventType = '';
+            }
+          }
+        }
+      })
+      .catch((err: unknown) => {
+        if ((err as DOMException)?.name === 'AbortError') return;
+        const message = err instanceof Error ? err.message : String(err);
+        setState({ phase: 'error', message });
+      });
+  }, [providerId, onAuthChange]);
+
+  const handleLogout = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+
+    fetch(`/api/ai/providers/${providerId}/logout`, {
+      method: 'POST',
+      credentials: 'same-origin',
+    })
+      .then(() => {
+        setState({ phase: 'idle' });
+        onAuthChange(false);
+      })
+      .catch(() => {
+        setState({ phase: 'idle' });
+        onAuthChange(false);
+      });
+  }, [providerId, onAuthChange]);
+
+  const handleCopyAndOpen = useCallback((url: string, code?: string) => {
+    if (code) {
+      void navigator.clipboard.writeText(code);
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, []);
+
+  if (state.phase === 'authenticated') {
+    return (
+      <div className={styles.subscriptionAuthConnected}>
+        <span className={styles.subscriptionAuthStatusConnected}>Connected</span>
+        <dt-button onClick={handleLogout} variant="danger" size="sm">
+          Logout
+        </dt-button>
+      </div>
+    );
+  }
+
+  if (state.phase === 'pending') {
+    return (
+      <div className={styles.subscriptionAuthPending}>
+        <div className={styles.subscriptionAuthStatus}>
+          {state.instructions && (
+            <div>
+              Code: <span className={styles.subscriptionAuthCode}>{state.instructions}</span>
+            </div>
+          )}
+          {state.progress && (
+            <div className={styles.subscriptionAuthProgress}>{state.progress}</div>
+          )}
+          {!state.progress && !state.instructions && (
+            <div className={styles.subscriptionAuthProgress}>Starting login...</div>
+          )}
+        </div>
+        <div className={styles.providerCardActions}>
+          {state.url && (
+            <dt-button
+              onClick={() => handleCopyAndOpen(state.url, state.instructions)}
+              variant="primary"
+              size="sm"
+            >
+              Copy Code &amp; Open
+            </dt-button>
+          )}
+          <dt-button onClick={handleLogout} variant="secondary" size="sm">
+            Cancel
+          </dt-button>
+        </div>
+      </div>
+    );
+  }
+
+  if (state.phase === 'error') {
+    return (
+      <div className={styles.subscriptionAuth}>
+        <span className={styles.subscriptionAuthError}>Error: {state.message}</span>
+        <dt-button onClick={handleLogin} variant="primary" size="sm">
+          Retry
+        </dt-button>
+      </div>
+    );
+  }
+
+  // idle
+  return (
+    <div className={styles.subscriptionAuth}>
+      <span>Not connected</span>
+      <dt-button onClick={handleLogin} variant="primary" size="sm">
+        Login
+      </dt-button>
     </div>
   );
 }

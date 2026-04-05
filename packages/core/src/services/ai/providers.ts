@@ -1,6 +1,9 @@
+export type AiProviderAuthType = 'api-key' | 'subscription';
+
 export interface AiProviderDefinition {
   id: string;
   label: string;
+  authType: AiProviderAuthType;
   supportsApiKey: boolean;
   supportsBaseUrl: boolean;
 }
@@ -15,64 +18,151 @@ export interface AiProviderPreferences {
 export const AI_DEFAULT_PROVIDER = 'openai';
 
 export const AI_PROVIDER_DEFINITIONS: AiProviderDefinition[] = [
-  { id: 'anthropic', label: 'Anthropic', supportsApiKey: true, supportsBaseUrl: false },
+  // ─── Subscription (OAuth) providers ────────────────────────────────────
+  {
+    id: 'copilot',
+    label: 'GitHub Copilot',
+    authType: 'subscription',
+    supportsApiKey: false,
+    supportsBaseUrl: false,
+  },
+  {
+    id: 'openai-codex',
+    label: 'OpenAI Codex',
+    authType: 'subscription',
+    supportsApiKey: false,
+    supportsBaseUrl: false,
+  },
+  {
+    id: 'claude-pro',
+    label: 'Claude Pro/Max',
+    authType: 'subscription',
+    supportsApiKey: false,
+    supportsBaseUrl: false,
+  },
+  {
+    id: 'gemini-cli',
+    label: 'Google Gemini CLI',
+    authType: 'subscription',
+    supportsApiKey: false,
+    supportsBaseUrl: false,
+  },
+  {
+    id: 'google-antigravity',
+    label: 'Google Antigravity',
+    authType: 'subscription',
+    supportsApiKey: false,
+    supportsBaseUrl: false,
+  },
+  // ─── API-key providers ─────────────────────────────────────────────────
+  {
+    id: 'anthropic',
+    label: 'Anthropic',
+    authType: 'api-key',
+    supportsApiKey: true,
+    supportsBaseUrl: false,
+  },
   {
     id: 'azure-openai-responses',
     label: 'Azure OpenAI',
+    authType: 'api-key',
     supportsApiKey: true,
     supportsBaseUrl: true,
   },
-  { id: 'openai', label: 'OpenAI', supportsApiKey: true, supportsBaseUrl: true },
-  { id: 'google', label: 'Google Gemini', supportsApiKey: true, supportsBaseUrl: false },
+  {
+    id: 'openai',
+    label: 'OpenAI',
+    authType: 'api-key',
+    supportsApiKey: true,
+    supportsBaseUrl: true,
+  },
+  {
+    id: 'google',
+    label: 'Google Gemini',
+    authType: 'api-key',
+    supportsApiKey: true,
+    supportsBaseUrl: false,
+  },
   {
     id: 'mistral',
     label: 'Mistral',
+    authType: 'api-key',
     supportsApiKey: true,
     supportsBaseUrl: true,
   },
-  { id: 'groq', label: 'Groq', supportsApiKey: true, supportsBaseUrl: true },
+  { id: 'groq', label: 'Groq', authType: 'api-key', supportsApiKey: true, supportsBaseUrl: true },
   {
     id: 'cerebras',
     label: 'Cerebras',
+    authType: 'api-key',
     supportsApiKey: true,
     supportsBaseUrl: true,
   },
-  { id: 'xai', label: 'xAI', supportsApiKey: true, supportsBaseUrl: true },
+  { id: 'xai', label: 'xAI', authType: 'api-key', supportsApiKey: true, supportsBaseUrl: true },
   {
     id: 'openrouter',
     label: 'OpenRouter',
+    authType: 'api-key',
     supportsApiKey: true,
     supportsBaseUrl: true,
   },
   {
     id: 'vercel-ai-gateway',
     label: 'Vercel AI Gateway',
+    authType: 'api-key',
     supportsApiKey: true,
     supportsBaseUrl: true,
   },
-  { id: 'zai', label: 'ZAI', supportsApiKey: true, supportsBaseUrl: false },
-  { id: 'opencode', label: 'OpenCode Zen', supportsApiKey: true, supportsBaseUrl: false },
-  { id: 'opencode-go', label: 'OpenCode Go', supportsApiKey: true, supportsBaseUrl: false },
+  { id: 'zai', label: 'ZAI', authType: 'api-key', supportsApiKey: true, supportsBaseUrl: false },
+  {
+    id: 'opencode',
+    label: 'OpenCode Zen',
+    authType: 'api-key',
+    supportsApiKey: true,
+    supportsBaseUrl: false,
+  },
+  {
+    id: 'opencode-go',
+    label: 'OpenCode Go',
+    authType: 'api-key',
+    supportsApiKey: true,
+    supportsBaseUrl: false,
+  },
   {
     id: 'huggingface',
     label: 'Hugging Face',
+    authType: 'api-key',
     supportsApiKey: true,
     supportsBaseUrl: true,
   },
   {
     id: 'kimi-coding',
     label: 'Kimi For Coding',
+    authType: 'api-key',
     supportsApiKey: true,
     supportsBaseUrl: false,
   },
-  { id: 'minimax', label: 'MiniMax', supportsApiKey: true, supportsBaseUrl: false },
+  {
+    id: 'minimax',
+    label: 'MiniMax',
+    authType: 'api-key',
+    supportsApiKey: true,
+    supportsBaseUrl: false,
+  },
   {
     id: 'minimax-cn',
     label: 'MiniMax China',
+    authType: 'api-key',
     supportsApiKey: true,
     supportsBaseUrl: false,
   },
-  { id: 'ollama', label: 'Ollama', supportsApiKey: false, supportsBaseUrl: true },
+  {
+    id: 'ollama',
+    label: 'Ollama',
+    authType: 'api-key',
+    supportsApiKey: false,
+    supportsBaseUrl: true,
+  },
 ];
 
 export type PreferenceReader = (key: string) => Promise<string | number | boolean | undefined>;
@@ -86,6 +176,15 @@ export function getAiProviderPreferenceKey(
 
 export function isKnownAiProvider(provider: string): boolean {
   return AI_PROVIDER_DEFINITIONS.some((entry) => entry.id === provider);
+}
+
+export function getAiProviderDefinition(provider: string): AiProviderDefinition | undefined {
+  return AI_PROVIDER_DEFINITIONS.find((entry) => entry.id === provider);
+}
+
+export function isSubscriptionProvider(provider: string): boolean {
+  const definition = getAiProviderDefinition(provider);
+  return definition?.authType === 'subscription';
 }
 
 export async function getDefaultAiProvider(getPreference: PreferenceReader): Promise<string> {

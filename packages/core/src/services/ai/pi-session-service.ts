@@ -17,6 +17,7 @@ import {
   type SessionInfo,
   type ToolDefinition,
 } from '@mariozechner/pi-coding-agent';
+import type { OAuthLoginCallbacks } from '@mariozechner/pi-ai';
 import { createDesktopTool, type SendAiCommand } from './desktop-tool';
 import { createLayoutTool } from './layout-tool';
 import { createActionTool } from './action-tool';
@@ -37,6 +38,7 @@ import {
   getAiProviderPreferences,
   getAllAiProviderPreferences,
   getDefaultAiProvider,
+  type AiProviderAuthType,
   type PreferenceReader,
 } from './providers';
 import type { WindowManagerService } from '../window-manager';
@@ -90,6 +92,9 @@ export interface AiProviderOption {
   label: string;
   configured: boolean;
   model: string;
+  models: string[];
+  authType: AiProviderAuthType;
+  authenticated?: boolean;
 }
 
 export interface ChatSessionSummary {
@@ -957,27 +962,66 @@ export class PiSessionService {
     await this.syncProviderCredentials();
 
     const defaultProvider = await getDefaultAiProvider(this.getPreference);
+    const modelsByProvider = new Map<string, string[]>();
     const availableByProvider = new Set(
       this.modelRegistry.getAvailable().map((model) => model.provider),
     );
+    for (const model of this.modelRegistry.getAll()) {
+      const current = modelsByProvider.get(model.provider) ?? [];
+      if (!current.includes(model.id)) {
+        current.push(model.id);
+        modelsByProvider.set(model.provider, current);
+      }
+    }
     const configuredProviders = await getAllAiProviderPreferences(this.getPreference);
 
     return {
       defaultProvider,
       providers: AI_PROVIDER_DEFINITIONS.map((provider) => {
         const config = configuredProviders.find((entry) => entry.provider === provider.id);
+        const isSubscription = provider.authType === 'subscription';
+        const hasOAuth = isSubscription && this.authStorage.hasAuth(provider.id);
+
         return {
           id: provider.id,
           label: provider.label,
+          authType: provider.authType,
           configured:
+            hasOAuth ||
             availableByProvider.has(provider.id) ||
             Boolean(config?.model.trim()) ||
             Boolean(config?.apiKey.trim()) ||
             Boolean(config?.baseUrl.trim()),
           model: config?.model ?? '',
+          models: modelsByProvider.get(provider.id) ?? [],
+          ...(isSubscription ? { authenticated: hasOAuth } : {}),
         };
       }),
     };
+  }
+
+  /**
+   * Start an OAuth device-code login flow for a subscription provider.
+   *
+   * The caller supplies `OAuthLoginCallbacks` so the UI can display the
+   * verification URL / user code and react to progress events.
+   */
+  async loginProvider(providerId: string, callbacks: OAuthLoginCallbacks): Promise<void> {
+    await this.authStorage.login(providerId, callbacks);
+  }
+
+  /**
+   * Log out of a subscription provider (removes persisted OAuth credentials).
+   */
+  logoutProvider(providerId: string): void {
+    this.authStorage.logout(providerId);
+  }
+
+  /**
+   * Check whether a subscription provider currently has valid auth credentials.
+   */
+  getProviderAuthStatus(providerId: string): boolean {
+    return this.authStorage.hasAuth(providerId);
   }
 
   private async syncProviderCredentials(): Promise<void> {

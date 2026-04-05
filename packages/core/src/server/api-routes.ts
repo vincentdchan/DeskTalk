@@ -259,6 +259,63 @@ export async function apiRoutes(app: FastifyInstance, options: ApiRoutesOptions)
     return options.piSessionService.getProviderOptions();
   });
 
+  // ── Subscription provider auth routes ────────────────────────────────
+
+  /**
+   * Start an OAuth device-code login flow for a subscription provider.
+   *
+   * Streams Server-Sent Events back to the caller:
+   *   event: auth     – { url, instructions? }  (verification URL + user code)
+   *   event: progress – { message }
+   *   event: done     – {}                        (login succeeded)
+   *   event: error    – { message }
+   */
+  app.post<{ Params: { id: string } }>('/api/ai/providers/:id/login', async (req, reply) => {
+    const providerId = req.params.id;
+
+    reply.raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    });
+
+    const send = (event: string, data: Record<string, unknown>) => {
+      reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    try {
+      await options.piSessionService.loginProvider(providerId, {
+        onAuth(info) {
+          send('auth', { url: info.url, instructions: info.instructions });
+        },
+        onPrompt() {
+          // Device-code flows handled by the UI don't need interactive
+          // prompts — return empty string so the flow continues.
+          return Promise.resolve('');
+        },
+        onProgress(message) {
+          send('progress', { message });
+        },
+      });
+
+      send('done', {});
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      send('error', { message });
+    } finally {
+      reply.raw.end();
+    }
+  });
+
+  app.post<{ Params: { id: string } }>('/api/ai/providers/:id/logout', async (req) => {
+    options.piSessionService.logoutProvider(req.params.id);
+    return { ok: true };
+  });
+
+  app.get<{ Params: { id: string } }>('/api/ai/providers/:id/auth-status', async (req) => {
+    return { authenticated: options.piSessionService.getProviderAuthStatus(req.params.id) };
+  });
+
   app.get<{ Querystring: { locale?: string } }>('/api/i18n/catalog', async (req) => {
     const locale = String(req.query.locale ?? getStoredPreference('general.language') ?? 'en');
     const packages = [
