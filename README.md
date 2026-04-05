@@ -1,3 +1,7 @@
+
+![NPM Version](https://img.shields.io/npm/v/%40desktalk%2Fcore)
+
+
 # DeskTalk
 
 An AI-native desktop environment that runs in your browser.
@@ -9,8 +13,8 @@ An AI-native desktop environment that runs in your browser.
 
 DeskTalk is an experiment in building an operating system designed for AI from the ground up. Instead of bolting AI onto traditional apps, every piece of the system is built to work with AI natively — while still being fully visible and usable by you.
 
-<!-- screenshot -->
-<!-- ![Screenshot](link-to-screenshot) -->
+<img width="3838" height="1634" alt="tail-based-desktop" src="https://github.com/user-attachments/assets/0d7daf0b-145b-4251-bea0-490a14a5d3d2" />
+
 
 ## Goals
 
