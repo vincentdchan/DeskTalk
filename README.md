@@ -46,11 +46,19 @@ desktalk start --host 0.0.0.0 --port 8080
 
 ### Docker
 
-Build the image from the repository root:
+Pull the published image from GitHub Container Registry:
 
 ```bash
-docker build -t desktalk .
+docker pull ghcr.io/vincentdchan/desktalk:latest
 ```
+
+Available tags are published from GitHub releases:
+
+- `latest` for stable releases
+- `<version>` such as `0.1.0`
+- `alpha` for `*-alpha.*` releases
+- `beta` for `*-beta.*` releases
+- `next` for `*-rc.*` releases
 
 Then run it with persistent volumes for DeskTalk data and config:
 
@@ -58,7 +66,7 @@ Then run it with persistent volumes for DeskTalk data and config:
 docker run -p 3000:3000 \
   -v desktalk-data:/home/node/.local/share/desktalk \
   -v desktalk-config:/home/node/.config/desktalk \
-  desktalk
+  ghcr.io/vincentdchan/desktalk:latest
 ```
 
 Open `http://localhost:3000` in your browser after the container starts.
@@ -74,7 +82,13 @@ If you want to use a different port on the host:
 docker run -p 8080:3000 \
   -v desktalk-data:/home/node/.local/share/desktalk \
   -v desktalk-config:/home/node/.config/desktalk \
-  desktalk
+  ghcr.io/vincentdchan/desktalk:latest
+```
+
+If you want to build the image locally instead:
+
+```bash
+docker build -t desktalk .
 ```
 
 <!-- getting started video -->
