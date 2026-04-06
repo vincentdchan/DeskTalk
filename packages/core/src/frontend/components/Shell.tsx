@@ -15,6 +15,7 @@ import { CompactInfoPanel } from './CompactInfoPanel';
 import { WindowChrome } from './WindowChrome';
 import { useWebSocket } from './useWebSocket';
 import { TilingTreeView } from './TilingTreeView';
+import { WelcomePanel } from './WelcomePanel';
 import { useBridgeState } from './useBridgeState';
 import { useWindowSync } from './useWindowSync';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
@@ -314,13 +315,15 @@ export function Shell({ themePreferences }: { themePreferences: ThemePreferences
       <div className={styles.content} style={shellLayoutStyle}>
         <div ref={desktopRef} className={styles.desktop}>
           {wsReady
-            ? tree && (
-                <TilingTreeView
-                  windowsById={windowsById}
-                  themePreferences={themePreferences}
-                  canDrag={tree.type === 'container'}
-                />
-              )
+            ? tree
+              ? (
+                  <TilingTreeView
+                    windowsById={windowsById}
+                    themePreferences={themePreferences}
+                    canDrag={tree.type === 'container'}
+                  />
+                )
+              : <WelcomePanel socket={socket} />
             : null}
           {isDragging && <DropZoneOverlay desktopRef={desktopRef} />}
         </div>
