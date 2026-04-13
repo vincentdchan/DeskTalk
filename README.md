@@ -4,6 +4,8 @@
 
 # DeskTalk
 
+<a href="./README_CN.md">中文版</a>
+
 An AI-native desktop environment that runs in your browser.
 
 <!-- demo video -->
