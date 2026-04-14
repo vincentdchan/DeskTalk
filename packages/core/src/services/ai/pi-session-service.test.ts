@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AssistantMessage, ToolCall } from '@mariozechner/pi-ai';
 import { PiSessionService, scrubHtmlToolCallArgs, summarizeHtml } from './pi-session-service';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('summarizeHtml', () => {
   it('summarizes title, card count, and headings', () => {
@@ -231,5 +235,37 @@ describe('PiSessionService.getProviderOptions', () => {
       model: '',
       resolvedModel: 'gpt-4o',
     });
+  });
+});
+
+describe('pi thinking defaults', () => {
+  it('reapplies thinking off when syncing provider preferences', async () => {
+    const targetModel = { provider: 'openai', id: 'gpt-5' };
+    const setModel = vi.fn();
+    const setThinkingLevel = vi.fn();
+
+    await PiSessionService.prototype['syncPreferences'].call({
+      resourceLoader: { reload: async () => {} },
+      syncProviderCredentials: async () => {},
+      getPreference: async (key: string) => {
+        if (key === 'ai.defaultProvider') {
+          return 'openai';
+        }
+        return undefined;
+      },
+      modelRegistry: {
+        find: (provider: string, model: string) =>
+          provider === 'openai' && model === 'gpt-5' ? targetModel : undefined,
+        getAvailable: () => [targetModel],
+      },
+      session: {
+        model: { provider: 'openai', id: 'gpt-4o' },
+        setModel,
+        setThinkingLevel,
+      },
+    });
+
+    expect(setModel).toHaveBeenCalledWith(targetModel);
+    expect(setThinkingLevel).toHaveBeenCalledWith('off');
   });
 });
