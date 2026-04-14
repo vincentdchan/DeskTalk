@@ -14,6 +14,7 @@ import {
   SessionManager,
   type AgentSession,
   type AgentSessionEvent,
+  type CreateAgentSessionOptions,
   type SessionInfo,
   type ToolDefinition,
 } from '@mariozechner/pi-coding-agent';
@@ -154,6 +155,23 @@ type BasicToolResultMessage = {
   content: Array<{ type?: string; text?: string }>;
   timestamp: number;
 };
+
+const DESKTALK_PI_THINKING_LEVEL = 'off' as const;
+
+function disableSessionThinking(session: Pick<AgentSession, 'setThinkingLevel'>): void {
+  session.setThinkingLevel(DESKTALK_PI_THINKING_LEVEL);
+}
+
+export async function createDeskTalkAgentSession(
+  options: CreateAgentSessionOptions,
+): Promise<AgentSession> {
+  const { session } = await createAgentSession({
+    ...options,
+    thinkingLevel: DESKTALK_PI_THINKING_LEVEL,
+  });
+  disableSessionThinking(session);
+  return session;
+}
 
 function isUserMessage(message: BasicAgentMessage): message is BasicUserMessage {
   return message.role === 'user';
@@ -697,7 +715,7 @@ export class PiSessionService {
       }),
     ];
 
-    const { session } = await createAgentSession({
+    const session = await createDeskTalkAgentSession({
       cwd: process.cwd(),
       authStorage,
       modelRegistry,
@@ -731,7 +749,7 @@ export class PiSessionService {
   }
 
   private async createSessionWithManager(sessionManager: SessionManager): Promise<AgentSession> {
-    const { session } = await createAgentSession({
+    const session = await createDeskTalkAgentSession({
       cwd: this.cwd,
       authStorage: this.authStorage,
       modelRegistry: this.modelRegistry,
@@ -1088,6 +1106,8 @@ export class PiSessionService {
     ) {
       await this.session.setModel(targetModel);
     }
+
+    disableSessionThinking(this.session);
   }
 
   private saveMessageMetadata(
