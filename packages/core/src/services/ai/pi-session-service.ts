@@ -165,10 +165,7 @@ function disableSessionThinking(session: Pick<AgentSession, 'setThinkingLevel'>)
 async function createDeskTalkAgentSession(
   options: CreateAgentSessionOptions,
 ): Promise<AgentSession> {
-  const { session } = await createAgentSession({
-    ...options,
-    thinkingLevel: DESKTALK_PI_THINKING_LEVEL,
-  });
+  const { session } = await createAgentSession(options);
   disableSessionThinking(session);
   return session;
 }
