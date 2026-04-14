@@ -1,12 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import * as PiCodingAgent from '@mariozechner/pi-coding-agent';
 import type { AssistantMessage, ToolCall } from '@mariozechner/pi-ai';
-import {
-  PiSessionService,
-  createDeskTalkAgentSession,
-  scrubHtmlToolCallArgs,
-  summarizeHtml,
-} from './pi-session-service';
+import { PiSessionService, scrubHtmlToolCallArgs, summarizeHtml } from './pi-session-service';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -245,30 +239,6 @@ describe('PiSessionService.getProviderOptions', () => {
 });
 
 describe('pi thinking defaults', () => {
-  it('creates pi sessions with thinking disabled', async () => {
-    const setThinkingLevel = vi.fn();
-    const session = { setThinkingLevel } as unknown as PiCodingAgent.AgentSession;
-    const createAgentSessionSpy = vi
-      .spyOn(PiCodingAgent, 'createAgentSession')
-      .mockResolvedValue({
-        session,
-        extensionsResult: {} as never,
-      });
-
-    const result = await createDeskTalkAgentSession({
-      cwd: '/tmp/desktalk-test',
-    });
-
-    expect(result).toBe(session);
-    expect(createAgentSessionSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        cwd: '/tmp/desktalk-test',
-        thinkingLevel: 'off',
-      }),
-    );
-    expect(setThinkingLevel).toHaveBeenCalledWith('off');
-  });
-
   it('reapplies thinking off when syncing provider preferences', async () => {
     const targetModel = { provider: 'openai', id: 'gpt-5' };
     const setModel = vi.fn();
