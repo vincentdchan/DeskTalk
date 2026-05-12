@@ -1,6 +1,6 @@
 import { StringEnum } from '@mariozechner/pi-ai';
 import type { ToolDefinition } from '@mariozechner/pi-coding-agent';
-import { Type } from '@sinclair/typebox';
+import { Type } from 'typebox';
 import type { SendAiCommand } from './desktop-tool';
 
 const layoutSchema = Type.Object({

@@ -1,5 +1,5 @@
 import type { ToolDefinition } from '@mariozechner/pi-coding-agent';
-import { Type } from '@sinclair/typebox';
+import { Type } from 'typebox';
 import type { WindowManagerService } from '../window-manager';
 
 const actionSchema = Type.Object({

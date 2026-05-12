@@ -567,7 +567,7 @@ Pi sessions are stored as JSONL files in `<data>/ai-sessions/`. Pi's `SessionMan
 | Package                         | Purpose                                                                                 |
 | ------------------------------- | --------------------------------------------------------------------------------------- |
 | `@mariozechner/pi-coding-agent` | SDK entry point: `createAgentSession`, `AuthStorage`, `ModelRegistry`, `SessionManager` |
-| `@sinclair/typebox`             | JSON Schema definitions for custom tool parameters (peer dependency of pi)              |
+| `typebox`                       | JSON Schema definitions for custom tool parameters (peer dependency of pi)              |
 | `better-sqlite3`                | Synchronous SQLite driver for LiveApp collection query cache                            |
 
 ## Engineering Guidelines

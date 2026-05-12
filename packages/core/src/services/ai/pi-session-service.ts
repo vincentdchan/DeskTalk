@@ -5,12 +5,6 @@ import {
   createAgentSession,
   DefaultResourceLoader,
   ModelRegistry,
-  readTool,
-  writeTool,
-  bashTool,
-  grepTool,
-  findTool,
-  lsTool,
   SessionManager,
   type AgentSession,
   type AgentSessionEvent,
@@ -539,7 +533,7 @@ export class PiSessionService {
     logger: pino.Logger,
   ): Promise<PiSessionService> {
     const authStorage = AuthStorage.create(join(workspacePaths.config, 'pi-auth.json'));
-    const modelRegistry = new ModelRegistry(authStorage);
+    const modelRegistry = ModelRegistry.create(authStorage);
     const sessionDir = join(workspacePaths.data, 'ai-sessions');
     mkdirSync(sessionDir, { recursive: true });
 
@@ -571,6 +565,7 @@ export class PiSessionService {
 
     const resourceLoader = new DefaultResourceLoader({
       cwd: process.cwd(),
+      agentDir: workspacePaths.config,
       additionalSkillPaths: [join(workspacePaths.data, 'skills')],
       appendSystemPromptOverride: (base) => [...base, DESKTALK_SYSTEM_PROMPT],
     });
@@ -703,7 +698,7 @@ export class PiSessionService {
       modelRegistry,
       model: initialModel,
       sessionManager,
-      tools: [readTool, writeTool, bashTool, grepTool, findTool, lsTool],
+      tools: ['read', 'write', 'bash', 'grep', 'find', 'ls'],
       customTools,
       resourceLoader,
     });
@@ -737,7 +732,7 @@ export class PiSessionService {
       modelRegistry: this.modelRegistry,
       model: this.session.model,
       sessionManager,
-      tools: [readTool, writeTool, bashTool, grepTool, findTool, lsTool],
+      tools: ['read', 'write', 'bash', 'grep', 'find', 'ls'],
       customTools: this.customTools,
       resourceLoader: this.resourceLoader,
     });
