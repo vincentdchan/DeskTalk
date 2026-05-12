@@ -1,5 +1,5 @@
 import type { ToolDefinition } from '@mariozechner/pi-coding-agent';
-import { Type } from '@sinclair/typebox';
+import { Type } from 'typebox';
 
 export type AskUserQuestionType = 'text' | 'select' | 'multi_select' | 'confirm';
 

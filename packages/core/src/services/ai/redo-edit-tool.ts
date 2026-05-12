@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import type { ToolDefinition } from '@mariozechner/pi-coding-agent';
-import { Type } from '@sinclair/typebox';
+import { Type } from 'typebox';
 import { broadcastEvent } from '../messaging';
 import { EditHistory, type ManagedPathResolver } from './edit-history';
 

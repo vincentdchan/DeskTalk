@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ToolDefinition } from '@mariozechner/pi-coding-agent';
-import { Type } from '@sinclair/typebox';
+import { Type } from 'typebox';
 import { MANUAL_PAGES, MANUAL_PAGE_MAP, type ManualPageMeta } from './manual-pages/index';
 
 const readManualSchema = Type.Object({
